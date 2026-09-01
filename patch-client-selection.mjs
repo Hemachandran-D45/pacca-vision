@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+const auth='/home/ubuntu/pacca-vision/client/src/components/MockAuth.tsx';
+let a=fs.readFileSync(auth,'utf8');
+a=a.replace('<div className="mt-6 border-t border-slate-100 pt-5"><button onClick={() => setShowDemo(!showDemo)}', '{entryMode === "client" && <div className="mt-6 border-t border-slate-100 pt-5"><button onClick={() => setShowDemo(!showDemo)}');
+a=a.replace('</div>}</div><div className="mt-5 flex items-center justify-center', '</div>}</div>}<div className="mt-5 flex items-center justify-center');
+fs.writeFileSync(auth,a);
+const home='/home/ubuntu/pacca-vision/client/src/pages/Home.tsx';
+let h=fs.readFileSync(home,'utf8');
+h=h.replace('import { AccessDenied, demoAllowedPaths, LoginScreen, SkeletonPage }', 'import { AccessDenied, demoAllowedPaths, LoginScreen, SkeletonPage }');
+h=h.replace('function CentralAdminPortal({ user, onLogout, onClientWorkspace }: { user: MockUser; onLogout: () => void; onClientWorkspace: () => void })', 'function CentralAdminPortal({ user, onLogout, onClientWorkspace }: { user: MockUser; onLogout: () => void; onClientWorkspace: (client?: string) => void })');
+h=h.replace('onClick={() => toast(`${name} overview opened`)}', 'onClick={() => name === "Client 1" ? onClientWorkspace("Client 1") : toast(`${name} overview opened`)}');
+h=h.replace('onClientWorkspace={() => { setUser(null); navigate("/"); }}', 'onClientWorkspace={(client) => { if (client === "Client 1") setUser({ ...user, name: "PACCA Admin · Client 1", tenant: "Client 1", tenantCode: "CLIENT1", experience: "client" }); else { setUser(null); navigate("/"); } }}');
+fs.writeFileSync(home,h);
+console.log('central client selection wired');

@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const auth='/home/ubuntu/pacca-vision/client/src/components/MockAuth.tsx';
+let a=fs.readFileSync(auth,'utf8');
+a=a.replace(/<div className="mt-10 grid grid-cols-2 gap-3">\{\[\["4,812"[\s\S]*?<\/div>\}\<\/div>/, '');
+fs.writeFileSync(auth,a);
+const home='/home/ubuntu/pacca-vision/client/src/pages/Home.tsx';
+let h=fs.readFileSync(home,'utf8');
+h=h.replace('<div className="flex items-center gap-2 sm:gap-3"><label className="hidden', '<div className="flex items-center gap-2 sm:gap-3"><div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex"><span className="font-bold text-[#142b4b]">{user.tenant}</span><span className="text-slate-300">/</span><span className="text-slate-500">Client Workspace</span><span className="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">Production</span></div><label className="hidden');
+fs.writeFileSync(home,h);
+console.log('login metrics removed and workspace context added');

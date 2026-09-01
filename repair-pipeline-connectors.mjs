@@ -1,0 +1,7 @@
+import fs from 'node:fs';
+const path='/home/ubuntu/pacca-vision/client/src/pages/Home.tsx';
+let text=fs.readFileSync(path,'utf8');
+text=text.replace('const nodes = [["Document intake", "Source connector", Inbox, "blue"], ["Preprocess", "OCR & cleanup", WandSparkles, "purple"], ["Understand", "Classification", BrainCircuit, "teal"], ["Extract metadata", "Schema mapping", Columns3, "amber"], ["Validate", "Rules engine", ShieldCheck, "green"], ["Deliver", "PACCA final metadata", Send, "blue"]] as const;', 'const nodes = [["Document Intake", "Receive documents from configured source", Inbox, "blue"], ["Preprocess", "PACCA Standard", WandSparkles, "purple"], ["Understand / Classify", "PACCA Document Understanding", BrainCircuit, "teal"], ["Extract", "Uses Invoice Metadata v1.0", Columns3, "amber"], ["Validate", "Uses Invoice Validation Rules v1.0", ShieldCheck, "green"], ["HIL", "Conditional · confidence / validation exceptions", UserRound, "red"], ["Deliver", "Send final metadata to configured destination", Send, "blue"]] as const;');
+text=text.replace('<div key={title} className="relative flex items-center gap-4"><div className="absolute left-[26px]', '<button type="button" onClick={() => setSelectedNodeIndex(index)} className={cn("relative flex w-full items-center gap-4 rounded-2xl text-left transition", selectedNodeIndex === index ? "bg-blue-50/60" : "hover:bg-white/60")}><div className="absolute left-[26px]');
+fs.writeFileSync(path,text);
+console.log('Pipeline Studio JSX repaired');
