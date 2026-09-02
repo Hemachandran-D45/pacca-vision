@@ -1,10 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-
-// Re-export the Express server logic adapted for Vercel
-// Copy relevant logic from server/index.ts here
+import { createSolution } from "../server/solutionsApi";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -13,11 +10,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  // TODO: Add your backend API routes here
-  // Example:
-  // const { pathname } = new URL(req.url, "http://localhost");
-  // if (pathname === "/api/some-endpoint") { ... }
+  const pathname = new URL(req.url || "/", "http://localhost").pathname;
+  if (req.method === "POST" && (pathname === "/api/solutions" || pathname === "/solutions")) {
+    const result = await createSolution(req.body);
+    return res.status(result.status).json(result.body);
+  }
 
-  // For now, return 404 for unknown routes
-  res.status(404).json({ message: "Not found" });
+  return res.status(404).json({ message: "Not found" });
 }

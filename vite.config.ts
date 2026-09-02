@@ -3,8 +3,9 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin, type ViteDevServer } from "vite";
+import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { createSolution } from "./server/solutionsApi";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -150,6 +151,71 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+function vitePluginSolutionsApi(): Plugin {
+  return {
+    name: "pacca-solutions-api",
+    configureServer(server: ViteDevServer) {
+      const env = loadEnv(server.config.mode, PROJECT_ROOT, "");
+      for (const [key, value] of Object.entries(env)) {
+        if (
+          (key.startsWith("GITHUB_") ||
+            key.startsWith("OPENAI_") ||
+            key.startsWith("LLM_") ||
+            key.startsWith("SOLUTION_")) &&
+          process.env[key] === undefined
+        ) {
+          process.env[key] = value;
+        }
+      }
+
+      server.middlewares.use("/api/solutions", (req, res, next) => {
+        if (req.method !== "POST") {
+          return next();
+        }
+
+        const send = async (payload: unknown) => {
+          const result = await createSolution(payload);
+          res.writeHead(result.status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result.body));
+        };
+
+        const reqBody = (req as { body?: unknown }).body;
+        if (reqBody && typeof reqBody === "object") {
+          void send(reqBody).catch((error) => {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: String(error) }));
+          });
+          return;
+        }
+
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+          if (body.length > 300 * 1024) {
+            res.writeHead(413, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: "Request body is too large." }));
+            req.destroy();
+          }
+        });
+        req.on("end", () => {
+          if (res.writableEnded) return;
+          try {
+            const payload = body ? JSON.parse(body) : {};
+            void send(payload).catch((error) => {
+              if (res.writableEnded) return;
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ ok: false, error: String(error) }));
+            });
+          } catch {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: "Request body must be valid JSON." }));
+          }
+        });
+      });
+    },
+  };
+}
+
 function vitePluginStorageProxy(): Plugin {
   return {
     name: "manus-storage-proxy",
@@ -203,7 +269,7 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginSolutionsApi(), vitePluginStorageProxy()];
 
 export default defineConfig({
   plugins,
