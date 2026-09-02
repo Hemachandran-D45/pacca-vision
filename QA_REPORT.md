@@ -92,3 +92,7 @@ The HIL Review workbench now exposes all invoice metadata fields as editable con
 ## Reviewer change audit summary follow-up
 
 HIL Review now includes a Reviewer change summary panel. Each edited field is tracked once and displayed with its original value, revised value, and changed-field count. A live test changed Vendor Name from Global Office Supplies to Global Office Supplies Ltd and confirmed the summary displayed 1 changed with both values. The summary remains scoped to the HIL correction draft and supports review before approval. TypeScript, production build, diff validation, and browser checks passed.
+
+## Generated invoice source-document follow-up
+
+Created three distinct one-page invoice PDFs for the Client 1 demo: DOC-001 / INV-2026-001 from Northstar Office Supply Co., DOC-002 / INV-2026-002 from Global Office Supplies, and DOC-003 / INV-2026-003 from Brightline Workplace Services. Each PDF contains its own invoice date, due date, purchase order, line items, subtotal, tax, total, and currency. Uploaded storage paths are wired into the document fixtures. Document Details now renders the matching generated PDF as the source document and exposes an Open PDF action. Extracted metadata values for all three documents were aligned to their corresponding invoice PDFs. The uploaded DOC-001 source was opened and visually verified; TypeScript, production build, and diff validation passed.
