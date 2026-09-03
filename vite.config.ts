@@ -6,6 +6,7 @@ import path from "node:path";
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import { createSolution } from "./server/solutionsApi";
+import { handleSenderra } from "./server/senderra/api";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -216,6 +217,76 @@ function vitePluginSolutionsApi(): Plugin {
   };
 }
 
+/**
+ * Mounts the Senderra API on the dev server so `pnpm dev` behaves exactly like
+ * the Vercel deployment. `api/senderra.ts` is the same dispatcher behind a
+ * serverless handler — neither host owns the routing.
+ */
+function vitePluginSenderraApi(): Plugin {
+  return {
+    name: "pacca-senderra-api",
+    configureServer(server: ViteDevServer) {
+      const env = loadEnv(server.config.mode, PROJECT_ROOT, "");
+      for (const [key, value] of Object.entries(env)) {
+        if (
+          (key.startsWith("COSMOS_") ||
+            key.startsWith("AZURE_STORAGE_") ||
+            key.startsWith("SENDERRA_")) &&
+          process.env[key] === undefined
+        ) {
+          process.env[key] = value;
+        }
+      }
+
+      server.middlewares.use("/api/senderra", (req, res, next) => {
+        const method = (req.method || "GET").toUpperCase();
+        if (method !== "GET" && method !== "POST") return next();
+
+        // Vite strips the mount prefix from req.url, so what is left is the
+        // route plus its query string.
+        const url = new URL(req.url || "/", "http://localhost");
+
+        const send = async (body: Record<string, unknown>) => {
+          const result = await handleSenderra(method, url.pathname, url.searchParams, body);
+          res.writeHead(result.status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result.body));
+        };
+
+        if (method === "GET") {
+          void send({}).catch((error) => {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: String(error) }));
+          });
+          return;
+        }
+
+        let raw = "";
+        req.on("data", (chunk) => {
+          raw += chunk.toString();
+          if (raw.length > 512 * 1024) {
+            res.writeHead(413, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: "Request body is too large." }));
+            req.destroy();
+          }
+        });
+        req.on("end", () => {
+          if (res.writableEnded) return;
+          try {
+            void send(raw ? JSON.parse(raw) : {}).catch((error) => {
+              if (res.writableEnded) return;
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ ok: false, error: String(error) }));
+            });
+          } catch {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: "Request body must be valid JSON." }));
+          }
+        });
+      });
+    },
+  };
+}
+
 function vitePluginStorageProxy(): Plugin {
   return {
     name: "manus-storage-proxy",
@@ -269,7 +340,7 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginSolutionsApi(), vitePluginStorageProxy()];
+const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginSolutionsApi(), vitePluginSenderraApi(), vitePluginStorageProxy()];
 
 export default defineConfig({
   plugins,

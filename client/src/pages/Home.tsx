@@ -78,6 +78,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AccessDenied, demoAllowedPaths, LoginScreen, SkeletonPage } from "@/components/MockAuth";
+import { useSolution } from "@/senderra/SolutionContext";
+import { SolutionSwitcher } from "@/senderra/SolutionSwitcher";
+import { CommandCenterLive } from "@/senderra/CommandCenterLive";
+import { DocumentsLive } from "@/senderra/DocumentsLive";
+import { DocumentDetailLive } from "@/senderra/DocumentDetailLive";
+import { HilLive } from "@/senderra/HilLive";
+import { AnalyticsLive } from "@/senderra/AnalyticsLive";
 import type { MockUser } from "@/components/MockAuth";
 import {
   Area,
@@ -258,7 +265,7 @@ function EmptyState({ title, copy, icon: Icon = Inbox }: { title: string; copy: 
 
 function Topbar({ title, subtitle, onMenu, collapsed, onCollapse, user, onRoleSwitch }: { title: string; subtitle: string; onMenu: () => void; collapsed: boolean; onCollapse: () => void; user: MockUser; onRoleSwitch: (role: MockUser["role"]) => void }) {
   return <header className="sticky top-0 z-20 flex min-h-[76px] items-center justify-between gap-3 border-b border-slate-200/70 bg-[#f7f9fc]/90 px-4 backdrop-blur-xl sm:px-7 lg:px-9">
-    <div className="flex min-w-0 items-center gap-3"><button onClick={onMenu} className="rounded-xl p-2 text-slate-500 hover:bg-white lg:hidden"><Menu size={19} /></button><button onClick={onCollapse} className="hidden rounded-xl p-2 text-slate-400 hover:bg-white lg:block">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button><div className="min-w-0"><h1 className="truncate font-display text-[22px] font-bold tracking-[-0.04em] text-[#142b4b] sm:text-[25px]">{title}</h1><p className="hidden truncate text-[11px] text-slate-500 sm:block">{subtitle}</p></div></div>
+    <div className="flex min-w-0 items-center gap-3"><button onClick={onMenu} className="rounded-xl p-2 text-slate-500 hover:bg-white lg:hidden"><Menu size={19} /></button><button onClick={onCollapse} className="hidden rounded-xl p-2 text-slate-400 hover:bg-white lg:block">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button><div className="min-w-0"><h1 className="truncate font-display text-[22px] font-bold tracking-[-0.04em] text-[#142b4b] sm:text-[25px]">{title}</h1><p className="hidden truncate text-[11px] text-slate-500 sm:block">{subtitle}</p></div><div className="ml-2 hidden md:block"><SolutionSwitcher /></div></div>
     <div className="flex items-center gap-2 sm:gap-3"><div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-[10px] shadow-sm md:flex"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Role</span><select aria-label="Switch demo role" value={user.role} onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])} className="max-w-[145px] bg-transparent font-semibold text-[#142b4b] outline-none"><option value="PACCA Platform Admin">PACCA Platform Admin</option><option value="PACCA Solution Developer">PACCA Solution Developer</option><option value="Client Staff">Client Staff</option></select></div><div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex"><span className="font-bold text-[#142b4b]">{user.tenant}</span><span className="text-slate-300">/</span><span className="text-slate-500">Client Workspace</span><span className="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">Production</span></div><label className="hidden h-9 w-[245px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm lg:flex"><Search size={15} className="text-slate-400" /><input className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400" placeholder="Search documents, IDs, fields..." /></label><button aria-label="Notifications" onClick={() => toast("You’re all caught up", { description: "No new operational alerts." })} className="relative rounded-xl p-2 text-slate-500 hover:bg-white"><Bell size={18} /><span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d73532] px-1 text-[9px] font-bold text-white">12</span></button><button aria-label="Help" onClick={() => toast("PACCA Vision support", { description: "Your workspace runbook is available from the Help Center." })} className="hidden rounded-xl p-2 text-slate-500 hover:bg-white sm:block"><CircleHelp size={18} /></button><button onClick={() => toast(`Signed in as ${user.name}`, { description: `${user.role} · ${user.tenant}` })} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#236fd0] text-xs font-bold text-white shadow-[0_4px_10px_rgba(35,111,208,.22)]">{user.initials}</button></div>
   </header>;
 }
@@ -522,6 +529,13 @@ export default function Home() {
   }, [path, user]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Which solution the workspace is operating. `priorauth` swaps the three
+  // operational surfaces onto the live Senderra pipeline; `invoice` leaves the
+  // original fixtures untouched.
+  const { isLive } = useSolution();
+  // Set when the reviewer jumps from a document straight into HIL, so the
+  // workbench opens on that document instead of the top of the queue.
+  const [hilFocus, setHilFocus] = useState<string | null>(null);
   if (!user) return <LoginScreen onLogin={(nextUser) => { setUser(nextUser); navigate(nextUser.experience === "central" ? "/central-admin" : "/"); }} />;
   if (user.experience === "central") return <CentralAdminPortal user={user} onLogout={() => setUser(null)} onClientWorkspace={(client) => { if (client === "Client 1") { setUser({ ...user, name: "PACCA Admin · Client 1", tenant: "Client 1", tenantCode: "CLIENT1", experience: "client" }); navigate("/"); } else { setUser(null); navigate("/"); } }} />;
   const detailMatch = path.match(/^\/documents\/(.+)$/);
@@ -530,12 +544,19 @@ export default function Home() {
   const go = (next: string) => navigate(next);
   const hasAccess = allowedPaths.includes(basePath);
   const switchRole = (role: MockUser["role"]) => { const isClient = role === "Client Staff"; const next = { ...user, role, name: role === "PACCA Platform Admin" ? "PACCA Platform Admin" : role === "PACCA Solution Developer" ? "PACCA Solution Developer" : "Client Staff · Client 1", tenant: isClient ? "Client 1" : "PACCA Platform", tenantCode: isClient ? "CLIENT1" : "PACCA", experience: isClient ? "client" as const : "central" as const }; setUser(next); const nextAllowed = demoAllowedPaths(role); if (!nextAllowed.includes(basePath)) go(isClient ? "/documents" : "/solutions"); toast.success(`Role switched to ${role}`); };
+  const openDocument = (documentId: string) => go(`/documents/${encodeURIComponent(documentId)}`);
+  const openHil = (documentId: string) => { setHilFocus(documentId); go("/hil-review"); };
   let content;
-  if (detailMatch) content = <DocumentDetailPage id={detailMatch[1]} onBack={() => go("/documents")} onNavigate={go} />;
+  if (detailMatch && isLive) content = <DocumentDetailLive documentId={decodeURIComponent(detailMatch[1])} onBack={() => go("/documents")} onReview={openHil} />;
+  else if (detailMatch) content = <DocumentDetailPage id={detailMatch[1]} onBack={() => go("/documents")} onNavigate={go} />;
+  else if (path === "/" && isLive) content = <CommandCenterLive onNavigate={go} onOpenDocument={openDocument} />;
   else if (path === "/") content = <CommandCenter onNavigate={go} />;
+  else if (path === "/documents" && isLive) content = <DocumentsLive onOpen={openDocument} />;
   else if (path === "/documents") content = <DocumentsPage onNavigate={go} />;
+  else if (path === "/hil-review" && isLive) content = <HilLive reviewer={user.email} reviewerName={user.name} focusDocumentId={hilFocus} />;
   else if (path === "/hil-review") content = <HILPage />;
   else if (path === "/monitor") content = <MonitorPage />;
+  else if (path === "/analytics" && isLive) content = <AnalyticsLive />;
   else if (path === "/analytics") content = <AnalyticsPage />;
   else if (path === "/audit") content = <AuditPage />;
   else if (path === "/solutions") content = <SolutionsPage onNavigate={go} role={user.role} />;
