@@ -2,9 +2,9 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { loadLocalEnv } from "./loadLocalEnv";
-import { createSolution } from "./solutionsApi";
-import { handleSenderra } from "./senderra/api";
+import { loadLocalEnv } from "./loadLocalEnv.js";
+import { createSolution } from "./solutionsApi.js";
+import { handleSenderra } from "./senderra/api.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

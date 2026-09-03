@@ -1,4 +1,4 @@
-import type { SenderraConfig } from "./config";
+import type { SenderraConfig } from "./config.js";
 
 /**
  * Loaded lazily for the same reason as the Cosmos client: a module-scope import

@@ -1,5 +1,5 @@
 import type { Container } from "@azure/cosmos";
-import { isConfigError, readConfig, type SenderraConfig } from "./config";
+import { isConfigError, readConfig, type SenderraConfig } from "./config.js";
 import type {
   DocumentSummary,
   ExtractItem,
@@ -7,7 +7,7 @@ import type {
   OcrItem,
   ReviewAudit,
   ReviewItem,
-} from "./types";
+} from "./types.js";
 
 /**
  * One client per process, held for the lifetime of the lambda instance. A new

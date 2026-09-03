@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "../../server/vercel-types";
-import { handleSenderra } from "../../server/senderra/api";
+import type { VercelRequest, VercelResponse } from "../../server/vercel-types.js";
+import { handleSenderra } from "../../server/senderra/api.js";
 
 /**
  * Vercel catch-all for `/api/senderra/*`.

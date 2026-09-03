@@ -1,8 +1,8 @@
-import { isConfigError, readConfig } from "./config";
-import { applyReviewAction, container, fetchRecords, listDocuments, readDocument } from "./cosmos";
-import { listRecentUploads, mintReadSas, mintUploadSas } from "./blob";
-import { computeAnalytics } from "./analytics";
-import type { DocumentSummary, ExtractItem } from "./types";
+import { isConfigError, readConfig } from "./config.js";
+import { applyReviewAction, container, fetchRecords, listDocuments, readDocument } from "./cosmos.js";
+import { listRecentUploads, mintReadSas, mintUploadSas } from "./blob.js";
+import { computeAnalytics } from "./analytics.js";
+import type { DocumentSummary, ExtractItem } from "./types.js";
 
 export type ApiResult = { status: number; body: unknown };
 

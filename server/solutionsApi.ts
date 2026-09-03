@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { applyPromptTemplate, completeSolutionPrompt, loadSolutionPromptTemplate } from "./chatCompletions";
+import { applyPromptTemplate, completeSolutionPrompt, loadSolutionPromptTemplate } from "./chatCompletions.js";
 
 const MAX_CONTENT_BYTES = 256 * 1024;
 

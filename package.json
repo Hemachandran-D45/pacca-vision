@@ -11,8 +11,9 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "vite preview --host",
-    "check": "tsc --noEmit",
-    "format": "prettier --write ."
+    "check": "node scripts/check-esm-imports.mjs && tsc --noEmit",
+    "format": "prettier --write .",
+    "check:esm": "node scripts/check-esm-imports.mjs"
   },
   "dependencies": {
     "@azure/cosmos": "^4.10.0",

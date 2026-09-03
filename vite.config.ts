@@ -5,8 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
-import { createSolution } from "./server/solutionsApi";
-import { handleSenderra } from "./server/senderra/api";
+import { createSolution } from "./server/solutionsApi.js";
+import { handleSenderra } from "./server/senderra/api.js";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin

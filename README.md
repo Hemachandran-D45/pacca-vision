@@ -169,27 +169,35 @@ executes first. React ends up `undefined` and the app renders a **blank white sc
 `Cannot read properties of undefined (reading 'createContext')`. `chunkSizeWarningLimit` is raised
 instead — the single ~1 MB bundle is an accepted trade-off, not a defect.
 
-## Why `.npmrc` sets `node-linker=hoisted`
+## Relative imports in `api/` and `server/` MUST end in `.js`
 
-**Do not remove this.** Vercel's serverless builder *traces* imports and copies the files it finds —
-it does not bundle. pnpm's default symlinked `node_modules` (a tree of links into `.pnpm/`) makes
-that trace unreliable for packages with deep transitive graphs like `@azure/cosmos`, whose
-dependencies are themselves nested inside `.pnpm/`. The function then dies at **module load**, which
-presents as:
+`package.json` sets `"type": "module"`, and Vercel compiles each file in `api/` to ESM **without
+bundling**. Node ESM then requires an explicit extension on every relative specifier. An
+extensionless import is invisible locally — `tsc` accepts it (`moduleResolution: "bundler"`), `tsx`
+runs it, and `esbuild --bundle` inlines it — and then fails only in production:
 
 ```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/senderra/api'
+  imported from /var/task/api/senderra/[...route].js
+Execution Duration: 149ms          <- crashes at module load, before any try/catch
 Error Code: FUNCTION_INVOCATION_FAILED
-Execution Duration: 149ms        <- far too fast to be a timeout or a network call
-(no response body)               <- the crash is before any of our try/catch
 ```
 
-A hoisted linker produces the flat, npm-shaped `node_modules` the tracer expects. It costs some disk
-and install time and buys a deployment that can resolve its own imports.
+Write `from "./cosmos.js"`, never `from "./cosmos"`. The `.js` names the *emitted* file;
+TypeScript maps it back to the `.ts` source at check time.
 
-For the same reason **`@vercel/node` is deliberately not a dependency.** A project-level
-`@vercel/node` pins the platform's builder to that version, and a disagreement between the pinned
-version and the platform is one of the few other things that can stop a function booting. The two
-types we needed are declared by hand in `server/vercel-types.ts`.
+`pnpm check` runs `scripts/check-esm-imports.mjs` first, which fails the build on any extensionless
+relative import under `api/` or `server/`. **`tsc` does not catch this** — it exits 0 — which is
+exactly why the guard exists.
+
+`.npmrc` sets `node-linker=hoisted`. That is **precautionary, not a fix for anything observed**:
+Vercel's tracer copies traced files rather than bundling, and whether pnpm's symlinked layout
+survives that copy for a deep graph like `@azure/cosmos` is untested here, because the function died
+on its own relative import long before reaching the SDK. Verified that the unbundled function
+resolves under both layouts locally, so it can be deleted if you want a smaller install.
+
+`@vercel/node` is deliberately **not** a dependency — a project-level copy pins the platform's
+builder version. The two types are declared in `server/vercel-types.ts`.
 
 ## Debugging a deployed 500
 

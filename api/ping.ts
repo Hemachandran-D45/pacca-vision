@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "../server/vercel-types";
+import type { VercelRequest, VercelResponse } from "../server/vercel-types.js";
 
 /**
  * A deliberately dependency-free probe, to split an opaque platform 500 in two.

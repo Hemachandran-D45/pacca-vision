@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "../server/vercel-types";
-import { createSolution } from "../server/solutionsApi";
+import type { VercelRequest, VercelResponse } from "../server/vercel-types.js";
+import { createSolution } from "../server/solutionsApi.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");

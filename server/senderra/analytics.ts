@@ -1,5 +1,5 @@
 import type { Container } from "@azure/cosmos";
-import type { ExtractItem, OcrItem } from "./types";
+import type { ExtractItem, OcrItem } from "./types.js";
 
 /**
  * Analytics & Cost, computed from the two stage records.
