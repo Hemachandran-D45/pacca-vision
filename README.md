@@ -53,7 +53,9 @@ the shape already present in the container.
 
 ## Requirements
 
-- Node 20+
+- **Node 22+** — `@azure/cosmos` and `@azure/storage-blob` both declare `engines: node >= 22`, and
+  `package.json` declares the same so Vercel picks the right function runtime. `.nvmrc` pins it:
+  `nvm use`
 - pnpm 10.4.1 (`corepack enable && corepack prepare pnpm@10.4.1 --activate`)
 - Azure: a Cosmos DB account with the pipeline's `documents` container, and the storage account
   holding `docs-in`
@@ -105,6 +107,18 @@ npx vercel --prod
 functions coexist. `api/senderra/[...route].ts` is one catch-all rather than six functions, to stay
 well inside the Hobby-plan function cap.
 
+### Node version — this is a hard requirement
+
+`@azure/cosmos` and `@azure/storage-blob` both declare **`engines: node >= 22`**. `package.json` now
+declares the same, which is what Vercel reads to pick the function runtime.
+
+If the Vercel project is pinned to Node 18.x or 20.x, the Azure SDKs can fail on import and the
+function returns a platform **500** (`FUNCTION_INVOCATION_FAILED`) — it builds and deploys fine, then
+crashes on the first request. Check **Project → Settings → General → Node.js Version** is **22.x**.
+
+Note that local dev on Node 20 is *below* that floor. It currently works, but it is unsupported by
+the SDKs and is not a safe assumption to build on.
+
 ### One Azure prerequisite
 
 Browser-direct upload needs a **CORS rule on the storage account**. Already applied:
@@ -128,6 +142,29 @@ client/src/senderra/      the live surfaces + the solution switch
 client/src/pages/Home.tsx the whole fixture app in one file (~130KB); dispatches to live
                           components when the Prior Auth solution is active
 ```
+
+## Build hygiene
+
+`pnpm install`, `pnpm dev` and `pnpm build` all run warning-free. Four things were cleaned up to get
+there, each worth knowing about:
+
+- **`engines: node >= 22`** in `package.json`, plus `.nvmrc`. This is what tells Vercel which runtime
+  to use; without it the project default applies and the Azure SDKs can fail on import.
+- **`pnpm.onlyBuiltDependencies`** lists `@tailwindcss/oxide` and `esbuild`. pnpm 10 blocks
+  dependency lifecycle scripts unless they are named here. Keeping it in `package.json` rather than
+  a machine-local `pnpm config` means CI, Vercel and every teammate behave identically.
+- **The Manus runtime plugin is now dev-only** (`apply: "serve"`). It inlined **366 KB** into
+  `index.html` — its own bundled React runtime plus the Manus preview harness. Inline HTML cannot be
+  cached separately from the document, so that was a third of a megabyte re-downloaded on every page
+  load to support an integration that only exists inside Manus. `index.html` went from
+  **367.7 KB to 1.2 KB**.
+- **The Umami analytics tag is injected conditionally** rather than sitting in `index.html` as a
+  `%VITE_ANALYTICS_ENDPOINT%` placeholder. Nothing ever set those vars, so every build warned twice
+  and shipped a dead `<script src="/umami">`. It now appears only when both vars are set.
+
+Vendor chunks are split by change frequency (`react`, `charts`, `radix`, `icons`, `vendor`), so
+editing `Home.tsx` no longer invalidates the whole megabyte. Every chunk is now under the 500 KB
+warning threshold.
 
 ## Known dead / stale code
 

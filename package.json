@@ -2,6 +2,9 @@
   "name": "pacca-vision",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "vite --host",
@@ -98,6 +101,10 @@
     },
     "overrides": {
       "tailwindcss>nanoid": "3.3.7"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "esbuild"
+    ]
   }
 }

@@ -152,6 +152,44 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+/**
+ * Injects the Umami analytics tag only when it is actually configured.
+ *
+ * It used to sit in `index.html` as a literal `%VITE_ANALYTICS_ENDPOINT%`
+ * placeholder. Vite warns once per undefined placeholder on every dev start and
+ * every build, and — because nothing ever set those vars — shipped a dead
+ * `<script src="/umami">` to production. Injecting instead of substituting means
+ * no warning when it is unset and no broken tag in the output.
+ */
+function vitePluginAnalytics(): Plugin {
+  let endpoint = "";
+  let websiteId = "";
+  return {
+    name: "pacca-analytics",
+    configResolved(config) {
+      endpoint = (config.env.VITE_ANALYTICS_ENDPOINT as string) || "";
+      websiteId = (config.env.VITE_ANALYTICS_WEBSITE_ID as string) || "";
+    },
+    transformIndexHtml(html) {
+      if (!endpoint || !websiteId) return html;
+      return {
+        html,
+        tags: [
+          {
+            tag: "script",
+            attrs: {
+              defer: true,
+              src: `${endpoint.replace(/\/+$/, "")}/umami`,
+              "data-website-id": websiteId,
+            },
+            injectTo: "body",
+          },
+        ],
+      };
+    },
+  };
+}
+
 function vitePluginSolutionsApi(): Plugin {
   return {
     name: "pacca-solutions-api",
@@ -340,7 +378,29 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginSolutionsApi(), vitePluginSenderraApi(), vitePluginStorageProxy()];
+/**
+ * The Manus scaffold plugins are dev-only.
+ *
+ * `vitePluginManusRuntime` inlines ~366 KB into `index.html` — its own bundled
+ * copy of the React runtime plus the Manus preview harness. Inline HTML cannot
+ * be cached separately from the document, so on Vercel that is a third of a
+ * megabyte re-downloaded on every single page load, to support a preview
+ * integration that only exists inside Manus. `apply: "serve"` keeps it working
+ * in local dev and keeps it out of the deployed bundle.
+ */
+const devOnly = (plugin: Plugin): Plugin => ({ ...plugin, apply: "serve" });
+
+const plugins = [
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
+  devOnly(vitePluginManusRuntime() as Plugin),
+  vitePluginManusDebugCollector(),
+  vitePluginAnalytics(),
+  vitePluginSolutionsApi(),
+  vitePluginSenderraApi(),
+  vitePluginStorageProxy(),
+];
 
 export default defineConfig({
   plugins,
@@ -356,6 +416,22 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Split by how often each group actually changes. Home.tsx is edited
+        // constantly; recharts and the Radix primitives essentially never are,
+        // so giving them their own files means a UI edit re-downloads the app
+        // chunk alone instead of the whole megabyte.
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return;
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler|wouter)[\\/]/.test(id)) return "react";
+          if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) return "charts";
+          if (id.includes("lucide-react")) return "icons";
+          if (id.includes("@radix-ui") || id.includes("@floating-ui")) return "radix";
+          return "vendor";
+        },
+      },
+    },
   },
   server: {
     port: 3000,
