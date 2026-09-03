@@ -1,5 +1,5 @@
 import { isConfigError, readConfig } from "./config";
-import { applyReviewAction, container, listDocuments, readDocument } from "./cosmos";
+import { applyReviewAction, container, fetchRecords, listDocuments, readDocument } from "./cosmos";
 import { listRecentUploads, mintReadSas, mintUploadSas } from "./blob";
 import { computeAnalytics } from "./analytics";
 import type { DocumentSummary, ExtractItem } from "./types";
@@ -12,8 +12,8 @@ function fail(status: number, error: string, extra?: Record<string, unknown>): A
   return { status, body: { ok: false, error, ...extra } };
 }
 
-function requireContainer() {
-  const handle = container();
+async function requireContainer() {
+  const handle = await container();
   if ("error" in handle) return fail(503, handle.error, { missing: handle.missing });
   return handle;
 }
@@ -87,7 +87,7 @@ async function withPendingUploads(documents: DocumentSummary[]): Promise<Documen
 }
 
 async function handleDocuments(query: URLSearchParams): Promise<ApiResult> {
-  const handle = requireContainer();
+  const handle = await requireContainer();
   if (isFail(handle)) return handle;
 
   let documents = await listDocuments(handle.container);
@@ -134,7 +134,7 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
   const documentId = query.get("documentId");
   if (!documentId) return fail(400, "documentId is required.");
 
-  const handle = requireContainer();
+  const handle = await requireContainer();
   if (isFail(handle)) return handle;
 
   const document = await readDocument(handle.container, documentId);
@@ -145,7 +145,7 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
   const blobPath = document.ocr?.blob_path ?? `${handle.config.docsContainer}/${documentId}.pdf`;
   let pdfUrl: string | null = null;
   try {
-    pdfUrl = mintReadSas(handle.config, blobPath);
+    pdfUrl = await mintReadSas(handle.config, blobPath);
   } catch {
     pdfUrl = null;
   }
@@ -154,14 +154,14 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
 }
 
 async function handleStats(): Promise<ApiResult> {
-  const handle = requireContainer();
+  const handle = await requireContainer();
   if (isFail(handle)) return handle;
 
-  const { resources } = await handle.container.items
-    .query<ExtractItem>({ query: "SELECT * FROM c WHERE c.itemType = 'extract'" })
-    .fetchAll();
-
-  const documents = await listDocuments(handle.container);
+  // One scan, reused for both views of it. This used to issue two full
+  // cross-partition queries per dashboard load.
+  const records = await fetchRecords(handle.container);
+  const resources = [...records.extract.values()];
+  const documents = await listDocuments(handle.container, records);
   const succeeded = resources.filter((r) => r.status === "Succeeded");
   const num = (pick: (r: ExtractItem) => number | undefined) =>
     resources.map(pick).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
@@ -214,7 +214,7 @@ async function handleStats(): Promise<ApiResult> {
 }
 
 async function handleAnalytics(): Promise<ApiResult> {
-  const handle = requireContainer();
+  const handle = await requireContainer();
   if (isFail(handle)) return handle;
   return { status: 200, body: { ok: true, analytics: await computeAnalytics(handle.container) } };
 }
@@ -245,7 +245,7 @@ async function handleUploadSas(body: Record<string, unknown>): Promise<ApiResult
     if (typeof name !== "string" || !name.trim()) {
       return fail(400, "Every file needs a name.");
     }
-    grants.push(mintUploadSas(config, runId, name.trim()));
+    grants.push(await mintUploadSas(config, runId, name.trim()));
   }
 
   return { status: 200, body: { ok: true, runId, container: config.docsContainer, grants } };
@@ -271,7 +271,7 @@ async function handleReview(body: Record<string, unknown>): Promise<ApiResult> {
     return fail(400, "action 'correct' needs a non-empty corrections object.");
   }
 
-  const handle = requireContainer();
+  const handle = await requireContainer();
   if (isFail(handle)) return handle;
 
   const review = await applyReviewAction(handle.container, documentId, {
@@ -289,7 +289,7 @@ async function handleHealth(): Promise<ApiResult> {
   if (isConfigError(config)) {
     return { status: 200, body: { ok: false, configured: false, missing: config.missing } };
   }
-  const handle = requireContainer();
+  const handle = await requireContainer();
   if (isFail(handle)) return handle;
   try {
     const { resources } = await handle.container.items

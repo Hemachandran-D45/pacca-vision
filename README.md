@@ -162,9 +162,58 @@ there, each worth knowing about:
   `%VITE_ANALYTICS_ENDPOINT%` placeholder. Nothing ever set those vars, so every build warned twice
   and shipped a dead `<script src="/umami">`. It now appears only when both vars are set.
 
-Vendor chunks are split by change frequency (`react`, `charts`, `radix`, `icons`, `vendor`), so
-editing `Home.tsx` no longer invalidates the whole megabyte. Every chunk is now under the 500 KB
-warning threshold.
+**Do not add `manualChunks`.** Splitting `node_modules` by path was tried and reverted: Vite's
+CommonJS interop helpers are *virtual* modules whose id contains no `node_modules`, so a
+path-matching splitter leaves them in the entry chunk while the vendor chunk that needs them
+executes first. React ends up `undefined` and the app renders a **blank white screen** with
+`Cannot read properties of undefined (reading 'createContext')`. `chunkSizeWarningLimit` is raised
+instead — the single ~1 MB bundle is an accepted trade-off, not a defect.
+
+## Why `.npmrc` sets `node-linker=hoisted`
+
+**Do not remove this.** Vercel's serverless builder *traces* imports and copies the files it finds —
+it does not bundle. pnpm's default symlinked `node_modules` (a tree of links into `.pnpm/`) makes
+that trace unreliable for packages with deep transitive graphs like `@azure/cosmos`, whose
+dependencies are themselves nested inside `.pnpm/`. The function then dies at **module load**, which
+presents as:
+
+```
+Error Code: FUNCTION_INVOCATION_FAILED
+Execution Duration: 149ms        <- far too fast to be a timeout or a network call
+(no response body)               <- the crash is before any of our try/catch
+```
+
+A hoisted linker produces the flat, npm-shaped `node_modules` the tracer expects. It costs some disk
+and install time and buys a deployment that can resolve its own imports.
+
+For the same reason **`@vercel/node` is deliberately not a dependency.** A project-level
+`@vercel/node` pins the platform's builder to that version, and a disagreement between the pinned
+version and the platform is one of the few other things that can stop a function booting. The two
+types we needed are declared by hand in `server/vercel-types.ts`.
+
+## Debugging a deployed 500
+
+`/api/ping` is a deliberately dependency-free probe — it imports nothing but a type, so it cannot
+fail for any reason the Senderra routes can. Comparing the two answers localises the fault:
+
+| `/api/ping` | `/api/senderra/health` | Meaning |
+|---|---|---|
+| 200 | 200 | working |
+| 200 | 500 | the function boots; the fault is the Azure SDK, the config, or Cosmos |
+| 500 | 500 | the runtime cannot start — wrong Node version, bad build output, or routing |
+
+`/api/ping` also reports `process.version`, the Vercel region, and which env vars are **present**
+(never their values), which is the fastest way to confirm the Node 22 requirement took effect.
+
+The Azure SDKs are imported **lazily**, inside the functions that use them, rather than at module
+scope. On a serverless host a module-scope import runs before any handler and therefore before any
+`try/catch`, so an import failure kills the function and the platform returns an opaque 500 with no
+body. Loading inside the function puts the failure inside our own error handling, so it comes back
+as readable JSON naming the cause.
+
+Note that **Vercel Deployment Protection** returns `302 -> vercel.com/sso-api` to anything
+unauthenticated, so `curl` against a protected deployment never reaches the function. Read the error
+from an authenticated browser's Network tab, or `npx vercel logs <url>`.
 
 ## Known dead / stale code
 

@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "../../server/vercel-types";
 import { handleSenderra } from "../../server/senderra/api";
 
 /**

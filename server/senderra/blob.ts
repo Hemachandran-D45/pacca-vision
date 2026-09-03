@@ -1,10 +1,13 @@
-import {
-  BlobSASPermissions,
-  BlobServiceClient,
-  StorageSharedKeyCredential,
-  generateBlobSASQueryParameters,
-} from "@azure/storage-blob";
 import type { SenderraConfig } from "./config";
+
+/**
+ * Loaded lazily for the same reason as the Cosmos client: a module-scope import
+ * that throws on a serverless host kills the function before any handler runs,
+ * producing a 500 with no body. See `cosmos.ts`.
+ */
+async function sdk() {
+  return import("@azure/storage-blob");
+}
 
 const SAFE = /[^A-Za-z0-9\-_.]/g;
 
@@ -29,18 +32,15 @@ export function safeBlobName(filename: string): string {
   return stem;
 }
 
-function credential(config: SenderraConfig) {
-  return new StorageSharedKeyCredential(config.storageAccount, config.storageKey);
-}
-
-function sasUrl(
+async function sasUrl(
   config: SenderraConfig,
   containerName: string,
   blobName: string,
   permissions: string,
   minutes: number
-): string {
-  const cred = credential(config);
+): Promise<string> {
+  const { BlobSASPermissions, StorageSharedKeyCredential, generateBlobSASQueryParameters } = await sdk();
+  const cred = new StorageSharedKeyCredential(config.storageAccount, config.storageKey);
   // Backdated so a few minutes of clock skew between Vercel and Azure cannot
   // produce a token that is not yet valid.
   const startsOn = new Date(Date.now() - 5 * 60 * 1000);
@@ -70,24 +70,24 @@ function sasUrl(
  * past that. Direct-to-blob is also what starts the pipeline — the write to
  * `docs-in` is the Event Grid trigger, so there is no enqueue call to make.
  */
-export function mintUploadSas(config: SenderraConfig, runId: string, filename: string) {
+export async function mintUploadSas(config: SenderraConfig, runId: string, filename: string) {
   const name = safeBlobName(filename);
   const blobName = `${runId}/${name}`;
   return {
     blobName,
     documentId: `${runId}/${name.replace(/\.pdf$/i, "")}`,
     container: config.docsContainer,
-    uploadUrl: sasUrl(config, config.docsContainer, blobName, "cw", 15),
+    uploadUrl: await sasUrl(config, config.docsContainer, blobName, "cw", 15),
     expiresInSeconds: 15 * 60,
   };
 }
 
 /** A read-only SAS so pdf.js can render the source document in the reviewer. */
-export function mintReadSas(config: SenderraConfig, containerAndBlob: string, minutes = 30) {
+export async function mintReadSas(config: SenderraConfig, containerAndBlob: string, minutes = 30) {
   const cut = containerAndBlob.indexOf("/");
   const containerName = cut < 0 ? config.docsContainer : containerAndBlob.slice(0, cut);
   const blobName = cut < 0 ? containerAndBlob : containerAndBlob.slice(cut + 1);
-  return sasUrl(config, containerName, blobName, "r", minutes);
+  return await sasUrl(config, containerName, blobName, "r", minutes);
 }
 
 /**
@@ -100,6 +100,7 @@ export function mintReadSas(config: SenderraConfig, containerAndBlob: string, mi
  * of vanishing for half a minute.
  */
 export async function listRecentUploads(config: SenderraConfig, runIdPrefix?: string) {
+  const { BlobServiceClient } = await sdk();
   const service = BlobServiceClient.fromConnectionString(
     `DefaultEndpointsProtocol=https;AccountName=${config.storageAccount};AccountKey=${config.storageKey};EndpointSuffix=core.windows.net`
   );

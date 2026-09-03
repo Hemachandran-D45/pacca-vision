@@ -1,4 +1,4 @@
-import { CosmosClient, type Container } from "@azure/cosmos";
+import type { Container } from "@azure/cosmos";
 import { isConfigError, readConfig, type SenderraConfig } from "./config";
 import type {
   DocumentSummary,
@@ -16,11 +16,34 @@ import type {
  */
 let cached: { container: Container; config: SenderraConfig } | null = null;
 
-export function container(): { container: Container; config: SenderraConfig } | { error: string; missing: string[] } {
+/**
+ * The SDK is loaded lazily, on purpose.
+ *
+ * A top-level `import { CosmosClient } from "@azure/cosmose"` runs at module
+ * scope, which on a serverless host is BEFORE any request handler and therefore
+ * before any try/catch of ours. If that import throws — wrong Node version, a
+ * dependency the platform failed to trace — the whole function dies and the
+ * platform returns an opaque 500 with no body to debug. Importing inside the
+ * function puts the failure inside our own error handling, so it comes back as
+ * readable JSON instead.
+ */
+export async function container(): Promise<
+  { container: Container; config: SenderraConfig } | { error: string; missing: string[] }
+> {
   const config = readConfig();
   if (isConfigError(config)) return { error: config.error, missing: config.missing };
 
   if (cached && cached.config.cosmosEndpoint === config.cosmosEndpoint) return cached;
+
+  let CosmosClient: typeof import("@azure/cosmos").CosmosClient;
+  try {
+    ({ CosmosClient } = await import("@azure/cosmos"));
+  } catch (error) {
+    return {
+      error: `Failed to load @azure/cosmos (node ${process.version}): ${String(error)}`,
+      missing: [],
+    };
+  }
 
   const client = new CosmosClient({ endpoint: config.cosmosEndpoint, key: config.cosmosKey });
   cached = {
@@ -57,7 +80,7 @@ export function splitDocumentId(documentId: string): { runId: string; docId: str
  * At the current corpus this is a ~2 MB scan. Per guide/12 §12, the trigger to
  * replace it with a rollup item is a dashboard load costing >5,000 RU.
  */
-async function fetchRecords(c: Container) {
+export async function fetchRecords(c: Container) {
   const { resources } = await c.items
     .query<OcrItem | ExtractItem | ReviewItem>({
       query:
@@ -142,8 +165,18 @@ function toSummary(
   };
 }
 
-export async function listDocuments(c: Container): Promise<DocumentSummary[]> {
-  const { ocr, extract, review } = await fetchRecords(c);
+export type FetchedRecords = Awaited<ReturnType<typeof fetchRecords>>;
+
+/**
+ * Pass `records` when the caller has already fetched them. `/stats` needs both
+ * the joined summaries and the raw extract rows, and fetching twice doubled the
+ * RU and the wall-clock on the single slowest thing either endpoint does.
+ */
+export async function listDocuments(
+  c: Container,
+  records?: FetchedRecords
+): Promise<DocumentSummary[]> {
+  const { ocr, extract, review } = records ?? (await fetchRecords(c));
   const ids = new Set([...ocr.keys(), ...extract.keys(), ...review.keys()]);
   return [...ids]
     .map((id) => toSummary(id, ocr.get(id), extract.get(id), review.get(id)))
