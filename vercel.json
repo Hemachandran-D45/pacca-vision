@@ -11,9 +11,6 @@
   ],
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 30
-    },
-    "api/solutions-v2.ts": {
       "maxDuration": 120
     }
   }
