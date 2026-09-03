@@ -1,0 +1,47 @@
+{
+  "name": "document_classification",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "evidence": {
+        "type": "string",
+        "description": "One sentence naming the specific text that decided the type, and any type you rejected."
+      },
+      "evidence_phrases": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "One to three short passages copied verbatim from the document, character for character, that prove the chosen type. Checked automatically against the document text."
+      },
+      "doc_type": {
+        "type": "string",
+        "enum": [
+          "prescription",
+          "clinicalNotes",
+          "approvalLetter",
+          "denialLetter",
+          "paResponse",
+          "appealChecklist",
+          "letterOfMedNecessity",
+          "insuranceCard",
+          "patientDemographics",
+          "pbmLetter",
+          "other"
+        ]
+      },
+      "confidence": {
+        "type": "number",
+        "description": "0.0 to 1.0. Lower it when two types were close."
+      }
+    },
+    "required": [
+      "evidence",
+      "evidence_phrases",
+      "doc_type",
+      "confidence"
+    ],
+    "additionalProperties": false
+  }
+}

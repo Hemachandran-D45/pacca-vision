@@ -1,0 +1,100 @@
+The document above is a **clinicalNotes**.
+
+Clinical and progress notes. Extracts patient and provider identity plus derived clinical findings: tuberculosis screening outcome, the lowest DEXA T-score with its site and date, and medication-change booleans.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PatientAddress
+*object · transcription*
+
+Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider.
+
+### ProviderAddress
+*object · transcription*
+
+Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address.
+
+### Signature
+*string · detection*
+
+Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### Weight
+*string · transcription*
+
+Patient weight with units as recorded in vitals, for example 168 lb or 76.2 kg.
+
+### ActiveTBRuledOut
+*string · inference*
+
+Whether ACTIVE tuberculosis is ruled out. Infer from Quantiferon TB Gold or PPD results, chest X-ray findings, and the assessment section together. Not documented if the note is silent.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### LatentTBRuledOut
+*string · inference*
+
+Whether LATENT tuberculosis is ruled out. Infer from the same screening results and assessment. Distinguish carefully from active TB — a negative screen may rule out one and not the other.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### LowestDexa
+*object · inference*
+
+Across ALL DEXA scan results anywhere in this document, the single observation with the LOWEST, most negative T-score. Keep the score, its anatomical site and its date together from that one observation.
+
+⚠️ THE CLASS C TEST (experiment E5). This is an aggregation over a set, not a field read. Grouping the three subfields keeps the model from mixing a score from one scan with the site of another. If `generate` cannot do this reliably, act_extract_inference is needed.
+
+### TakingOtherMedications
+*string · inference*
+
+Whether the patient is taking any other medications, collapsed from the full medication list. Lists routinely straddle page breaks, so consider the whole document.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### TakingAnyNewMedication
+*string · inference*
+
+Whether any medication is newly started, changed or added at this visit, versus continued unchanged.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.

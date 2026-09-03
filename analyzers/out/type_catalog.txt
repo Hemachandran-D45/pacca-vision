@@ -1,0 +1,138 @@
+# Document classification
+
+You are classifying a single scanned document from a specialty-pharmacy prior-authorization workflow. Exactly one document type applies to the whole file. Read the whole document before deciding — the decisive evidence is often a single sentence in the body, not the letterhead or the title.
+
+## The document types
+
+### prescription
+A prescription or Rx order written by a prescriber for a specific patient. Names a drug with strength and dose form, a quantity, refills, and SIG dosing directions. Usually carries a prescriber signature line and DEA or NPI number. May be a printed e-prescription, a pharmacy enrolment form with an Rx section, or a handwritten script.
+
+Look for:
+- Rx symbol, "Prescription", "Medication Order"
+- drug name with strength (e.g. "Adalimumab 40 mg/0.8 mL")
+- "Sig:", "Directions:", "Dispense:", "Refills:"
+- prescriber signature and DEA/NPI
+
+### clinicalNotes
+A clinical, progress, office-visit or consultation note written by a clinician documenting an encounter. Narrative prose organised into clinical sections, describing history, examination, results and a plan. Its purpose is to record care, not to request or decide anything.
+
+Look for:
+- "Chief Complaint", "HPI", "Assessment and Plan", "Review of Systems"
+- lab values with units and reference ranges
+- current medication list, allergies, past medical history
+- dated encounter with a rendering provider
+
+### approvalLetter
+A letter from a payer, plan or PBM stating that a prior-authorization request HAS BEEN APPROVED. Carries an authorization or certification number and an effective and expiry date, and usually an approved quantity or number of units.
+
+Look for:
+- "approved", "certified", "authorized", "coverage has been approved"
+- authorization number, effective date, valid through date
+- approved units, visits or days supply
+
+### denialLetter
+A letter from a payer, plan or PBM stating that a prior-authorization request HAS BEEN DENIED. States a denial reason and, because it is an adverse determination, is legally required to describe appeal rights and deadlines.
+
+Look for:
+- "denied", "not approved", "adverse determination", "does not meet criteria"
+- a stated denial or non-coverage reason
+- "you have the right to appeal", appeal deadline in days
+- external review or independent review board contact details
+
+### paResponse
+A payer prior-authorization determination or outcome notice that is a status or response FORM rather than a formal letter — a fax-back response sheet, a portal determination printout, or an outcome notice that may report approved, denied, partially approved or pending. Choose this when the document is clearly a determination but is laid out as a form or status report rather than as correspondence.
+
+Look for:
+- "Determination", "PA Response", "Request Status", "Outcome"
+- a status field with a value rather than a narrative decision
+- reference or case number with a decision date
+- form or table layout, not letter prose
+
+### appealChecklist
+A checklist or cover sheet used to assemble and submit an appeal of a denied prior authorization. Its defining feature is a list of required items with checkboxes to tick, and appeal-level options such as first level, second level or external review.
+
+Look for:
+- checkbox list of required documents to attach
+- "Appeal Checklist", "Appeal Submission", "Required Documentation"
+- level-of-appeal options to select
+- submission deadline and fax or portal destination
+
+### letterOfMedNecessity
+A letter written BY a prescriber TO a payer arguing that a therapy is medically necessary for a named patient. Argumentative in tone: it states a diagnosis, recounts therapies already tried and failed, and requests coverage. Written before or during an appeal, never a decision.
+
+Look for:
+- "Letter of Medical Necessity", "LMN", "To Whom It May Concern"
+- "I am writing on behalf of my patient"
+- failed prior therapies, contraindications, step-therapy history
+- clinical rationale followed by a request for approval
+
+### insuranceCard
+A scan or photograph of an insurance or pharmacy benefit card, usually front and back on one page. Very short — mostly identifier fields with almost no prose. Carries pharmacy routing numbers.
+
+Look for:
+- Member ID, Group Number, RxBIN, RxPCN, RxGRP
+- plan and payer logo, member and dependant names
+- a barcode or magnetic stripe image
+- member services phone numbers on the reverse
+
+### patientDemographics
+A patient intake, registration, demographic or enrolment form collecting who the patient is and how to reach and bill them. Field-and-value layout throughout, often with consent, HIPAA authorisation or assignment of benefits signature blocks.
+
+Look for:
+- name, date of birth, address, phone, email, emergency contact
+- primary and secondary insurance policy and group numbers
+- employer, guarantor, marital status, preferred language
+- consent, HIPAA and financial responsibility signature blocks
+
+### pbmLetter
+A letter from a pharmacy benefit manager about coverage administration rather than about one prior-authorization decision — formulary changes, pricing or reimbursement, network participation, or plan design updates. Addresses the pharmacy or provider, not a single patient's request.
+
+Look for:
+- PBM name (Express Scripts, CVS Caremark, OptumRx and similar)
+- formulary change, tier change, network or pricing notice
+- addressed to the pharmacy or provider organisation
+- no single-patient authorization decision
+
+### other
+Anything that is none of the ten above — fax cover sheets, blank or illegible pages, correspondence unrelated to prior authorization, or a document type not in this list. Choose this rather than forcing a poor fit. Choosing it is correct behaviour, not a failure.
+
+Look for:
+- fax banner page with no clinical or benefit content
+- unreadable, blank, or non-English content
+- a genuine document type absent from this list
+
+## Telling confusable types apart
+
+**approvalLetter vs denialLetter vs paResponse**
+All three are payer determinations and look alike. Decide on the DECISION and the FORMAT, in that order. If the decision is favourable and the document is a letter, choose approvalLetter. If it is unfavourable and describes appeal rights, choose denialLetter. If it is a form, fax-back sheet or portal printout reporting a status — including pending or partially approved — choose paResponse regardless of the outcome. A stated appeal deadline is near-conclusive evidence of denialLetter.
+
+**letterOfMedNecessity vs clinicalNotes**
+Both are written by a clinician and both contain clinical narrative. The difference is the audience and the ask. A letter of medical necessity is addressed to a payer and requests coverage. A clinical note documents an encounter and asks for nothing. If it contains "I am writing to request", it is a letterOfMedNecessity.
+
+**appealChecklist vs denialLetter**
+A denial letter is the payer telling you no. An appeal checklist is the packet you assemble to argue back. Checkboxes for documents to attach mean appealChecklist even when the denial is quoted inside it.
+
+**patientDemographics vs prescription**
+Pharmacy enrolment forms often carry both a demographics block and an Rx block. If the form contains a drug with a strength, quantity and SIG, classify it as prescription — the prescription fields are the ones the business needs. Choose patientDemographics only when there is no medication order at all.
+
+**pbmLetter vs approvalLetter**
+Both arrive on PBM letterhead. If the letter decides one named patient's authorization request, it is approvalLetter or denialLetter. If it is about formulary, pricing, network or plan administration, it is pbmLetter.
+
+## How to answer
+
+Read the whole document, then return exactly one type from this list:
+
+`prescription`, `clinicalNotes`, `approvalLetter`, `denialLetter`, `paResponse`, `appealChecklist`, `letterOfMedNecessity`, `insuranceCard`, `patientDemographics`, `pbmLetter`, `other`
+
+**`evidence`** — one short sentence naming what decided it. If two types are genuinely close, say which you rejected and why, and lower your confidence accordingly. Choosing `other` when nothing fits is correct behaviour, not a failure.
+
+**`evidence_phrases`** — one to three short passages **copied verbatim from the document above**, character for character. These are the proof behind your answer, and they are checked automatically against the document text: a phrase that cannot be found there is recorded as unproven. So copy them — do not retype them from memory, do not tidy the spelling or punctuation, and never stitch together text from two different places, because a stitched phrase is not a real substring and will fail the check even though you read it correctly. A handful of words each is enough. The wording listed under "Look for" above is what to hunt for.
+
+Return the passage text and nothing else. **Do not wrap it in quotation marks**, do not add ellipses or square brackets, and do not prefix it with a dash or a bullet. The check is a plain substring search against the document, so
+
+-  `We've approved your request for coverage.`  is found
+-  `"We've approved your request for coverage."`  is NOT found
+
+because the document does not contain the quotation marks you added.
+
+Where the document also contains language belonging to a type you rejected — a denial letter with a prescription attached to it — quote the passages that establish **your** type, not the ones you rejected. Say the rejected type in `evidence` instead.

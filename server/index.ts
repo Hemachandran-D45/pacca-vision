@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { loadLocalEnv } from "./loadLocalEnv.js";
 import { createSolution } from "./solutionsApi.js";
+import { handleSolutionsV2 } from "./solutionsV2Api.js";
 import { handleSenderra } from "./senderra/api.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +19,11 @@ async function startServer() {
   app.use(express.json({ limit: "256kb" }));
   app.post("/api/solutions", async (req, res) => {
     const result = await createSolution(req.body);
+    res.status(result.status).json(result.body);
+  });
+  app.all("/api/solutions-v2", async (req, res) => {
+    const method = (req.method || "GET").toUpperCase();
+    const result = await handleSolutionsV2(method, req.body, new URL(req.url || "/", "http://localhost").searchParams);
     res.status(result.status).json(result.body);
   });
 

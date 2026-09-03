@@ -24,9 +24,9 @@ export const rolePermissions: Record<Role, string[]> = {
   // Client Staff: Operates the client's published workspace + HIL is standard capability
   "Client Staff": ["/", "/documents", "/hil-review", "/monitor", "/analytics"],
   // PACCA Solution Developer: Full solution/workspace visibility + development/configuration
-  "PACCA Solution Developer": ["/", "/documents", "/hil-review", "/monitor", "/analytics", "/solutions", "/pipeline-studio", "/metadata-studio", "/rules", "/integrations", "/environment", "/deployment", "/infrastructure"],
+  "PACCA Solution Developer": ["/", "/documents", "/hil-review", "/monitor", "/analytics", "/solutions", "/solutions-v2", "/pipeline-studio", "/metadata-studio", "/rules", "/integrations", "/environment", "/deployment", "/infrastructure"],
   // PACCA Platform Admin: Full platform governance + complete client workspace visibility
-  "PACCA Platform Admin": ["/", "/documents", "/hil-review", "/monitor", "/analytics", "/solutions", "/pipeline-studio", "/metadata-studio", "/rules", "/integrations", "/environment", "/deployment", "/infrastructure", "/users", "/settings"],
+  "PACCA Platform Admin": ["/", "/documents", "/hil-review", "/monitor", "/analytics", "/solutions", "/solutions-v2", "/pipeline-studio", "/metadata-studio", "/rules", "/integrations", "/environment", "/deployment", "/infrastructure", "/users", "/settings"],
 };
 
 type LoginProps = { onLogin: (user: MockUser) => void };

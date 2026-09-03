@@ -1,0 +1,127 @@
+The document above is a **prescription**.
+
+Prescription and Rx forms. Extracts patient and prescriber identity, drug, strength, dose form, quantity, refills and SIG dosing directions, plus checkbox selections and signature presence.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PatientAddress
+*object · transcription*
+
+Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
+
+### PatientGender
+*string · resolution*
+
+Patient gender. Usually a checkbox pair labeled M/F or Male/Female. Return Unknown if no box is marked or the marking is ambiguous.
+
+Allowed values: `Male`, `Female`, `Unknown`. Use null if none of them apply.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider.
+
+### ProviderAddress
+*object · transcription*
+
+Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address.
+
+### ProviderPhone
+*string · transcription*
+
+Provider office telephone number, from the letterhead or prescriber block. Not the fax number.
+
+### ProviderFax
+*string · transcription*
+
+Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number.
+
+### Signature
+*string · detection*
+
+Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### SupervisingPhysicianNPI
+*string · transcription*
+
+Supervising physician NPI, when a mid-level provider prescribes. Exactly 10 digits. Distinct from the prescriber NPI. Empty if absent.
+
+⚠️ SPEC GAP: the workbook maps both this and ProviderNPI to output name "NPI". Resolve the collision in the delivery contract, not here.
+
+### DrugName
+*string · resolution*
+
+Prescribed drug name as written, brand or generic, including any strength printed alongside it. Resolved against reference data by us.
+
+### DrugDirections
+*string · resolution*
+
+Dosing directions or SIG, verbatim. May describe loading, maintenance and induction dosing in one block. Mapped to a Helix SIG code by us, so capture the full text rather than summarising.
+
+### DoseForm
+*string · resolution*
+
+Dose form selected on the form, typically a checkbox group. Return Not documented if no box is marked.
+
+Allowed values: `Tablet`, `Capsule`, `Injection`, `Prefilled Syringe`, `Autoinjector`, `Vial`, `Solution`, `Suspension`, `Cream`, `Other`, `Not documented`. Use null if none of them apply.
+
+⚠️ SPEC GAP: required input with no output field name defined.
+
+### PrescriptionStrength
+*string · resolution*
+
+Prescribed strength with units as printed, for example 40 mg/0.8 mL. May be a checkbox selection rather than free text.
+
+⚠️ SPEC GAP: required input with no output field name defined.
+
+### DateWritten
+*date · transcription*
+
+Date the prescriber wrote or signed the prescription. Labeled Date, Date Written, or Date Signed. Not the patient date of birth.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### Refills
+*string · transcription*
+
+Number of refills authorized, as printed. May be a numeral, a word, or PRN / NR. Empty if not stated.
+
+### Quantity
+*string · transcription*
+
+Quantity dispensed, with units if printed, for example 2 syringes or 30 tablets.

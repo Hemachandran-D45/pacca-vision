@@ -93,6 +93,33 @@ export function applyPromptTemplate(template: string, input: string): string {
   return template.replaceAll("{{input}}", input).replaceAll("{{content}}", input);
 }
 
+export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+export function stripFence(text: string): string {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^```(?:[\w.+-]+)?\r?\n([\s\S]*?)\r?\n```$/);
+  return (match ? match[1] : trimmed).replace(/\u0000/g, "").trim();
+}
+
+export function loadSolutionsV2Prompt(name: string): { template: string } | ChatFailure {
+  const filePath = path.join(templateRoot(), "prompts", "solutions-v2", name);
+  if (!fs.existsSync(filePath)) {
+    return jsonFail(500, `Solutions V2 prompt ${name} was not found.`);
+  }
+  const template = fs.readFileSync(filePath, "utf8");
+  if (!template.trim()) {
+    return jsonFail(500, `Solutions V2 prompt ${name} is empty.`);
+  }
+  return { template };
+}
+
+export function fillTemplate(template: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce(
+    (text, [key, value]) => text.replaceAll(`{{${key}}}`, value),
+    template
+  );
+}
+
 function completionsUrl(config: ChatConfig): string {
   const url = new URL(`${config.baseUrl}/chat/completions`);
   if (config.apiVersion) {
@@ -101,9 +128,10 @@ function completionsUrl(config: ChatConfig): string {
   return url.toString();
 }
 
-export async function completeSolutionPrompt(prompt: string): Promise<ChatResult> {
+export async function completeChat(messages: ChatMessage[]): Promise<ChatResult> {
   const config = readChatConfig();
   if ("ok" in config) return config;
+  if (!messages.length) return jsonFail(400, "Chat Completions requires at least one message.");
 
   try {
     const response = await fetch(completionsUrl(config), {
@@ -118,7 +146,7 @@ export async function completeSolutionPrompt(prompt: string): Promise<ChatResult
         model: config.model,
         temperature: Number(process.env.OPENAI_TEMPERATURE || 0.2),
         max_tokens: config.maxTokens,
-        messages: [{ role: "user", content: prompt }],
+        messages,
       }),
       signal: AbortSignal.timeout(config.timeoutMs),
     });
@@ -158,7 +186,7 @@ export async function completeSolutionPrompt(prompt: string): Promise<ChatResult
     if (Buffer.byteLength(trimmed, "utf8") > MAX_OUTPUT_BYTES) {
       return jsonFail(502, "Chat Completions output exceeded the file size limit.");
     }
-    return { ok: true, text: trimmed, model: config.model };
+    return { ok: true, text: stripFence(trimmed), model: config.model };
   } catch (error) {
     const timedOut = error instanceof Error && error.name === "TimeoutError";
     return jsonFail(
@@ -168,4 +196,8 @@ export async function completeSolutionPrompt(prompt: string): Promise<ChatResult
         : "Could not reach Chat Completions. Check OPENAI_BASE_URL and network connectivity."
     );
   }
+}
+
+export async function completeSolutionPrompt(prompt: string): Promise<ChatResult> {
+  return completeChat([{ role: "user", content: prompt }]);
 }

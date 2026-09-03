@@ -1,0 +1,9 @@
+Write the extraction JSON schema for document type "{{typeKey}}" ({{typeName}}).
+
+Use additionalProperties false. Required fields are those marked required. Optional fields may be ["string","null"] or matching type. Dates are strings formatted YYYY-MM-DD.
+
+Fields:
+{{fieldsJson}}
+
+Current file (may be empty if new):
+{{file}}

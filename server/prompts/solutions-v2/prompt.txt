@@ -1,0 +1,10 @@
+Write the extraction user prompt for document type "{{typeKey}}" ({{typeName}}). Instruct the model to return one JSON object matching the schema, not invent values, and format dates as YYYY-MM-DD.
+
+Operator guidance (follow this when writing the prompt):
+{{guidance}}
+
+Fields:
+{{fieldsJson}}
+
+Current file (may be empty if new):
+{{file}}

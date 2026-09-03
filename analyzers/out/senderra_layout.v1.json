@@ -1,0 +1,18 @@
+{
+  "analyzerId": "senderra_layout.v1",
+  "description": "OCR plus layout analysis \u2014 tables, sections, selection marks. Standard meter, $5.00 per 1,000 pages. Selected 2026-08-03. The 5x meter costs $108,000/year at 27M pages and buys structured markdown plus the only reliable read on the 8 Class D checkbox and signature fields. Flip the CU_ANALYZER_ID app setting to senderra_read.v1 to A/B it \u2014 benchmark E1.",
+  "baseAnalyzerId": "prebuilt-document",
+  "config": {
+    "enableOcr": true,
+    "enableLayout": true,
+    "returnDetails": true,
+    "enableBarcode": true,
+    "enableFormula": false,
+    "enableFigureDescription": false,
+    "enableFigureAnalysis": false,
+    "enableSegment": false
+  },
+  "fieldSchema": {
+    "fields": {}
+  }
+}
