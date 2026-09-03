@@ -1,0 +1,166 @@
+# PACCA Vision
+
+Operations UI for a reusable intelligent document-processing platform.
+See `PRD_CONTEXT.md` for product intent and `PACCA_VISION_DEMO_PREPARATION.md` for the demo script.
+
+## What this is
+
+The Client 1 workspace runs **two solutions**, switched from the control in the top bar:
+
+| Solution | Backing | Screens |
+| --- | --- | --- |
+| **Prior Auth Processing** | **Live** — the Senderra IDP pipeline on Azure | Command Center, Documents, Document detail, HIL Review, Analytics & Cost |
+| **Invoice Processing** | Demo fixtures, unchanged | the original fixture screens |
+
+Every other screen (Pipeline Monitor, Audit, Solutions, Pipeline Studio, Metadata Studio, Rules,
+Integrations, Deploy, Admin) is still fixture-driven in both solutions.
+
+### The live path
+
+```
+browser ──1── POST /api/senderra/upload-sas        mint a 15-min, write-only, single-blob SAS
+        ──2── PUT  https://<account>.blob…/docs-in/ui/<file>.pdf     direct, bytes skip our API
+                     │
+                     └─ Event Grid → Service Bus → fn_ocr → work/…/markdown.md
+                                                 → fn_extract → results/ + metrics/ + Cosmos
+        ──3── GET  /api/senderra/documents        poll every 5s; the doc appears as
+                                                 Queued → Processing → Needs Review
+        ──4── POST /api/senderra/review           claim / correct / approve, written back to Cosmos
+```
+
+**The blob write is the trigger.** Nothing calls the Function App — `parse_ocr_message`
+reconstructs a document's identity from its path, so a PUT to `docs-in/<run>/<name>.pdf` starts
+the production pipeline with zero changes to `senderra-idp-sol`. Measured end-to-end: **~20–40s**
+from upload to extracted fields.
+
+Uploads go **direct to blob** rather than through the API because Vercel caps a serverless request
+body at 4.5 MB and a multi-page scan is routinely larger. The account key stays server-side; the
+browser only ever receives a scoped, short-lived token for one blob.
+
+### What Cosmos holds
+
+One container, partition key `/documentId` = `<runId>/<docId>`, four items per document:
+
+| item | read by |
+| --- | --- |
+| `ocr` | page count, `mean`/`min_page_confidence`, CU latency and cost |
+| `extract` | the Documents table and every dashboard aggregate — status, doc type, `needs_review`, `review_reasons[]`, `field_score_mean`, tokens, `cache_hit_frac`, cost, latency |
+| `fields` | the HIL workbench — per-field value, quote, class, grounding (page, polygon, OCR confidence, `quote_in_document`), per-signal scores, `needs_review` |
+| `review` | HIL state — status, `corrections{}`, append-only `audit[]`, `claimed_by`, `reviewed_by` |
+
+`ocr`, `extract` and `fields` are written by the pipeline. **`review` is written by this app**, using
+the shape already present in the container.
+
+## Requirements
+
+- Node 20+
+- pnpm 10.4.1 (`corepack enable && corepack prepare pnpm@10.4.1 --activate`)
+- Azure: a Cosmos DB account with the pipeline's `documents` container, and the storage account
+  holding `docs-in`
+
+## Setup
+
+```bash
+pnpm install
+cp env.example .env.local      # fill in the Senderra block (see below)
+pnpm dev                       # http://localhost:3000
+```
+
+`pnpm dev` mounts the whole `/api/senderra` surface as Vite middleware, so dev behaves exactly like
+the Vercel deployment — the routing lives in `server/senderra/api.ts` and neither host owns it.
+
+Confirm the wiring: `curl localhost:3000/api/senderra/health` → `{"ok":true,"configured":true,…}`.
+Without the variables the app still runs; every live screen shows the server's own
+"not configured" message rather than failing silently.
+
+```bash
+pnpm check     # tsc --noEmit
+pnpm build     # vite build → dist/public, esbuild server → dist/index.js
+pnpm start     # Express, serves dist/public  (see Known issues)
+pnpm format    # prettier
+```
+
+## Environment
+
+All server-only. **Never prefix any of these `VITE_`** — Vite inlines `VITE_*` into the browser
+bundle and these are account keys.
+
+| Variable | Where it comes from |
+| --- | --- |
+| `COSMOS_ENDPOINT`, `COSMOS_KEY` | Cosmos account → Keys → **URI** and **PRIMARY KEY** (not the connection string) |
+| `COSMOS_DATABASE`, `COSMOS_CONTAINER` | `senderra-idp` / `documents` |
+| `AZURE_STORAGE_ACCOUNT`, `AZURE_STORAGE_KEY` | Storage account → Access keys → key1. Needed to mint SAS tokens |
+| `SENDERRA_DOCS_CONTAINER` | `docs-in` — the pipeline's intake container |
+| `SENDERRA_UPLOAD_RUN_ID` | `ui` — first path segment, becomes the run id and partition-key prefix |
+
+### Deploying to Vercel
+
+```bash
+npx vercel link
+bash scripts/vercel-env.sh production    # pushes the block above from .env.local
+npx vercel --prod
+```
+
+`vercel.json` rewrites everything except `/api/` to `index.html`, so the SPA and the serverless
+functions coexist. `api/senderra/[...route].ts` is one catch-all rather than six functions, to stay
+well inside the Hobby-plan function cap.
+
+### One Azure prerequisite
+
+Browser-direct upload needs a **CORS rule on the storage account**. Already applied:
+
+```bash
+az storage cors add --services b --methods GET PUT OPTIONS HEAD \
+  --origins '*' --allowed-headers '*' --exposed-headers '*' --max-age 3600 \
+  --connection-string "$STORAGE_CONNECTION_STRING"
+```
+
+`*` is safe here in that CORS governs which browser origins may *make* a request, not who is
+authorised — the SAS is the authorisation. Tighten `--origins` to the final Vercel domain when
+there is one.
+
+## Layout
+
+```
+server/senderra/          config, Cosmos queries, SAS minting, the API dispatcher
+api/senderra/[...route]   Vercel wrapper around that dispatcher
+client/src/senderra/      the live surfaces + the solution switch
+client/src/pages/Home.tsx the whole fixture app in one file (~130KB); dispatches to live
+                          components when the Prior Auth solution is active
+```
+
+## Known dead / stale code
+
+Unused today, listed so nobody assumes it works.
+
+- `patch-*.mjs`, `patch-*.py`, `update-*.py`, `insert-guidance.py`, `repair-*.mjs` (~35 files in the
+  repo root) — one-shot codemods already applied to `Home.tsx`. Not safe to re-run.
+- `client/src/components/CreateSolutionDialog.tsx` — the only UI for the `/api/solutions` GitHub
+  endpoint, imported by nothing.
+- `client/src/components/Map.tsx`, `ManusDialog.tsx` — not imported.
+- `client/public/images/doc-00{1,2,3}.svg` — superseded by the invoice-demo PDFs.
+- `api/index.ts` — a Vercel handler checking `pathname === "/api/solutions"`, which its own file
+  path can never produce. Rename it to `api/solutions.ts` if that feature is ever wanted.
+- `axios`, `framer-motion`, `streamdown` — dependencies imported by nothing.
+- `template.json` — the original scaffold snapshot.
+
+## Known issues
+
+- **`pnpm start` breaks `/api/solutions`** with *"Solution prompt template file was not found."* —
+  `server/prompts/create-solution.txt` is not copied into `dist/`. `pnpm dev` and Vercel are
+  unaffected; the Senderra routes do not use it.
+- **The live UI has not been rendered in a browser here** — no headless Chromium was available
+  (missing system libs, no sudo). Typecheck, production build, and every API route including a real
+  end-to-end upload are verified; the React screens are not.
+- **Cross-partition aggregation is done in JS**, because Cosmos rejects `GROUP BY` with aggregates
+  on a cross-partition query. Fine at this corpus (~2 MB scanned). Per `guide/12_cosmos_db.md` §12,
+  replace it with a rollup item when a dashboard load costs more than ~5,000 RU.
+- **Review writes are last-writer-wins.** The audit array is append-only and must be read before it
+  is appended to. Add an ETag precondition before two reviewers ever share a document.
+- **`e2e_latency_ms` is per stage, not per pipeline.** On the `ocr` record it covers stage 1; on the
+  `extract` record it covers stage 2 only. Summing stage-1 components against the stage-2 total —
+  the obvious reading of the name — yields segments exceeding 100%. Analytics composes queue wait +
+  stage 1 + stage 2 instead, and labels the result a floor: the hop between the stages (Event Grid
+  on the markdown write, then the extract-queue wait) is not instrumented at all.
+- `client/index.html` references `%VITE_ANALYTICS_ENDPOINT%`; without it the build warns and emits a
+  broken `<script src="/umami">`. Harmless, noisy.
