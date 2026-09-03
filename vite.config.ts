@@ -416,22 +416,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        // Split by how often each group actually changes. Home.tsx is edited
-        // constantly; recharts and the Radix primitives essentially never are,
-        // so giving them their own files means a UI edit re-downloads the app
-        // chunk alone instead of the whole megabyte.
-        manualChunks(id: string) {
-          if (!id.includes("node_modules")) return;
-          if (/[\\/]node_modules[\\/](react|react-dom|scheduler|wouter)[\\/]/.test(id)) return "react";
-          if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) return "charts";
-          if (id.includes("lucide-react")) return "icons";
-          if (id.includes("@radix-ui") || id.includes("@floating-ui")) return "radix";
-          return "vendor";
-        },
-      },
-    },
+    // No manualChunks. Splitting node_modules by hand broke the app: Vite's
+    // CommonJS interop helpers are VIRTUAL modules whose id contains no
+    // "node_modules", so a path-matching splitter leaves them in the entry
+    // chunk while the vendor chunk that needs them executes first - React ends
+    // up undefined and the page renders blank with
+    // "Cannot read properties of undefined (reading 'createContext')".
+    // The 500 kB advisory below is a real trade-off we accept, not a defect.
+    chunkSizeWarningLimit: 1200,
   },
   server: {
     port: 3000,
