@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   completeChat,
   fillTemplate,
@@ -34,11 +33,11 @@ function jsonError(status: number, message: string, extra?: Record<string, unkno
 }
 
 function projectRoot(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  return process.cwd();
 }
 
 function outDir(): string {
-  return path.join(projectRoot(), "analyzers", "out");
+  return path.join(process.cwd(), "analyzers", "out");
 }
 
 function localPath(relative: string): string {
