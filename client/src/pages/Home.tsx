@@ -85,6 +85,7 @@ import { DocumentsLive } from "@/senderra/DocumentsLive";
 import { DocumentDetailLive } from "@/senderra/DocumentDetailLive";
 import { HilLive } from "@/senderra/HilLive";
 import { AnalyticsLive } from "@/senderra/AnalyticsLive";
+import { SolutionsV2 } from "@/senderra/SolutionsV2";
 import type { MockUser } from "@/components/MockAuth";
 import {
   Area,
@@ -134,6 +135,7 @@ const navSections: NavSection[] = [
     label: "Configure",
     items: [
       { label: "Solutions", path: "/solutions", icon: Boxes },
+      { label: "Solutions V2", path: "/solutions-v2", icon: FileCog },
       { label: "Pipeline Studio", path: "/pipeline-studio", icon: WandSparkles },
       { label: "Metadata Studio", path: "/metadata-studio", icon: Columns3 },
       { label: "Rules & Validations", path: "/rules", icon: ShieldCheck },
@@ -499,6 +501,7 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/analytics": { title: "Analytics & Cost", subtitle: "Understand throughput, automation, confidence, SLA, and cost" },
   "/audit": { title: "Audit Trail", subtitle: "Chronological operational history across your document estate" },
   "/solutions": { title: "Solutions", subtitle: "Reusable business and document-processing use cases" },
+  "/solutions-v2": { title: "Solutions V2", subtitle: "Document types from field_meta.json, generated into senderra-idp-sol" },
   "/pipeline-studio": { title: "Pipeline Studio", subtitle: "Compose document-processing steps into a reliable operating path" },
   "/metadata-studio": { title: "Metadata Studio", subtitle: "Define the final metadata contract consumed by downstream solutions" },
   "/rules": { title: "Rules & Validations", subtitle: "Guard the handoff from extracted data to trusted final metadata" },
@@ -560,6 +563,7 @@ export default function Home() {
   else if (path === "/analytics") content = <AnalyticsPage />;
   else if (path === "/audit") content = <AuditPage />;
   else if (path === "/solutions") content = <SolutionsPage onNavigate={go} role={user.role} />;
+  else if (path === "/solutions-v2") content = <SolutionsV2 />;
   else if (path === "/pipeline-studio") content = <PipelineStudioPage />;
   else if (path === "/metadata-studio") content = <MetadataStudioPage />;
   else if (path === "/rules") content = <ConfigListPage kind="rules" />;

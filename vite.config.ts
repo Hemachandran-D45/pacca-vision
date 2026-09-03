@@ -6,6 +6,7 @@ import path from "node:path";
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import { createSolution } from "./server/solutionsApi.js";
+import { handleSolutionsV2 } from "./server/solutionsV2Api.js";
 import { handleSenderra } from "./server/senderra/api.js";
 
 // =============================================================================
@@ -190,6 +191,86 @@ function vitePluginAnalytics(): Plugin {
   };
 }
 
+function readJsonBody(
+  req: { on: (event: string, cb: (chunk?: unknown) => void) => void; destroy: () => void },
+  res: { writeHead: (code: number, headers: Record<string, string>) => void; end: (body: string) => void; writableEnded: boolean },
+  send: (payload: unknown) => Promise<void>
+) {
+  let body = "";
+  req.on("data", (chunk) => {
+    body += String(chunk);
+    if (body.length > 300 * 1024) {
+      res.writeHead(413, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Request body is too large." }));
+      req.destroy();
+    }
+  });
+  req.on("end", () => {
+    if (res.writableEnded) return;
+    try {
+      const payload = body ? JSON.parse(body) : {};
+      void send(payload).catch((error) => {
+        if (res.writableEnded) return;
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: String(error) }));
+      });
+    } catch {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Request body must be valid JSON." }));
+    }
+  });
+}
+
+function vitePluginSolutionsV2Api(): Plugin {
+  return {
+    name: "pacca-solutions-v2-api",
+    configureServer(server: ViteDevServer) {
+      const env = loadEnv(server.config.mode, PROJECT_ROOT, "");
+      for (const [key, value] of Object.entries(env)) {
+        if (
+          key.startsWith("GITHUB_") ||
+          key.startsWith("OPENAI_") ||
+          key.startsWith("LLM_") ||
+          key.startsWith("SOLUTION_")
+        ) {
+          if (!process.env[key]) process.env[key] = value;
+        }
+      }
+
+      server.middlewares.use("/api/solutions-v2", (req, res, next) => {
+        const method = (req.method || "GET").toUpperCase();
+        if (method !== "GET" && method !== "POST" && method !== "PATCH" && method !== "DELETE") return next();
+
+        const url = new URL(req.url || "/", "http://localhost");
+        const send = async (payload: unknown) => {
+          const result = await handleSolutionsV2(method, payload, url.searchParams);
+          res.writeHead(result.status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result.body));
+        };
+
+        if (method === "GET") {
+          void send({}).catch((error) => {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: String(error) }));
+          });
+          return;
+        }
+
+        const reqBody = (req as { body?: unknown }).body;
+        if (reqBody && typeof reqBody === "object") {
+          void send(reqBody).catch((error) => {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: false, error: String(error) }));
+          });
+          return;
+        }
+
+        readJsonBody(req, res, send);
+      });
+    },
+  };
+}
+
 function vitePluginSolutionsApi(): Plugin {
   return {
     name: "pacca-solutions-api",
@@ -208,6 +289,7 @@ function vitePluginSolutionsApi(): Plugin {
       }
 
       server.middlewares.use("/api/solutions", (req, res, next) => {
+        if ((req.url || "").split("?")[0].startsWith("-v2")) return next();
         if (req.method !== "POST") {
           return next();
         }
@@ -397,6 +479,7 @@ const plugins = [
   devOnly(vitePluginManusRuntime() as Plugin),
   vitePluginManusDebugCollector(),
   vitePluginAnalytics(),
+  vitePluginSolutionsV2Api(),
   vitePluginSolutionsApi(),
   vitePluginSenderraApi(),
   vitePluginStorageProxy(),

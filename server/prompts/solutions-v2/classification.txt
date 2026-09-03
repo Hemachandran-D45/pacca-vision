@@ -1,0 +1,4 @@
+Update this classification JSON schema. Add "{{typeKey}}" to the doc_type enum if it is missing. Keep "unknown" if present. Keep JSON valid.
+
+Current file:
+{{file}}

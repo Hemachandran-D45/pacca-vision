@@ -1,0 +1,147 @@
+{
+  "version": 2,
+  "api_version": "2025-11-01",
+  "model": "gpt-5.4-mini",
+  "analyzers": [
+    "senderra_layout.v1",
+    "senderra_read.v1"
+  ],
+  "types": [
+    {
+      "key": "prescription",
+      "named_fields": 19,
+      "leaf_fields": 29,
+      "spec_field_count": 20,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 13,
+        "B": 5,
+        "C": 0,
+        "D": 1
+      }
+    },
+    {
+      "key": "clinicalNotes",
+      "named_fields": 14,
+      "leaf_fields": 27,
+      "spec_field_count": 14,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 8,
+        "B": 0,
+        "C": 5,
+        "D": 1
+      }
+    },
+    {
+      "key": "approvalLetter",
+      "named_fields": 11,
+      "leaf_fields": 13,
+      "spec_field_count": 12,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 8,
+        "B": 2,
+        "C": 1,
+        "D": 0
+      }
+    },
+    {
+      "key": "denialLetter",
+      "named_fields": 12,
+      "leaf_fields": 14,
+      "spec_field_count": 14,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 7,
+        "B": 2,
+        "C": 3,
+        "D": 0
+      }
+    },
+    {
+      "key": "paResponse",
+      "named_fields": 11,
+      "leaf_fields": 11,
+      "spec_field_count": 13,
+      "todo_from_workbook": 2,
+      "class_mix": {
+        "A": 7,
+        "B": 3,
+        "C": 1,
+        "D": 0
+      }
+    },
+    {
+      "key": "appealChecklist",
+      "named_fields": 10,
+      "leaf_fields": 17,
+      "spec_field_count": 13,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 3,
+        "B": 1,
+        "C": 3,
+        "D": 3
+      }
+    },
+    {
+      "key": "letterOfMedNecessity",
+      "named_fields": 14,
+      "leaf_fields": 24,
+      "spec_field_count": 17,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 9,
+        "B": 2,
+        "C": 2,
+        "D": 1
+      }
+    },
+    {
+      "key": "insuranceCard",
+      "named_fields": 7,
+      "leaf_fields": 7,
+      "spec_field_count": 7,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 6,
+        "B": 1,
+        "C": 0,
+        "D": 0
+      }
+    },
+    {
+      "key": "patientDemographics",
+      "named_fields": 14,
+      "leaf_fields": 19,
+      "spec_field_count": 21,
+      "todo_from_workbook": 2,
+      "class_mix": {
+        "A": 12,
+        "B": 2,
+        "C": 0,
+        "D": 0
+      }
+    },
+    {
+      "key": "pbmLetter",
+      "named_fields": 7,
+      "leaf_fields": 7,
+      "spec_field_count": 7,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 5,
+        "B": 1,
+        "C": 0,
+        "D": 1
+      }
+    }
+  ],
+  "totals": {
+    "named_fields": 119,
+    "leaf_fields": 168,
+    "spec_field_count": 138,
+    "todo_from_workbook": 4
+  }
+}

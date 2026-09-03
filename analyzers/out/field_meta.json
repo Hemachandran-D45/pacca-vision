@@ -1,0 +1,1058 @@
+{
+  "prescription": {
+    "PatientName": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "PatientAddress": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number."
+    },
+    "PatientPhone": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code."
+    },
+    "PatientGender": {
+      "doc_type": "prescription",
+      "class": "B",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Male",
+        "Female",
+        "Unknown"
+      ],
+      "description": "Patient gender. Usually a checkbox pair labeled M/F or Male/Female. Return Unknown if no box is marked or the marking is ambiguous."
+    },
+    "ProviderName": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
+    },
+    "ProviderNPI": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderAddress": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address."
+    },
+    "ProviderPhone": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Provider office telephone number, from the letterhead or prescriber block. Not the fax number."
+    },
+    "ProviderFax": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number."
+    },
+    "Signature": {
+      "doc_type": "prescription",
+      "class": "D",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Present",
+        "Absent"
+      ],
+      "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
+    },
+    "SupervisingPhysicianNPI": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Supervising physician NPI, when a mid-level provider prescribes. Exactly 10 digits. Distinct from the prescriber NPI. Empty if absent."
+    },
+    "DrugName": {
+      "doc_type": "prescription",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribed drug name as written, brand or generic, including any strength printed alongside it. Resolved against reference data by us."
+    },
+    "DrugDirections": {
+      "doc_type": "prescription",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Dosing directions or SIG, verbatim. May describe loading, maintenance and induction dosing in one block. Mapped to a Helix SIG code by us, so capture the full text rather than summarising."
+    },
+    "DoseForm": {
+      "doc_type": "prescription",
+      "class": "B",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Tablet",
+        "Capsule",
+        "Injection",
+        "Prefilled Syringe",
+        "Autoinjector",
+        "Vial",
+        "Solution",
+        "Suspension",
+        "Cream",
+        "Other",
+        "Not documented"
+      ],
+      "description": "Dose form selected on the form, typically a checkbox group. Return Not documented if no box is marked."
+    },
+    "PrescriptionStrength": {
+      "doc_type": "prescription",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribed strength with units as printed, for example 40 mg/0.8 mL. May be a checkbox selection rather than free text."
+    },
+    "DateWritten": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Date the prescriber wrote or signed the prescription. Labeled Date, Date Written, or Date Signed. Not the patient date of birth."
+    },
+    "Refills": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Number of refills authorized, as printed. May be a numeral, a word, or PRN / NR. Empty if not stated."
+    },
+    "Quantity": {
+      "doc_type": "prescription",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Quantity dispensed, with units if printed, for example 2 syringes or 30 tablets."
+    }
+  },
+  "clinicalNotes": {
+    "PatientName": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "PatientAddress": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number."
+    },
+    "PatientPhone": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code."
+    },
+    "ProviderName": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
+    },
+    "ProviderNPI": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderAddress": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address."
+    },
+    "Signature": {
+      "doc_type": "clinicalNotes",
+      "class": "D",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Present",
+        "Absent"
+      ],
+      "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
+    },
+    "Weight": {
+      "doc_type": "clinicalNotes",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient weight with units as recorded in vitals, for example 168 lb or 76.2 kg."
+    },
+    "ActiveTBRuledOut": {
+      "doc_type": "clinicalNotes",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "Yes",
+        "No",
+        "Not documented"
+      ],
+      "description": "Whether ACTIVE tuberculosis is ruled out. Infer from Quantiferon TB Gold or PPD results, chest X-ray findings, and the assessment section together. Not documented if the note is silent."
+    },
+    "LatentTBRuledOut": {
+      "doc_type": "clinicalNotes",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "Yes",
+        "No",
+        "Not documented"
+      ],
+      "description": "Whether LATENT tuberculosis is ruled out. Infer from the same screening results and assessment. Distinguish carefully from active TB \u2014 a negative screen may rule out one and not the other."
+    },
+    "LowestDexa": {
+      "doc_type": "clinicalNotes",
+      "class": "C",
+      "type": "object",
+      "method": "generate",
+      "enum": null,
+      "description": "Across ALL DEXA scan results anywhere in this document, the single observation with the LOWEST, most negative T-score. Keep the score, its anatomical site and its date together from that one observation."
+    },
+    "TakingOtherMedications": {
+      "doc_type": "clinicalNotes",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "Yes",
+        "No",
+        "Not documented"
+      ],
+      "description": "Whether the patient is taking any other medications, collapsed from the full medication list. Lists routinely straddle page breaks, so consider the whole document."
+    },
+    "TakingAnyNewMedication": {
+      "doc_type": "clinicalNotes",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "Yes",
+        "No",
+        "Not documented"
+      ],
+      "description": "Whether any medication is newly started, changed or added at this visit, versus continued unchanged."
+    }
+  },
+  "approvalLetter": {
+    "PatientName": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "MemberID": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "approvalLetter",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "CaseNumber": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Payer case, reference, or authorization tracking number for this request. Labeled Case #, Reference #, Auth #, or Determination ID."
+    },
+    "ProviderName": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
+    },
+    "ProviderNPI": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderFax": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number."
+    },
+    "PAOutcome": {
+      "doc_type": "approvalLetter",
+      "class": "B",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Approved",
+        "Denied",
+        "Partially approved",
+        "Pending",
+        "Not stated"
+      ],
+      "description": "The determination this letter communicates. Read the decision sentence in the body, not the letterhead."
+    },
+    "AuthorizationNumber": {
+      "doc_type": "approvalLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Authorization or certification number granted by the payer, if distinct from the case number."
+    },
+    "ValidationDates": {
+      "doc_type": "approvalLetter",
+      "class": "C",
+      "type": "object",
+      "method": "generate",
+      "enum": null,
+      "description": "The date range over which this approval is valid. Labels vary widely \u2014 effective, valid from and through, approved period, service dates. Return both ends of the range."
+    }
+  },
+  "denialLetter": {
+    "PatientName": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "MemberID": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "denialLetter",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "CaseNumber": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Payer case, reference, or authorization tracking number for this request. Labeled Case #, Reference #, Auth #, or Determination ID."
+    },
+    "ProviderName": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
+    },
+    "ProviderNPI": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderFax": {
+      "doc_type": "denialLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number."
+    },
+    "PAOutcome": {
+      "doc_type": "denialLetter",
+      "class": "B",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Approved",
+        "Denied",
+        "Partially approved",
+        "Pending",
+        "Not stated"
+      ],
+      "description": "The determination this letter communicates. Read the decision sentence in the body, not the letterhead."
+    },
+    "DenialReason": {
+      "doc_type": "denialLetter",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": null,
+      "description": "Why the request was denied, summarised from the rationale section. Preserve the payer's stated grounds \u2014 not medically necessary, step therapy not met, non-formulary, missing documentation \u2014 rather than paraphrasing into a generic reason."
+    },
+    "DenialDates": {
+      "doc_type": "denialLetter",
+      "class": "C",
+      "type": "object",
+      "method": "generate",
+      "enum": null,
+      "description": "The date range this denial covers or the date of determination. Labels vary. Return both ends when a range is given."
+    },
+    "AppealsInformation": {
+      "doc_type": "denialLetter",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": null,
+      "description": "Appeal rights and instructions as stated \u2014 deadline, level, where to send, and what to include."
+    }
+  },
+  "paResponse": {
+    "PatientName": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "MemberID": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "paResponse",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "CaseNumber": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Payer case, reference, or authorization tracking number for this request. Labeled Case #, Reference #, Auth #, or Determination ID."
+    },
+    "ProviderName": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
+    },
+    "ProviderNPI": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderFax": {
+      "doc_type": "paResponse",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number."
+    },
+    "PAOutcome": {
+      "doc_type": "paResponse",
+      "class": "B",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Approved",
+        "Denied",
+        "Partially approved",
+        "Pending",
+        "Not stated"
+      ],
+      "description": "The determination this response communicates."
+    },
+    "DrugName": {
+      "doc_type": "paResponse",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Drug or therapy the determination applies to, as written."
+    },
+    "ContinuationOfTherapy": {
+      "doc_type": "paResponse",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "Yes",
+        "No",
+        "Not documented"
+      ],
+      "description": "Whether this authorizes continuation of therapy the patient is already receiving, as opposed to a new start. Infer from context such as renewal, reauthorization, or continued use language."
+    }
+  },
+  "appealChecklist": {
+    "PatientName": {
+      "doc_type": "appealChecklist",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "appealChecklist",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "MemberID": {
+      "doc_type": "appealChecklist",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "appealChecklist",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "Signature": {
+      "doc_type": "appealChecklist",
+      "class": "D",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Present",
+        "Absent"
+      ],
+      "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
+    },
+    "AppealOptions": {
+      "doc_type": "appealChecklist",
+      "class": "D",
+      "type": "object",
+      "method": "classify",
+      "enum": null,
+      "description": "Which appeal option boxes are marked. Exactly one is normally selected; flag the document for review if several are."
+    },
+    "AdequateInformationList": {
+      "doc_type": "appealChecklist",
+      "class": "D",
+      "type": "object",
+      "method": "classify",
+      "enum": null,
+      "description": "Which required-item boxes are marked in the adequate-information list. Each is independent \u2014 several may be marked."
+    },
+    "AppealLevel": {
+      "doc_type": "appealChecklist",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "First level",
+        "Second level",
+        "External review",
+        "Not documented"
+      ],
+      "description": "Which appeal level this submission represents. Infer from the letter context and any prior-appeal references, not only from an explicit label."
+    },
+    "SummaryOfRequest": {
+      "doc_type": "appealChecklist",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": null,
+      "description": "What is being requested and why, summarised from the narrative sections of the checklist."
+    },
+    "KeyReasonsOverturn": {
+      "doc_type": "appealChecklist",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": null,
+      "description": "The key reasons stated for why this denial should be overturned, drawn from the whole document."
+    }
+  },
+  "letterOfMedNecessity": {
+    "PatientName": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "PatientAddress": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number."
+    },
+    "PatientPhone": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code."
+    },
+    "ProviderName": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
+    },
+    "ProviderNPI": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderAddress": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address."
+    },
+    "ProviderPhone": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Provider office telephone number, from the letterhead or prescriber block. Not the fax number."
+    },
+    "ProviderFax": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number."
+    },
+    "Signature": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "D",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Present",
+        "Absent"
+      ],
+      "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
+    },
+    "ICD10": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "B",
+      "type": "array",
+      "method": "extract",
+      "enum": null,
+      "description": "All ICD-10 diagnosis codes stated, in printed form such as M81.0. Codes only; the description is resolved from the registry by us."
+    },
+    "DrugName": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Drug or therapy the letter argues for, as written."
+    },
+    "ExplainPatientPrognosis": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": null,
+      "description": "The prognosis narrative \u2014 expected course and consequences without the requested therapy \u2014 summarised from the clinical argument."
+    },
+    "AppealLevel": {
+      "doc_type": "letterOfMedNecessity",
+      "class": "C",
+      "type": "string",
+      "method": "generate",
+      "enum": [
+        "First level",
+        "Second level",
+        "External review",
+        "Not applicable",
+        "Not documented"
+      ],
+      "description": "Appeal level this letter supports, inferred from context. Not applicable when the letter accompanies an initial request."
+    }
+  },
+  "insuranceCard": {
+    "PatientName": {
+      "doc_type": "insuranceCard",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "MemberID": {
+      "doc_type": "insuranceCard",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "insuranceCard",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "GroupNumber": {
+      "doc_type": "insuranceCard",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Group number. Labeled Group, Group #, Grp, or Group No. Copy exactly as printed."
+    },
+    "BIN": {
+      "doc_type": "insuranceCard",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Pharmacy BIN, the six-digit bank identification number used for claim routing. Labeled RxBIN or BIN."
+    },
+    "PCN": {
+      "doc_type": "insuranceCard",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Pharmacy processor control number. Labeled RxPCN or PCN. Alphanumeric."
+    },
+    "NCPDP": {
+      "doc_type": "insuranceCard",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "NCPDP or pharmacy identifier if printed on the card. Empty if absent."
+    }
+  },
+  "patientDemographics": {
+    "PatientName": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "PatientDOB": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
+    },
+    "PatientAddress": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "object",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number."
+    },
+    "PatientPhone": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code."
+    },
+    "PatientGender": {
+      "doc_type": "patientDemographics",
+      "class": "B",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Male",
+        "Female",
+        "Unknown"
+      ],
+      "description": "Patient gender. Usually a checkbox pair labeled M/F or Male/Female. Return Unknown if no box is marked or the marking is ambiguous."
+    },
+    "MemberID": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "patientDemographics",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "PatientEmail": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient email address, as printed."
+    },
+    "PatientMobilePhone": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Mobile or cell number, when listed separately from the home phone."
+    },
+    "PolicyNumber": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance policy number, when printed separately from the member ID."
+    },
+    "SSN": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient social security number if present on the form. Digits as printed, including any masking."
+    },
+    "EmergencyContactName": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Emergency contact name."
+    },
+    "EmergencyContactPhone": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Emergency contact telephone number."
+    },
+    "PreferredLanguage": {
+      "doc_type": "patientDemographics",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Preferred language, if stated. All documents are English."
+    }
+  },
+  "pbmLetter": {
+    "PatientName": {
+      "doc_type": "pbmLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
+    },
+    "MemberID": {
+      "doc_type": "pbmLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed."
+    },
+    "PayerName": {
+      "doc_type": "pbmLetter",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead."
+    },
+    "CaseNumber": {
+      "doc_type": "pbmLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Payer case, reference, or authorization tracking number for this request. Labeled Case #, Reference #, Auth #, or Determination ID."
+    },
+    "ProviderNPI": {
+      "doc_type": "pbmLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
+    },
+    "ProviderFax": {
+      "doc_type": "pbmLetter",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "enum": null,
+      "description": "Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number."
+    },
+    "Signature": {
+      "doc_type": "pbmLetter",
+      "class": "D",
+      "type": "string",
+      "method": "classify",
+      "enum": [
+        "Present",
+        "Absent"
+      ],
+      "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
+    }
+  }
+}

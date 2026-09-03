@@ -1,0 +1,360 @@
+{
+  "name": "senderra_appealChecklist",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "PatientName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientDOB": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "MemberID": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PayerName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "Signature": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Present",
+              "Absent",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AppealOptions": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "Standard": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Standard appeal box is marked."
+              },
+              "Expedited": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Expedited or urgent appeal box is marked."
+              },
+              "Peer": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Peer-to-peer review box is marked."
+              }
+            },
+            "required": [
+              "Standard",
+              "Expedited",
+              "Peer"
+            ],
+            "additionalProperties": false
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AdequateInformationList": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "ClinicalNotes": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Clinical notes item is marked."
+              },
+              "LabResults": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Lab results item is marked."
+              },
+              "PriorTherapy": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Prior therapy or step therapy item is marked."
+              },
+              "LetterOfMedicalNecessity": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Letter of medical necessity item is marked."
+              }
+            },
+            "required": [
+              "ClinicalNotes",
+              "LabResults",
+              "PriorTherapy",
+              "LetterOfMedicalNecessity"
+            ],
+            "additionalProperties": false
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AppealLevel": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "First level",
+              "Second level",
+              "External review",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "SummaryOfRequest": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "KeyReasonsOverturn": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "PatientName",
+      "PatientDOB",
+      "MemberID",
+      "PayerName",
+      "Signature",
+      "AppealOptions",
+      "AdequateInformationList",
+      "AppealLevel",
+      "SummaryOfRequest",
+      "KeyReasonsOverturn"
+    ],
+    "additionalProperties": false
+  }
+}

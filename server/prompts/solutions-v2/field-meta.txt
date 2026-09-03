@@ -1,0 +1,10 @@
+Merge document type "{{typeKey}}" into field_meta.json. Keep the same JSON shape as the current file: each type key maps to fields, and each field is an object with doc_type, class (A-D), type, method, enum, description. Do not wrap in a types array. Keep other types and keep existing field descriptions unless the field is new.
+
+Type name: {{typeName}}
+Operator guidance (do not store in this file):
+{{guidance}}
+Fields:
+{{fieldsJson}}
+
+Current file:
+{{file}}

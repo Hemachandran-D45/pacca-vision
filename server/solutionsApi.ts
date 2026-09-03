@@ -8,7 +8,7 @@ export type ApiResult = {
   body: Record<string, unknown>;
 };
 
-type GitHubConfig = {
+export type GitHubConfig = {
   token: string;
   owner: string;
   repo: string;
@@ -44,7 +44,7 @@ function parseRepoRef(raw: string): { owner: string; repo: string } | null {
   return { owner: parts[0], repo: parts[1] };
 }
 
-function readGitHubConfig(): GitHubConfig | ApiResult {
+export function readGitHubConfig(): GitHubConfig | ApiResult {
   const token = process.env.GITHUB_TOKEN?.trim();
   const parsedRepo = parseRepoRef(
     process.env.GITHUB_REPO?.trim() ||
@@ -110,7 +110,7 @@ function commitMessageFor(template: string, filePath: string): string {
 
 type GitHubErrorBody = { message?: string; errors?: Array<{ code?: string; message?: string }> };
 
-async function githubJson(
+export async function githubJson(
   config: GitHubConfig,
   method: string,
   urlPath: string,
@@ -224,6 +224,158 @@ export async function createSolution(body: unknown): Promise<ApiResult> {
     }
 
     return mapGitHubError(created.status, created.json);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown error";
+    return jsonError(502, "Could not reach GitHub. Check network connectivity and GITHUB_API_URL.", {
+      detail,
+    });
+  }
+}
+
+export async function readGitHubFile(repoPath: string): Promise<{ content: string } | ApiResult> {
+  const config = readGitHubConfig();
+  if ("status" in config) return config;
+  const encoded = repoPath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  try {
+    const result = await githubJson(
+      config,
+      "GET",
+      `/repos/${config.owner}/${config.repo}/contents/${encoded}?ref=${encodeURIComponent(config.branch)}`
+    );
+    if (result.status !== 200) return mapGitHubError(result.status, result.json);
+    const encodedContent = typeof result.json.content === "string" ? result.json.content : "";
+    if (!encodedContent) return jsonError(502, `GitHub file ${repoPath} had no content.`);
+    return { content: Buffer.from(encodedContent.replace(/\n/g, ""), "base64").toString("utf8") };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown error";
+    return jsonError(502, "Could not reach GitHub. Check network connectivity and GITHUB_API_URL.", {
+      detail,
+    });
+  }
+}
+
+export type GitHubDirEntry = { path: string; type: "file" | "dir"; size?: number };
+
+export async function listGitHubPath(repoPath: string): Promise<{ entries: GitHubDirEntry[] } | ApiResult> {
+  const config = readGitHubConfig();
+  if ("status" in config) return config;
+  const encoded = repoPath
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  try {
+    const result = await githubJson(
+      config,
+      "GET",
+      `/repos/${config.owner}/${config.repo}/contents/${encoded}?ref=${encodeURIComponent(config.branch)}`
+    );
+    if (result.status !== 200) return mapGitHubError(result.status, result.json);
+    if (!Array.isArray(result.json)) {
+      const pathName = typeof result.json.path === "string" ? result.json.path : repoPath;
+      const type = result.json.type === "file" ? "file" : "dir";
+      return { entries: [{ path: pathName, type }] };
+    }
+    const entries: GitHubDirEntry[] = [];
+    for (const item of result.json as Array<{ path?: string; type?: string; size?: number }>) {
+      if (!item.path || (item.type !== "file" && item.type !== "dir")) continue;
+      entries.push({ path: item.path, type: item.type, size: item.size });
+    }
+    return { entries };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown error";
+    return jsonError(502, "Could not reach GitHub. Check network connectivity and GITHUB_API_URL.", {
+      detail,
+    });
+  }
+}
+
+export async function commitFilesToGitHub(
+  files: Array<{ path: string; content: string }>,
+  message: string,
+  deletes: string[] = []
+): Promise<ApiResult> {
+  const config = readGitHubConfig();
+  if ("status" in config) return config;
+  if (!files.length && !deletes.length) return jsonError(400, "No files to commit.");
+
+  const encodedBranch = config.branch
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  const repo = `/repos/${config.owner}/${config.repo}`;
+
+  try {
+    const ref = await githubJson(config, "GET", `${repo}/git/ref/heads/${encodedBranch}`);
+    const refOk = ref.status === 200 ? ref : await githubJson(config, "GET", `${repo}/git/refs/heads/${encodedBranch}`);
+    if (refOk.status !== 200) return mapGitHubError(refOk.status, refOk.json);
+    const headSha =
+      typeof refOk.json.object === "object" && refOk.json.object && "sha" in (refOk.json.object as object)
+        ? String((refOk.json.object as { sha?: string }).sha ?? "")
+        : "";
+    if (!headSha) return jsonError(502, "GitHub ref did not include a commit SHA.");
+
+    const headCommit = await githubJson(config, "GET", `${repo}/git/commits/${headSha}`);
+    if (headCommit.status !== 200) return mapGitHubError(headCommit.status, headCommit.json);
+    const baseTree =
+      typeof headCommit.json.tree === "object" &&
+      headCommit.json.tree &&
+      "sha" in (headCommit.json.tree as object)
+        ? String((headCommit.json.tree as { sha?: string }).sha ?? "")
+        : "";
+    if (!baseTree) return jsonError(502, "GitHub commit did not include a tree SHA.");
+
+    const treeItems: Array<{ path: string; mode: string; type: string; sha: string | null }> = [];
+    for (const file of files) {
+      const blob = await githubJson(config, "POST", `${repo}/git/blobs`, {
+        content: file.content,
+        encoding: "utf-8",
+      });
+      if (blob.status !== 201 && blob.status !== 200) return mapGitHubError(blob.status, blob.json);
+      const blobSha = typeof blob.json.sha === "string" ? blob.json.sha : "";
+      if (!blobSha) return jsonError(502, `GitHub did not return a blob SHA for ${file.path}.`);
+      treeItems.push({ path: file.path, mode: "100644", type: "blob", sha: blobSha });
+    }
+    for (const pathName of deletes) {
+      treeItems.push({ path: pathName, mode: "100644", type: "blob", sha: null });
+    }
+
+    const tree = await githubJson(config, "POST", `${repo}/git/trees`, {
+      base_tree: baseTree,
+      tree: treeItems,
+    });
+    if (tree.status !== 201 && tree.status !== 200) return mapGitHubError(tree.status, tree.json);
+    const treeSha = typeof tree.json.sha === "string" ? tree.json.sha : "";
+    if (!treeSha) return jsonError(502, "GitHub did not return a tree SHA.");
+
+    const commit = await githubJson(config, "POST", `${repo}/git/commits`, {
+      message,
+      tree: treeSha,
+      parents: [headSha],
+    });
+    if (commit.status !== 201 && commit.status !== 200) return mapGitHubError(commit.status, commit.json);
+    const commitSha = typeof commit.json.sha === "string" ? commit.json.sha : "";
+    if (!commitSha) return jsonError(502, "GitHub did not return a commit SHA.");
+
+    const updated = await githubJson(config, "PATCH", `${repo}/git/refs/heads/${encodedBranch}`, {
+      sha: commitSha,
+    });
+    if (updated.status !== 200) return mapGitHubError(updated.status, updated.json);
+
+    return {
+      status: 201,
+      body: {
+        ok: true,
+        branch: config.branch,
+        repository: `${config.owner}/${config.repo}`,
+        commitSha,
+        paths: files.map((file) => file.path),
+        deleted: deletes,
+      },
+    };
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown error";
     return jsonError(502, "Could not reach GitHub. Check network connectivity and GITHUB_API_URL.", {

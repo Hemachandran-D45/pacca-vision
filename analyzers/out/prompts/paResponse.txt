@@ -1,0 +1,77 @@
+The document above is a **paResponse**.
+
+Payer prior-authorization response and determination notices. Extracts patient, payer and case identity, the outcome, and whether the response represents a continuation of existing therapy.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### MemberID
+*string · transcription*
+
+Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed.
+
+### PayerName
+*string · resolution*
+
+Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead.
+
+### CaseNumber
+*string · transcription*
+
+Payer case, reference, or authorization tracking number for this request. Labeled Case #, Reference #, Auth #, or Determination ID.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider.
+
+### ProviderFax
+*string · transcription*
+
+Fax number for the provider office or the payer, as printed. Labeled Fax, Fax #, or Fax Number.
+
+### PAOutcome
+*string · resolution*
+
+The determination this response communicates.
+
+Allowed values: `Approved`, `Denied`, `Partially approved`, `Pending`, `Not stated`. Use null if none of them apply.
+
+### DrugName
+*string · resolution*
+
+Drug or therapy the determination applies to, as written.
+
+### ContinuationOfTherapy
+*string · inference*
+
+Whether this authorizes continuation of therapy the patient is already receiving, as opposed to a new start. Infer from context such as renewal, reauthorization, or continued use language.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.

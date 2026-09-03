@@ -1,0 +1,7 @@
+Update manifest.json hygiene: typeCount, types array of all type keys, and file path pointers under analyzers/out. Include the new type "{{typeKey}}" if missing.
+
+Current field_meta.json:
+{{fieldMeta}}
+
+Current file:
+{{file}}
