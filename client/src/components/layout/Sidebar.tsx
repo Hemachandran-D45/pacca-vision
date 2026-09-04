@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { navSections } from "@/data/mockData";
 import type { MockUser } from "@/components/MockAuth";
+import { useQueueCount } from "@/contexts/QueueCountContext";
 
 export function Sidebar({
   path,
@@ -24,13 +25,24 @@ export function Sidebar({
   user: MockUser;
   allowedPaths: string[];
 }) {
+  const { hilCount } = useQueueCount();
   const DEMO_HIDDEN_PATHS = ["/deployment", "/infrastructure"];
   const visibleSections = navSections
     .map((section) => ({
       ...section,
-      items: section.items.filter(
-        (item) => allowedPaths.includes(item.path) && !DEMO_HIDDEN_PATHS.includes(item.path)
-      ),
+      items: section.items
+        .filter(
+          (item) => allowedPaths.includes(item.path) && !DEMO_HIDDEN_PATHS.includes(item.path)
+        )
+        .map((item) => {
+          if (item.path === "/hil-review") {
+            return {
+              ...item,
+              badge: hilCount > 0 ? String(hilCount) : undefined,
+            };
+          }
+          return item;
+        }),
     }))
     .filter((section) => section.items.length > 0);
 

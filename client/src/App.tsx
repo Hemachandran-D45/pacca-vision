@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { QueueCountProvider } from "./contexts/QueueCountContext";
 import Home from "./pages/Home";
 import { SolutionProvider } from "./senderra/SolutionContext";
 
@@ -22,10 +23,12 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <SolutionProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <QueueCountProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </QueueCountProvider>
         </SolutionProvider>
       </ThemeProvider>
     </ErrorBoundary>

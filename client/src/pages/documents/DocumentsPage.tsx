@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
-import { documents, DOCUMENT_TYPES } from "@/data/mockData";
+import { documents as mockDocuments, DOCUMENT_TYPES } from "@/data/mockData";
+import { fetchDocuments, humanize, relativeTime, percent, usePolled, type DocumentSummary } from "@/senderra/api";
 
 export default function DocumentsPage({
   onNavigate,
@@ -17,9 +18,40 @@ export default function DocumentsPage({
   const [status, setStatus] = useState("All statuses");
   const [docType, setDocType] = useState<string>("All Document Types");
 
+  // Live polling for backend documents
+  const poller = usePolled(() => fetchDocuments(), 6000);
+  const liveDocs = poller.data?.documents ?? [];
+  const isLive = liveDocs.length > 0;
+
+  // Unify live pipeline documents with fallback fixtures
+  const allDocuments = useMemo(() => {
+    if (isLive) {
+      return liveDocs.map((d) => ({
+        id: d.documentId,
+        file: d.file,
+        type: d.docType ? humanize(d.docType) : "Prior Authorization",
+        source: d.source || "Auto-intake",
+        status: (d.uiStatus === "Processed"
+          ? "Processed"
+          : d.uiStatus === "In HIL Review"
+          ? "HIL Review"
+          : d.uiStatus === "Processing" || d.uiStatus === "Queued"
+          ? "Processing"
+          : "Needs Review") as "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing",
+        confidence: percent(d.confidence, 1),
+        pages: d.pages ?? 1,
+        received: relativeTime(d.receivedAt),
+        color: d.uiStatus === "Processed" ? "#45bd8d" : "#f2c94c",
+        pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+        previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+      }));
+    }
+    return mockDocuments;
+  }, [isLive, liveDocs]);
+
   const filtered = useMemo(
     () =>
-      documents.filter((d) => {
+      allDocuments.filter((d) => {
         const matchesQuery = `${d.id} ${d.file} ${d.type} ${d.source}`
           .toLowerCase()
           .includes(query.toLowerCase());
@@ -27,7 +59,7 @@ export default function DocumentsPage({
         const matchesType = docType === "All Document Types" || d.type === docType;
         return matchesQuery && matchesStatus && matchesType;
       }),
-    [query, status, docType]
+    [allDocuments, query, status, docType]
   );
 
   return (
@@ -100,9 +132,13 @@ export default function DocumentsPage({
 
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(20,43,75,.025)]">
         <div className="flex items-center justify-between border-b border-slate-100 p-5">
-          <SectionHeading title="All documents" eyebrow={`${filtered.length} shown · updated just now`} />
-          <button onClick={() => toast("Index refreshed")} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50">
-            <RefreshCw size={15} />
+          <SectionHeading title="All documents" eyebrow={`${filtered.length} shown · ${isLive ? "live pipeline synced" : "updated just now"}`} />
+          <button
+            onClick={() => void poller.refresh()}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 transition"
+            title="Refresh documents from pipeline"
+          >
+            <RefreshCw size={15} className={poller.loading ? "animate-spin text-[#47a2b0]" : undefined} />
           </button>
         </div>
         {filtered.length ? (

@@ -1,6 +1,7 @@
 import { Bell, CircleHelp, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { MockUser } from "@/components/MockAuth";
+import { useQueueCount } from "@/contexts/QueueCountContext";
 
 export function Topbar({
   title,
@@ -19,6 +20,7 @@ export function Topbar({
   user: MockUser;
   onRoleSwitch: (role: MockUser["role"]) => void;
 }) {
+  const { notificationCount } = useQueueCount();
   return (
     <header className="sticky top-0 z-20 flex min-h-[76px] items-center justify-between gap-3 border-b border-stone-200 bg-[#f2f2f0]/95 px-4 backdrop-blur-xl sm:px-7 lg:px-9">
       <div className="flex min-w-0 items-center gap-3">
@@ -75,13 +77,27 @@ export function Topbar({
 
         <button
           aria-label="Notifications"
-          onClick={() => toast("You’re all caught up", { description: "No new operational alerts." })}
-          className="relative rounded-xl p-2 text-stone-500 hover:bg-white"
+          onClick={() =>
+            toast(
+              notificationCount > 0
+                ? `${notificationCount} document${notificationCount === 1 ? "" : "s"} awaiting review`
+                : "You’re all caught up",
+              {
+                description:
+                  notificationCount > 0
+                    ? "Action required on low-confidence or missing fields in HIL Review."
+                    : "No pending review exceptions in queue.",
+              }
+            )
+          }
+          className="relative rounded-xl p-2 text-stone-500 hover:bg-white transition"
         >
           <Bell size={18} />
-          <span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e04f4f] px-1 text-[9px] font-bold text-white">
-            12
-          </span>
+          {notificationCount > 0 && (
+            <span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e04f4f] px-1 text-[9px] font-bold text-white shadow-xs">
+              {notificationCount}
+            </span>
+          )}
         </button>
 
         <button

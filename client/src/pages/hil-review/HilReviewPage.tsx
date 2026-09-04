@@ -46,6 +46,24 @@ function formatFieldValue(val: unknown): string {
   return String(val);
 }
 
+/** Formats cryptic GUID or temporary upload filenames into clean titles for staff */
+function formatDocumentLabel(filename: string, docType?: string | null): string {
+  const cleanType = docType ? humanize(docType) : "Prior Authorization";
+  // If file starts with GUID like dbd0538a-17a2...
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(filename)) {
+    const shortId = filename.substring(0, 8).toUpperCase();
+    return `${cleanType} · Batch #${shortId}`;
+  }
+  // If file is generic like temp10_... or pacca_upload_test
+  if (/^temp\d+_/i.test(filename) || /^pacca_upload_/i.test(filename)) {
+    const match = filename.match(/_(.+)\.pdf$/i) || filename.match(/^([^_]+)/);
+    const label = match ? match[1].replace(/[-_]+/g, " ") : filename;
+    return `${cleanType} · ${humanize(label)}`;
+  }
+  // Standard filename like RX-0003_Denise_Carver.pdf
+  return `${filename.replace(/\.pdf$/i, "").replace(/[-_]+/g, " ")} (${cleanType})`;
+}
+
 export default function HilReviewPage({
   userEmail = "reviewer@emids.com",
   userName = "Reviewer",
@@ -129,11 +147,11 @@ export default function HilReviewPage({
               <select
                 value={selectedId ?? ""}
                 onChange={(e) => setSelectedId(e.target.value)}
-                className="max-w-[280px] truncate bg-transparent px-2 py-1 text-[11px] font-bold text-[#0e0e0e] outline-none"
+                className="max-w-[340px] truncate bg-transparent px-2 py-1 text-[11px] font-bold text-[#0e0e0e] outline-none cursor-pointer"
               >
                 {liveDocuments.map((doc, idx) => (
                   <option key={doc.documentId} value={doc.documentId}>
-                    {idx + 1}. {doc.file} ({humanize(doc.docType)})
+                    {idx + 1}. {formatDocumentLabel(doc.file, doc.docType)}
                   </option>
                 ))}
               </select>
@@ -621,8 +639,18 @@ function LiveWorkbench({
 }) {
   const { data, error, loading, refresh } = usePolled(() => fetchDocument(documentId), 4000, [documentId]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [unlockedFields, setUnlockedFields] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<null | "save" | "approve" | "reject" | "claim">(null);
+
+  const toggleUnlock = (key: string) => {
+    setUnlockedFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const fieldEntries = useMemo(() => Object.entries(data?.fields?.fields ?? {}), [data]);
 
@@ -730,7 +758,9 @@ function LiveWorkbench({
             <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
               Source Document
             </h3>
-            <span className="font-mono text-[10px] text-slate-500">{summary.file}</span>
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700" title={summary.file}>
+              {formatDocumentLabel(summary.file, summary.docType)}
+            </span>
           </div>
           {pdfUrl && (
             <a
@@ -887,7 +917,11 @@ function LiveWorkbench({
 
             <div className="divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/50">
               {verified.map(([name, field]) => {
+                const isUnlocked = unlockedFields.has(name);
                 const curVal = currentValue(name, field);
+                const origVal = originalValue(name, field);
+                const isDirty = curVal !== origVal;
+
                 return (
                   <div key={name} className="flex items-center justify-between gap-3 p-3 text-[11px]">
                     <div className="flex items-center gap-2 sm:w-1/3">
@@ -896,9 +930,32 @@ function LiveWorkbench({
                         <Check size={9} /> Valid
                       </span>
                     </div>
-                    <span className="font-semibold text-[#0e0e0e] truncate max-w-[280px]">
-                      {curVal || "—"}
-                    </span>
+
+                    <div className="flex flex-1 items-center justify-end gap-2 text-right">
+                      {isUnlocked ? (
+                        <input
+                          value={curVal}
+                          onChange={(e) => setDrafts((prev) => ({ ...prev, [name]: e.target.value }))}
+                          className={cn(
+                            "w-full max-w-[280px] rounded-lg border bg-white px-2 py-1 text-right text-[11px] font-semibold outline-none",
+                            isDirty ? "border-[#47a2b0] ring-1 ring-[#47a2b0]" : "border-slate-300"
+                          )}
+                        />
+                      ) : (
+                        <span className="font-semibold text-[#0e0e0e] truncate max-w-[280px]">
+                          {curVal || "—"}
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleUnlock(name)}
+                        title={isUnlocked ? "Lock field" : "Unlock field to edit"}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition"
+                      >
+                        {isUnlocked ? <Lock size={12} className="text-amber-600" /> : <Pencil size={12} />}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

@@ -266,6 +266,8 @@ function MockDocumentDetail({
   );
 }
 
+import { DocumentDetailLive } from "@/senderra/DocumentDetailLive";
+
 export default function DocumentDetailPage({
   id,
   onBack,
@@ -277,5 +279,15 @@ export default function DocumentDetailPage({
   onNavigate: (path: string) => void;
   onReview: (documentId: string) => void;
 }) {
+  const isMock = documents.some((d) => d.id === id);
+  if (!isMock) {
+    return (
+      <DocumentDetailLive
+        documentId={id}
+        onBack={onBack}
+        onReview={onReview}
+      />
+    );
+  }
   return <MockDocumentDetail id={id} onBack={onBack} onNavigate={onNavigate} onReview={onReview} />;
 }
