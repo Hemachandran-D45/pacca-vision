@@ -172,139 +172,6 @@
       "description": "Quantity dispensed, with units if printed, for example 2 syringes or 30 tablets."
     }
   },
-  "clinicalNotes": {
-    "PatientName": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "string",
-      "method": "extract",
-      "enum": null,
-      "description": "Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First."
-    },
-    "PatientDOB": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "date",
-      "method": "extract",
-      "enum": null,
-      "description": "Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written."
-    },
-    "PatientAddress": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "object",
-      "method": "extract",
-      "enum": null,
-      "description": "Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number."
-    },
-    "PatientPhone": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "string",
-      "method": "extract",
-      "enum": null,
-      "description": "Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code."
-    },
-    "ProviderName": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "string",
-      "method": "extract",
-      "enum": null,
-      "description": "Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, or Doctor. Not the practice or facility name."
-    },
-    "ProviderNPI": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "string",
-      "method": "extract",
-      "enum": null,
-      "description": "Prescriber National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing provider."
-    },
-    "ProviderAddress": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "object",
-      "method": "extract",
-      "enum": null,
-      "description": "Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address."
-    },
-    "Signature": {
-      "doc_type": "clinicalNotes",
-      "class": "D",
-      "type": "string",
-      "method": "classify",
-      "enum": [
-        "Present",
-        "Absent"
-      ],
-      "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
-    },
-    "Weight": {
-      "doc_type": "clinicalNotes",
-      "class": "A",
-      "type": "string",
-      "method": "extract",
-      "enum": null,
-      "description": "Patient weight with units as recorded in vitals, for example 168 lb or 76.2 kg."
-    },
-    "ActiveTBRuledOut": {
-      "doc_type": "clinicalNotes",
-      "class": "C",
-      "type": "string",
-      "method": "generate",
-      "enum": [
-        "Yes",
-        "No",
-        "Not documented"
-      ],
-      "description": "Whether ACTIVE tuberculosis is ruled out. Infer from Quantiferon TB Gold or PPD results, chest X-ray findings, and the assessment section together. Not documented if the note is silent."
-    },
-    "LatentTBRuledOut": {
-      "doc_type": "clinicalNotes",
-      "class": "C",
-      "type": "string",
-      "method": "generate",
-      "enum": [
-        "Yes",
-        "No",
-        "Not documented"
-      ],
-      "description": "Whether LATENT tuberculosis is ruled out. Infer from the same screening results and assessment. Distinguish carefully from active TB \u2014 a negative screen may rule out one and not the other."
-    },
-    "LowestDexa": {
-      "doc_type": "clinicalNotes",
-      "class": "C",
-      "type": "object",
-      "method": "generate",
-      "enum": null,
-      "description": "Across ALL DEXA scan results anywhere in this document, the single observation with the LOWEST, most negative T-score. Keep the score, its anatomical site and its date together from that one observation."
-    },
-    "TakingOtherMedications": {
-      "doc_type": "clinicalNotes",
-      "class": "C",
-      "type": "string",
-      "method": "generate",
-      "enum": [
-        "Yes",
-        "No",
-        "Not documented"
-      ],
-      "description": "Whether the patient is taking any other medications, collapsed from the full medication list. Lists routinely straddle page breaks, so consider the whole document."
-    },
-    "TakingAnyNewMedication": {
-      "doc_type": "clinicalNotes",
-      "class": "C",
-      "type": "string",
-      "method": "generate",
-      "enum": [
-        "Yes",
-        "No",
-        "Not documented"
-      ],
-      "description": "Whether any medication is newly started, changed or added at this visit, versus continued unchanged."
-    }
-  },
   "approvalLetter": {
     "PatientName": {
       "doc_type": "approvalLetter",
@@ -391,14 +258,6 @@
       "method": "extract",
       "enum": null,
       "description": "Authorization or certification number granted by the payer, if distinct from the case number."
-    },
-    "ValidationDates": {
-      "doc_type": "approvalLetter",
-      "class": "C",
-      "type": "object",
-      "method": "generate",
-      "enum": null,
-      "description": "The date range over which this approval is valid. Labels vary widely \u2014 effective, valid from and through, approved period, service dates. Return both ends of the range."
     }
   },
   "denialLetter": {
@@ -486,7 +345,7 @@
       "type": "string",
       "method": "generate",
       "enum": null,
-      "description": "Why the request was denied, summarised from the rationale section. Preserve the payer's stated grounds \u2014 not medically necessary, step therapy not met, non-formulary, missing documentation \u2014 rather than paraphrasing into a generic reason."
+      "description": "Why the request was denied, summarised from the rationale section. Preserve the payer's stated grounds — not medically necessary, step therapy not met, non-formulary, missing documentation — rather than paraphrasing into a generic reason."
     },
     "DenialDates": {
       "doc_type": "denialLetter",
@@ -502,7 +361,7 @@
       "type": "string",
       "method": "generate",
       "enum": null,
-      "description": "Appeal rights and instructions as stated \u2014 deadline, level, where to send, and what to include."
+      "description": "Appeal rights and instructions as stated — deadline, level, where to send, and what to include."
     }
   },
   "paResponse": {
@@ -663,7 +522,7 @@
       "type": "object",
       "method": "classify",
       "enum": null,
-      "description": "Which required-item boxes are marked in the adequate-information list. Each is independent \u2014 several may be marked."
+      "description": "Which required-item boxes are marked in the adequate-information list. Each is independent — several may be marked."
     },
     "AppealLevel": {
       "doc_type": "appealChecklist",
@@ -782,7 +641,7 @@
     "ICD10": {
       "doc_type": "letterOfMedNecessity",
       "class": "B",
-      "type": "array",
+      "type": "string",
       "method": "extract",
       "enum": null,
       "description": "All ICD-10 diagnosis codes stated, in printed form such as M81.0. Codes only; the description is resolved from the registry by us."
@@ -801,7 +660,7 @@
       "type": "string",
       "method": "generate",
       "enum": null,
-      "description": "The prognosis narrative \u2014 expected course and consequences without the requested therapy \u2014 summarised from the clinical argument."
+      "description": "The prognosis narrative — expected course and consequences without the requested therapy — summarised from the clinical argument."
     },
     "AppealLevel": {
       "doc_type": "letterOfMedNecessity",

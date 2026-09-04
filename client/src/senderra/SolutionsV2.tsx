@@ -298,8 +298,8 @@ export function SolutionsV2() {
       {/* LEFT SIDEBAR */}
       <aside className="w-[260px] shrink-0 space-y-3 pr-6">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Configure</div>
-          <h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">Solutions</h2>
+          <div className="text-[11px] font-bold uppercase tracking-[.15em] text-[#47a2b0]">Configure</div>
+          <h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#0e0e0e]">Solutions</h2>
           <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
             Document types from field_meta.json. Save generates and commits analyzer files.
           </p>
@@ -331,14 +331,14 @@ export function SolutionsV2() {
                   <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
                     style={{
-                      background: selectedKey === item.key ? "#156bc916" : "#f1f5f9",
-                      color: selectedKey === item.key ? "#156bc9" : "#64748b",
+                      background: selectedKey === item.key ? "#47a2b020" : "#f1f5f9",
+                      color: selectedKey === item.key ? "#47a2b0" : "#64748b",
                     }}
                   >
                     <FileCog size={17} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[11px] font-bold text-[#142b4b]">{item.name}</div>
+                    <div className="truncate text-[11px] font-bold text-[#0e0e0e]">{item.name}</div>
                     <div className="mt-0.5 font-mono text-[8px] text-slate-400">{item.key}</div>
                   </div>
                 </div>
@@ -347,7 +347,7 @@ export function SolutionsV2() {
                   <span
                     className={
                       "rounded-md px-1.5 py-0.5 font-bold " +
-                      (selectedKey === item.key ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500")
+                      (selectedKey === item.key ? "bg-[#ebf5f7] text-[#2d6b75]" : "bg-slate-100 text-slate-500")
                     }
                   >
                     {selectedKey === item.key ? "Editing" : "Configured"}
@@ -361,7 +361,7 @@ export function SolutionsV2() {
         {/* Create button */}
         <button
           onClick={() => setCreateOpen(true)}
-          className="inline-flex w-full items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#0d5aae]"
+          className="inline-flex w-full items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#37828e]"
         >
           <Plus size={15} /> Add document type
         </button>
@@ -373,10 +373,10 @@ export function SolutionsV2() {
           {/* Header */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-600">
+              <div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#47a2b0]">
                 Document type configuration
               </div>
-              <h3 className="mt-1 font-display text-lg font-bold text-[#142b4b]">{selected.name}</h3>
+              <h3 className="mt-1 font-display text-lg font-bold text-[#0e0e0e]">{selected.name}</h3>
               <div className="mt-1 font-mono text-[9px] text-slate-400">{selected.key}</div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -390,7 +390,7 @@ export function SolutionsV2() {
               <button
                 onClick={() => void saveType()}
                 disabled={savingKey !== null || selected.fields.length === 0}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2 text-[11px] font-bold text-white disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2 text-[11px] font-bold text-white hover:bg-[#37828e] disabled:opacity-50"
               >
                 {savingKey === selected.key ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -413,7 +413,7 @@ export function SolutionsV2() {
                   value={localName}
                   onChange={(e) => setLocalName(e.target.value)}
                   onBlur={updateLocalEdits}
-                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-[#142b4b] outline-none focus:border-blue-400"
+                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-[#0e0e0e] outline-none focus:border-[#47a2b0]"
                 />
               </label>
               <label className="block">
@@ -442,7 +442,7 @@ export function SolutionsV2() {
                   onBlur={updateLocalEdits}
                   rows={4}
                   placeholder="Describe the document type and what the extraction model should prioritize..."
-                  className="min-h-[76px] w-full rounded-xl border border-slate-200 p-3 text-[10px] leading-relaxed text-slate-700 outline-none focus:border-blue-400"
+                  className="min-h-[76px] w-full rounded-xl border border-slate-200 p-3 text-[10px] leading-relaxed text-slate-700 outline-none focus:border-[#47a2b0]"
                 />
               </label>
               <div className="flex flex-col justify-center">
@@ -452,17 +452,17 @@ export function SolutionsV2() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[10px]">
                     <span className="text-slate-500">Fields</span>
-                    <span className="font-bold text-[#142b4b]">{selected.fields.length}</span>
+                    <span className="font-bold text-[#0e0e0e]">{selected.fields.length}</span>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[10px]">
                     <span className="text-slate-500">Required fields</span>
-                    <span className="font-bold text-[#142b4b]">
+                    <span className="font-bold text-[#0e0e0e]">
                       {selected.fields.filter((f) => f.required).length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[10px]">
                     <span className="text-slate-500">Field types</span>
-                    <span className="font-bold text-[#142b4b]">
+                    <span className="font-bold text-[#0e0e0e]">
                       {[...new Set(selected.fields.map((f) => f.type))].join(", ") || "---"}
                     </span>
                   </div>
@@ -475,14 +475,14 @@ export function SolutionsV2() {
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-600">
+                <div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#47a2b0]">
                   Output schema
                 </div>
-                <h3 className="mt-1 font-display text-lg font-bold text-[#142b4b]">
+                <h3 className="mt-1 font-display text-lg font-bold text-[#0e0e0e]">
                   Fields extracted from each document
                 </h3>
               </div>
-              <span className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-[9px] font-bold text-blue-700">
+              <span className="rounded-lg bg-[#47a2b0]/10 px-2.5 py-1.5 text-[9px] font-bold text-[#47a2b0]">
                 {selected.fields.length} fields
               </span>
             </div>
@@ -513,7 +513,7 @@ export function SolutionsV2() {
                             if (!name || name === field.name) return;
                             void updateField(index, { name });
                           }}
-                          className="h-8 w-full rounded-lg border border-slate-200 px-2 font-mono text-[10px] font-semibold text-blue-600 outline-none focus:border-blue-400"
+                          className="h-8 w-full rounded-lg border border-slate-200 px-2 font-mono text-[10px] font-semibold text-[#47a2b0] outline-none focus:border-[#47a2b0]"
                         />
                       </td>
                       <td className="py-2.5 pr-3">
@@ -539,7 +539,7 @@ export function SolutionsV2() {
                             const cls = e.target.value.trim();
                             void updateField(index, { class: cls || undefined });
                           }}
-                          className="h-8 w-full rounded-lg border border-slate-200 px-2 text-[10px] text-slate-600 outline-none focus:border-blue-400"
+                          className="h-8 w-full rounded-lg border border-slate-200 px-2 text-[10px] text-slate-600 outline-none focus:border-[#47a2b0]"
                         />
                       </td>
                       <td className="py-2.5">
@@ -549,7 +549,7 @@ export function SolutionsV2() {
                           onChange={(e) =>
                             void updateField(index, { required: e.target.checked })
                           }
-                          className="accent-blue-600"
+                          className="accent-[#47a2b0]"
                         />
                       </td>
                       <td className="py-2.5">
@@ -573,11 +573,11 @@ export function SolutionsV2() {
                 onChange={(e) => setDraftField(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void addField()}
                 placeholder="Add a field, e.g. MemberId"
-                className="h-9 min-w-[260px] flex-1 rounded-xl border border-dashed border-slate-300 px-3 text-[10px] outline-none focus:border-blue-400"
+                className="h-9 min-w-[260px] flex-1 rounded-xl border border-dashed border-slate-300 px-3 text-[10px] outline-none focus:border-[#47a2b0]"
               />
               <button
                 onClick={() => void addField()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-700"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#47a2b0]/30 bg-[#47a2b0]/10 px-3 py-2 text-[10px] font-bold text-[#47a2b0] hover:bg-[#47a2b0]/20 transition-colors"
               >
                 <Plus size={14} /> Add field
               </button>
@@ -613,7 +613,7 @@ export function SolutionsV2() {
       >
         <DialogContent className="rounded-2xl border-slate-200 p-6 sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle className="font-display text-[18px] font-bold tracking-[-.04em] text-[#142b4b]">
+            <DialogTitle className="font-display text-[18px] font-bold tracking-[-.04em] text-[#0e0e0e]">
               Create document type
             </DialogTitle>
             <DialogDescription className="text-[11px] leading-relaxed text-slate-500">
@@ -630,7 +630,7 @@ export function SolutionsV2() {
                 if (nameError) setNameError("");
               }}
               placeholder="e.g. Prior Auth Packet"
-              className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-blue-400"
+              className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
             />
             {nameError ? (
               <p className="mt-2 text-[10px] font-semibold text-rose-600">{nameError}</p>
@@ -645,7 +645,7 @@ export function SolutionsV2() {
               onChange={(e) => setNewGuidance(e.target.value)}
               rows={5}
               placeholder="e.g. Prefer header member IDs. Dates as YYYY-MM-DD. Never invent BIN/PCN."
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-700 outline-none focus:border-blue-400"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
             />
           </label>
           <DialogFooter className="gap-2">
@@ -664,7 +664,7 @@ export function SolutionsV2() {
             <button
               type="button"
               onClick={() => void createType()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]"
             >
               <Check size={14} /> Create
             </button>

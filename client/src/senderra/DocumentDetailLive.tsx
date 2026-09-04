@@ -19,7 +19,7 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
       <div className="text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">{label}</div>
-      <div className="mt-2 font-display text-[19px] font-bold tabular-nums tracking-[-.04em] text-[#142b4b]">
+      <div className="mt-2 font-display text-[19px] font-bold tabular-nums tracking-[-.04em] text-[#0e0e0e]">
         {value}
       </div>
       {hint && <div className="mt-1 text-[9px] text-slate-400">{hint}</div>}
@@ -79,7 +79,7 @@ function StageTimeline({
 
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
         Processing timeline
       </h3>
       <div className="mt-4 space-y-3">
@@ -95,7 +95,7 @@ function StageTimeline({
               {index < stages.length - 1 && <span className="mt-1 w-px flex-1 bg-slate-200" />}
             </div>
             <div className="pb-2">
-              <div className={cn("text-[11px] font-bold", stage.done ? "text-[#142b4b]" : "text-slate-400")}>
+              <div className={cn("text-[11px] font-bold", stage.done ? "text-[#0e0e0e]" : "text-slate-400")}>
                 {stage.name}
               </div>
               <div className="mt-0.5 text-[10px] text-slate-500">{stage.detail}</div>
@@ -119,7 +119,7 @@ export function FieldCard({ name, field }: { name: string; field: ExtractedField
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-bold text-[#142b4b]">{humanize(name)}</div>
+          <div className="text-[11px] font-bold text-[#0e0e0e]">{humanize(name)}</div>
           <div className="mt-0.5 text-[9px] text-slate-400" title={FIELD_CLASS_LABEL[field.class ?? ""] ?? ""}>
             {field.class ? FIELD_CLASS_LABEL[field.class] ?? `Class ${field.class}` : "—"}
           </div>
@@ -127,7 +127,7 @@ export function FieldCard({ name, field }: { name: string; field: ExtractedField
         <ConfidenceBar value={score} />
       </div>
 
-      <div className="mt-2.5 break-words rounded-lg bg-slate-50 px-3 py-2 text-[12px] font-semibold text-[#142b4b]">
+      <div className="mt-2.5 break-words rounded-lg bg-slate-50 px-3 py-2 text-[12px] font-semibold text-[#0e0e0e]">
         {field.value === null || field.value === "" ? (
           <span className="font-normal italic text-slate-400">not present</span>
         ) : (
@@ -209,7 +209,7 @@ export function DocumentDetailLive({
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
       <button
         onClick={onBack}
-        className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-[#156bc9]"
+        className="inline-flex items-center gap-2 text-[10px] font-bold text-[#47a2b0] hover:text-[#37828e]"
       >
         <ArrowLeft size={14} /> Back to documents
       </button>
@@ -217,7 +217,7 @@ export function DocumentDetailLive({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-display text-[24px] font-bold tracking-[-.05em] text-[#142b4b]">
+            <h1 className="font-display text-[24px] font-bold tracking-[-.05em] text-[#0e0e0e]">
               {summary.file}
             </h1>
             <StatusPill status={summary.uiStatus} />
@@ -242,7 +242,7 @@ export function DocumentDetailLive({
           {summary.needsReview && summary.reviewStatus !== "approved" && (
             <button
               onClick={() => onReview(summary.documentId)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#0d5aae]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]"
             >
               <UserRound size={13} /> Open in HIL review
             </button>
@@ -266,7 +266,7 @@ export function DocumentDetailLive({
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+              <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
                 Extracted metadata
               </h3>
               <span className="text-[10px] text-slate-400">
@@ -310,7 +310,7 @@ export function DocumentDetailLive({
 
           {pdfUrl && (
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <h3 className="flex items-center gap-2 font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+              <h3 className="flex items-center gap-2 font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
                 <FileText size={14} className="text-slate-400" /> Source document
               </h3>
               <iframe
@@ -329,7 +329,7 @@ export function DocumentDetailLive({
           <StageTimeline ocr={ocr} extract={extract} />
 
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+            <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
               Pipeline detail
             </h3>
             <dl className="mt-3 space-y-2 text-[10px]">
@@ -354,13 +354,13 @@ export function DocumentDetailLive({
 
           {review && (
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <h3 className="flex items-center gap-2 font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+              <h3 className="flex items-center gap-2 font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
                 <ShieldCheck size={14} className="text-slate-400" /> Review history
               </h3>
               <div className="mt-3 space-y-2.5">
                 {(review.audit ?? []).map((entry, index) => (
                   <div key={index} className="border-l-2 border-slate-200 pl-3">
-                    <div className="text-[10px] font-bold text-[#142b4b]">
+                    <div className="text-[10px] font-bold text-[#0e0e0e]">
                       {humanize(entry.action)}
                       {entry.field ? ` · ${humanize(entry.field)}` : ""}
                     </div>

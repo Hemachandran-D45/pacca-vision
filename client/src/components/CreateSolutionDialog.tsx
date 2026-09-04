@@ -77,7 +77,7 @@ export function CreateSolutionDialog({ open, onOpenChange }: CreateSolutionDialo
     <Dialog open={open} onOpenChange={(next) => { if (!submitting) { if (!next) { setText(""); setFieldError(""); } onOpenChange(next); } }}>
       <DialogContent showCloseButton={!submitting} className="rounded-2xl border-slate-200 p-6 sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-[18px] font-bold tracking-[-.04em] text-[#142b4b]">
+          <DialogTitle className="font-display text-[18px] font-bold tracking-[-.04em] text-[#0e0e0e]">
             Create solution
           </DialogTitle>
           <DialogDescription className="text-[11px] leading-relaxed text-slate-500">
@@ -95,9 +95,9 @@ export function CreateSolutionDialog({ open, onOpenChange }: CreateSolutionDialo
             }}
             rows={8}
             placeholder="Enter the solution definition, notes, or operating pattern..."
-            className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-700 outline-none focus:border-blue-400 disabled:bg-slate-50"
+            className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0] disabled:bg-slate-50"
           />
-          {fieldError ? <p className="mt-2 text-[10px] font-semibold text-rose-600">{fieldError}</p> : null}
+          {fieldError ? <p className="mt-2 text-[10px] font-semibold text-[#e04f4f]">{fieldError}</p> : null}
         </label>
         <DialogFooter className="gap-2">
           <button
@@ -112,7 +112,7 @@ export function CreateSolutionDialog({ open, onOpenChange }: CreateSolutionDialo
             type="button"
             disabled={submitting}
             onClick={() => void onCreate()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#0d5aae] disabled:opacity-70"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e] disabled:opacity-70"
           >
             {submitting ? <Loader2 size={14} className="animate-spin" /> : null}
             {submitting ? "Generating..." : "Create"}

@@ -34,13 +34,13 @@ function Metric({
         className={
           tone === "warn"
             ? "flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600"
-            : "flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#156bc9]"
+            : "flex h-9 w-9 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]"
         }
       >
         <Icon size={17} />
       </div>
       <div className="mt-5 text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">{label}</div>
-      <div className="mt-1.5 font-display text-[26px] font-bold tabular-nums leading-none tracking-[-.05em] text-[#142b4b]">
+      <div className="mt-1.5 font-display text-[26px] font-bold tabular-nums leading-none tracking-[-.05em] text-[#0e0e0e]">
         {value}
       </div>
       <div className="mt-2.5 text-[10px] leading-relaxed text-slate-400">{hint}</div>
@@ -61,7 +61,7 @@ function DocumentsByType({ rows }: { rows: { docType: string; count: number }[] 
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
         Documents by type
       </h3>
       <p className="mt-1 text-[10px] text-slate-400">Classified by the pipeline's first model call.</p>
@@ -73,11 +73,11 @@ function DocumentsByType({ rows }: { rows: { docType: string; count: number }[] 
             </div>
             <div className="h-3 flex-1 overflow-hidden rounded-r-[4px] bg-slate-50">
               <div
-                className="h-full rounded-r-[4px] bg-[#2a6fd6] transition-[width] duration-500"
+                className="h-full rounded-r-[4px] bg-[#47a2b0] transition-[width] duration-500"
                 style={{ width: `${Math.max(3, (row.count / max) * 100)}%` }}
               />
             </div>
-            <div className="w-6 shrink-0 text-right tabular-nums text-[11px] font-bold text-[#142b4b]">
+            <div className="w-6 shrink-0 text-right tabular-nums text-[11px] font-bold text-[#0e0e0e]">
               {row.count}
             </div>
           </div>
@@ -100,7 +100,7 @@ function PipelineState({ rows, total }: { rows: { status: string; count: number 
   const ordered = [...rows].sort((a, b) => b.count - a.count);
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
         Pipeline state
       </h3>
       <p className="mt-1 text-[10px] text-slate-400">Where the corpus is sitting right now.</p>
@@ -115,7 +115,7 @@ function PipelineState({ rows, total }: { rows: { status: string; count: number 
               <span className="flex-1 text-[11px] font-semibold" style={{ color: ink }}>
                 {row.status}
               </span>
-              <span className="tabular-nums text-[11px] font-bold text-[#142b4b]">{row.count}</span>
+              <span className="tabular-nums text-[11px] font-bold text-[#0e0e0e]">{row.count}</span>
               <span className="w-10 text-right tabular-nums text-[10px] text-slate-400">
                 {total > 0 ? `${Math.round((row.count / total) * 100)}%` : "—"}
               </span>
@@ -148,12 +148,12 @@ export function CommandCenterLive({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#156bc9]">
+            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
               Client 1 · Prior Auth Processing
             </div>
             <LiveBadge />
           </div>
-          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#142b4b]">
+          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#0e0e0e]">
             Command Center
           </h1>
           <p className="mt-1.5 text-[11px] text-slate-500">
@@ -162,7 +162,7 @@ export function CommandCenterLive({
         </div>
         <button
           onClick={() => onNavigate("/documents")}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(21,107,201,.2)] hover:bg-[#0d5aae]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.2)] hover:bg-[#37828e]"
         >
           Open documents <ArrowRight size={13} />
         </button>
@@ -213,13 +213,13 @@ export function CommandCenterLive({
 
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#156bc9]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
                 <Boxes size={17} />
               </div>
               <div className="mt-4 text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">
                 Prompt cache
               </div>
-              <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums tracking-[-.05em] text-[#142b4b]">
+              <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums tracking-[-.05em] text-[#0e0e0e]">
                 {percent(stats.avgCacheHit, 1)}
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
@@ -227,13 +227,13 @@ export function CommandCenterLive({
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#156bc9]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
                 <Gauge size={17} />
               </div>
               <div className="mt-4 text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">
                 Mean end-to-end
               </div>
-              <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums tracking-[-.05em] text-[#142b4b]">
+              <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums tracking-[-.05em] text-[#0e0e0e]">
                 {duration(stats.avgLatencyMs)}
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
@@ -241,13 +241,13 @@ export function CommandCenterLive({
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#156bc9]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
                 <Coins size={17} />
               </div>
               <div className="mt-4 text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">
                 Cost per document
               </div>
-              <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums tracking-[-.05em] text-[#142b4b]">
+              <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums tracking-[-.05em] text-[#0e0e0e]">
                 {usd(stats.processed > 0 ? stats.totalCostUsd / stats.processed : null, 3)}
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
@@ -260,12 +260,12 @@ export function CommandCenterLive({
 
       <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">
+          <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
             Recent documents
           </h3>
           <button
             onClick={() => onNavigate("/documents")}
-            className="text-[10px] font-bold text-[#156bc9] hover:underline"
+            className="text-[10px] font-bold text-[#47a2b0] hover:text-[#37828e] hover:underline"
           >
             View all
           </button>
@@ -291,9 +291,9 @@ export function CommandCenterLive({
                   <tr
                     key={doc.documentId}
                     onClick={() => onOpenDocument(doc.documentId)}
-                    className="cursor-pointer border-b border-slate-50 hover:bg-slate-50/70"
+                    className="cursor-pointer border-b border-slate-50 hover:bg-[#ebf5f7]/50"
                   >
-                    <td className="px-5 py-2.5 text-[11px] font-bold text-[#142b4b]">{doc.file}</td>
+                    <td className="px-5 py-2.5 text-[11px] font-bold text-[#0e0e0e]">{doc.file}</td>
                     <td className="px-5 py-2.5 text-[11px] text-slate-600">{humanize(doc.docType)}</td>
                     <td className="px-5 py-2.5">
                       <StatusPill status={doc.uiStatus} />

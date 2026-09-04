@@ -56,12 +56,12 @@ export function HilLive({
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#156bc9]">
+            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
               Client 1 · Prior Auth Processing
             </div>
             <LiveBadge />
           </div>
-          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#142b4b]">
+          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#0e0e0e]">
             HIL Review
           </h1>
           <p className="mt-1.5 text-[11px] text-slate-500">
@@ -83,7 +83,7 @@ export function HilLive({
           ) : documents.length === 0 ? (
             <div className="p-6 text-center">
               <Check size={22} className="mx-auto text-emerald-500" />
-              <div className="mt-2.5 text-[11px] font-bold text-[#142b4b]">Queue is clear</div>
+              <div className="mt-2.5 text-[11px] font-bold text-[#0e0e0e]">Queue is clear</div>
               <p className="mt-1 text-[10px] text-slate-500">
                 Every document has passed the gates or been resolved.
               </p>
@@ -140,7 +140,7 @@ function QueueRow({
         active ? "bg-blue-50/70 ring-1 ring-inset ring-blue-200" : "hover:bg-slate-50"
       )}
     >
-      <div className="truncate text-[11px] font-bold text-[#142b4b]">{doc.file}</div>
+      <div className="truncate text-[11px] font-bold text-[#0e0e0e]">{doc.file}</div>
       <div className="mt-0.5 text-[9px] text-slate-400">
         {humanize(doc.docType)} · {relativeTime(doc.receivedAt)}
       </div>
@@ -269,7 +269,7 @@ function Workbench({
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="font-display text-[17px] font-bold tracking-[-.04em] text-[#142b4b]">
+            <h2 className="font-display text-[17px] font-bold tracking-[-.04em] text-[#0e0e0e]">
               {summary.file}
             </h2>
             <p className="mt-1 text-[10px] text-slate-500">
@@ -376,12 +376,12 @@ function Workbench({
           </p>
         ) : (
           <div className="mt-3 space-y-2">
-            <div className="text-[10px] font-bold text-[#142b4b]">
+            <div className="text-[10px] font-bold text-[#0e0e0e]">
               {changed.length} field{changed.length === 1 ? "" : "s"} changed
             </div>
             {changed.map((entry) => (
               <div key={entry.name} className="rounded-lg bg-slate-50 px-3 py-2 text-[10px]">
-                <span className="font-bold text-[#142b4b]">{humanize(entry.name)}</span>
+                <span className="font-bold text-[#0e0e0e]">{humanize(entry.name)}</span>
                 <span className="mx-2 text-slate-400 line-through">{entry.from || "empty"}</span>
                 <span className="font-semibold text-emerald-700">{entry.to || "empty"}</span>
               </div>
@@ -396,7 +396,7 @@ function Workbench({
             onChange={(event) => setNote(event.target.value)}
             rows={2}
             placeholder="Why the correction was needed…"
-            className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-[11px] text-slate-700 outline-none focus:border-[#156bc9]"
+            className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
           />
         </label>
 
@@ -420,7 +420,7 @@ function Workbench({
           <button
             onClick={() => void act("approve")}
             disabled={busy !== null}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(21,107,201,.2)] hover:bg-[#0d5aae] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.2)] hover:bg-[#37828e] disabled:opacity-50"
           >
             {busy === "approve" ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
             Approve &amp; deliver
@@ -453,7 +453,7 @@ function EditableField({
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="text-[10px] font-bold text-[#142b4b]" htmlFor={`field-${name}`}>
+        <label className="text-[10px] font-bold text-[#0e0e0e]" htmlFor={`field-${name}`}>
           {humanize(name)}
         </label>
         <ConfidenceBar value={field.scores?.field_score ?? null} />
@@ -464,7 +464,7 @@ function EditableField({
         onChange={(event) => onChange(event.target.value)}
         className={cn(
           "mt-2 h-9 w-full rounded-lg border px-3 text-[11px] text-slate-800 outline-none",
-          dirty ? "border-emerald-400 bg-emerald-50/40" : "border-slate-200 focus:border-[#156bc9]"
+          dirty ? "border-[#45bd8d] bg-[#ebf5f7]" : "border-slate-200 focus:border-[#47a2b0]"
         )}
       />
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-400">

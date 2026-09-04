@@ -40,48 +40,72 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Official Emids Brand Color Tokens */
+  --color-emids-teal: #47a2b0;
+  --color-emids-teal-dark: #37828e;
+  --color-emids-teal-soft: #ebf5f7;
+  --color-emids-black: #0e0e0e;
+  --color-emids-warm-white: #f2f2f0;
+  --color-emids-sterile-blue: #00b0f0;
+  --color-emids-surgeon-green: #45bd8d;
+  --color-emids-signal-red: #e04f4f;
+  --color-emids-mauve: #b89dcb;
+  --color-emids-yellow: #f2c94c;
+
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.98 0.006 250);
-  --foreground: oklch(0.23 0.04 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.23 0.04 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.23 0.04 250);
-  --primary: oklch(0.49 0.18 255);
-  --primary-foreground: oklch(0.99 0.004 250);
-  --secondary: oklch(0.96 0.009 250);
-  --secondary-foreground: oklch(0.38 0.04 250);
-  --muted: oklch(0.955 0.009 250);
-  --muted-foreground: oklch(0.57 0.03 250);
-  --accent: oklch(0.94 0.02 240);
-  --accent-foreground: oklch(0.3 0.08 250);
-  --destructive: oklch(0.62 0.21 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.91 0.014 250);
-  --input: oklch(0.91 0.014 250);
-  --ring: oklch(0.55 0.18 255);
-  --chart-1: oklch(0.55 0.18 255);
-  --chart-2: oklch(0.66 0.15 180);
-  --chart-3: oklch(0.73 0.15 80);
-  --chart-4: oklch(0.62 0.17 310);
-  --chart-5: oklch(0.7 0.15 30);
-  --sidebar: oklch(0.19 0.07 255);
-  --sidebar-foreground: oklch(0.9 0.015 250);
-  --sidebar-primary: oklch(0.58 0.18 255);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.27 0.08 255);
-  --sidebar-accent-foreground: oklch(0.99 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.58 0.18 255);
+
+  /* Emids Brand Theme System */
+  --background: #f2f2f0; /* Emids Warm White inversion surface */
+  --foreground: #0e0e0e; /* Emids Black primary text */
+  --card: #ffffff;
+  --card-foreground: #0e0e0e;
+  --popover: #ffffff;
+  --popover-foreground: #0e0e0e;
+
+  /* Emids Teal Primary */
+  --primary: #47a2b0;
+  --primary-foreground: #ffffff;
+  --secondary: #ebf5f7;
+  --secondary-foreground: #2d6b75;
+
+  --muted: #e7e7e4;
+  --muted-foreground: #606b72;
+  --accent: #ebf5f7;
+  --accent-foreground: #1c525b;
+
+  --destructive: #e04f4f; /* Emids Signal Red */
+  --destructive-foreground: #ffffff;
+
+  --border: #e0e0dc;
+  --input: #e0e0dc;
+  --ring: #47a2b0;
+
+  /* Emids Data Visualization Palette */
+  --chart-1: #47a2b0; /* Emids Teal */
+  --chart-2: #b89dcb; /* Emids Mauve */
+  --chart-3: #f2c94c; /* Emids Yellow */
+  --chart-4: #45bd8d; /* Emids Surgeon Green */
+  --chart-5: #00b0f0; /* Emids Sterile Blue */
+
+  /* Emids Sidebar (Emids Black) */
+  --sidebar: #0e0e0e;
+  --sidebar-foreground: #d2d8dc;
+  --sidebar-primary: #47a2b0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #47a2b0;
 }
 
 * { box-sizing: border-box; }
-html { background: #f7f9fc; }
+html { background: #f2f2f0; }
 body {
   @apply bg-background text-foreground;
   margin: 0;
@@ -105,4 +129,4 @@ button:active:not(:disabled) { transform: scale(.97); }
 
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }
-::selection { background: rgba(42, 116, 210, .18); color: #142b4b; }
+::selection { background: rgba(71, 162, 176, 0.25); color: #0e0e0e; }

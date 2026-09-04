@@ -117,7 +117,7 @@ export function UploadPanel({
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-display text-[15px] font-bold tracking-[-.03em] text-[#142b4b]">
+          <h3 className="font-display text-[15px] font-bold tracking-[-.03em] text-[#0e0e0e]">
             Upload documents
           </h3>
           <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
@@ -141,11 +141,11 @@ export function UploadPanel({
         onClick={() => inputRef.current?.click()}
         className={cn(
           "mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-9 text-center transition",
-          dragging ? "border-[#156bc9] bg-blue-50/60" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
+          dragging ? "border-[#47a2b0] bg-[#ebf5f7]/60" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
         )}
       >
-        <CloudUpload size={26} className={dragging ? "text-[#156bc9]" : "text-slate-400"} />
-        <div className="mt-3 text-[12px] font-bold text-[#142b4b]">
+        <CloudUpload size={26} className={dragging ? "text-[#47a2b0]" : "text-slate-400"} />
+        <div className="mt-3 text-[12px] font-bold text-[#0e0e0e]">
           Drop PDFs here, or click to choose
         </div>
         <div className="mt-1 text-[10px] text-slate-400">
@@ -173,7 +173,7 @@ export function UploadPanel({
             >
               <FileText size={14} className="shrink-0 text-slate-400" />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[11px] font-semibold text-[#142b4b]">
+                <div className="truncate text-[11px] font-semibold text-[#0e0e0e]">
                   {entry.file.name}
                 </div>
                 <div className="text-[9px] text-slate-400">
@@ -181,14 +181,14 @@ export function UploadPanel({
                   {entry.message ? ` · ${entry.message}` : ""}
                 </div>
               </div>
-              {entry.state === "uploading" && <Loader2 size={13} className="animate-spin text-[#156bc9]" />}
+              {entry.state === "uploading" && <Loader2 size={13} className="animate-spin text-[#47a2b0]" />}
               {entry.state === "done" && (
-                <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-600">
+                <span className="text-[9px] font-bold uppercase tracking-wide text-[#45bd8d]">
                   Uploaded
                 </span>
               )}
               {entry.state === "error" && (
-                <span className="text-[9px] font-bold uppercase tracking-wide text-rose-600">Failed</span>
+                <span className="text-[9px] font-bold uppercase tracking-wide text-[#e04f4f]">Failed</span>
               )}
               {entry.state === "pending" && !busy && (
                 <button
@@ -215,7 +215,7 @@ export function UploadPanel({
         <button
           onClick={() => void send()}
           disabled={busy || readyCount === 0}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(21,107,201,.2)] hover:bg-[#0d5aae] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.2)] hover:bg-[#37828e] disabled:opacity-50"
         >
           {busy && <Loader2 size={13} className="animate-spin" />}
           {busy ? "Uploading…" : `Upload ${readyCount || ""} and process`}

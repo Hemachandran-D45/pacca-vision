@@ -1,0 +1,18 @@
+export const pageMeta: Record<string, { title: string; subtitle: string }> = {
+  "/": { title: "Dashboard", subtitle: "Real-time overview of your intelligent document operations" },
+  "/documents": { title: "Documents", subtitle: "Search, investigate, and trace every document through the platform" },
+  "/hil-review": { title: "HIL Review", subtitle: "Resolve low-confidence fields before they reach your downstream systems" },
+  "/monitor": { title: "Pipeline Monitor", subtitle: "Monitor processing stages, latency, failures, and jobs in flight" },
+  "/analytics": { title: "Analytics & Cost", subtitle: "Understand throughput, automation, confidence, SLA, and cost" },
+  "/audit": { title: "Audit Trail", subtitle: "Chronological operational history across your document estate" },
+  "/solutions-v2": { title: "Solutions", subtitle: "Document types from field_meta.json, generated into senderra-idp-sol" },
+  "/pipeline-studio": { title: "Pipeline Studio", subtitle: "Compose document-processing steps into a reliable operating path" },
+  "/metadata-studio": { title: "Metadata Studio", subtitle: "Define the final metadata contract consumed by downstream solutions" },
+  "/rules": { title: "Rules & Validations", subtitle: "Guard the handoff from extracted data to trusted final metadata" },
+  "/integrations": { title: "Integrations", subtitle: "Connect source systems, services, and model providers" },
+  "/environment": { title: "Environment", subtitle: "Manage workspace-specific variables and operating modes" },
+  "/deployment": { title: "Deployment Wizard", subtitle: "Promote validated pipeline configurations through environments" },
+  "/infrastructure": { title: "Infrastructure", subtitle: "Technical runtime health for the document platform" },
+  "/users": { title: "Users & Roles", subtitle: "Control access without mixing administrative concerns into operations" },
+  "/settings": { title: "Settings", subtitle: "Workspace preferences and policy controls for PACCA Vision" },
+};

@@ -28,15 +28,15 @@ export function SolutionSwitcher() {
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <Boxes size={15} className="shrink-0 text-[#156bc9]" />
+        <Boxes size={15} className="shrink-0 text-[#47a2b0]" />
         <span className="hidden min-w-0 sm:block">
           <span className="block text-[8px] font-bold uppercase tracking-[.12em] text-slate-400">
             Solution
           </span>
-          <span className="block truncate text-[11px] font-bold text-[#142b4b]">{solution.name}</span>
+          <span className="block truncate text-[11px] font-bold text-[#0e0e0e]">{solution.name}</span>
         </span>
         {solution.live && (
-          <span className="hidden rounded-full bg-emerald-50 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[.08em] text-emerald-700 sm:inline">
+          <span className="hidden rounded-full bg-[#ebf5f7] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[.08em] text-[#2d6b75] sm:inline">
             Live
           </span>
         )}
@@ -58,22 +58,22 @@ export function SolutionSwitcher() {
                 onClick={() => choose(entry.key)}
                 className={cn(
                   "block w-full rounded-xl p-3 text-left transition",
-                  entry.key === solutionKey ? "bg-blue-50/70" : "hover:bg-slate-50"
+                  entry.key === solutionKey ? "bg-[#ebf5f7]/70" : "hover:bg-slate-50"
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-[#142b4b]">{entry.name}</span>
+                  <span className="text-[11px] font-bold text-[#0e0e0e]">{entry.name}</span>
                   <span
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[.08em]",
                       entry.live
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-[#ebf5f7] text-[#2d6b75]"
                         : "bg-slate-100 text-slate-500"
                     )}
                   >
                     {entry.live ? "Live pipeline" : "Demo fixtures"}
                   </span>
-                  {entry.key === solutionKey && <Check size={13} className="ml-auto text-[#156bc9]" />}
+                  {entry.key === solutionKey && <Check size={13} className="ml-auto text-[#47a2b0]" />}
                 </div>
                 <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">{entry.summary}</p>
                 <p className="mt-1.5 text-[9px] leading-relaxed text-slate-400">{entry.pipeline}</p>

@@ -22,7 +22,7 @@ const SERIES = {
 function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#142b4b]">{title}</h3>
+      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">{title}</h3>
       {hint && <p className="mt-1 text-[10px] leading-relaxed text-slate-400">{hint}</p>}
       <div className="mt-4">{children}</div>
     </div>
@@ -42,11 +42,11 @@ function Metric({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#156bc9]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
         <Icon size={17} />
       </div>
       <div className="mt-5 text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">{label}</div>
-      <div className="mt-1.5 font-display text-[24px] font-bold tabular-nums leading-none tracking-[-.05em] text-[#142b4b]">
+      <div className="mt-1.5 font-display text-[24px] font-bold tabular-nums leading-none tracking-[-.05em] text-[#0e0e0e]">
         {value}
       </div>
       <div className="mt-2.5 text-[10px] leading-relaxed text-slate-400">{hint}</div>
@@ -96,7 +96,7 @@ function StackedBar({
               style={{ backgroundColor: segment.color }}
             />
             <span className="flex-1 text-[10px] font-semibold text-slate-600">{segment.label}</span>
-            <span className="tabular-nums text-[11px] font-bold text-[#142b4b]">
+            <span className="tabular-nums text-[11px] font-bold text-[#0e0e0e]">
               {format(segment.value)}
             </span>
             <span className="w-10 text-right tabular-nums text-[10px] text-slate-400">
@@ -141,7 +141,7 @@ function BarList({
               style={{ width: `${Math.max(2, (row.value / max) * 100)}%`, backgroundColor: color }}
             />
           </div>
-          <div className="w-16 shrink-0 text-right tabular-nums text-[11px] font-bold text-[#142b4b]">
+          <div className="w-16 shrink-0 text-right tabular-nums text-[11px] font-bold text-[#0e0e0e]">
             {format(row.value)}
           </div>
         </div>
@@ -159,7 +159,7 @@ function Guard({ ok, label, detail }: { ok: boolean; label: string; detail: stri
         <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
       )}
       <div className="min-w-0">
-        <div className={ok ? "text-[10px] font-bold text-[#142b4b]" : "text-[10px] font-bold text-amber-800"}>
+        <div className={ok ? "text-[10px] font-bold text-[#0e0e0e]" : "text-[10px] font-bold text-amber-800"}>
           {label}
         </div>
         <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">{detail}</div>
@@ -187,12 +187,12 @@ export function AnalyticsLive() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#156bc9]">
+            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
               Client 1 · Prior Auth Processing
             </div>
             <LiveBadge />
           </div>
-          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#142b4b]">
+          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#0e0e0e]">
             Analytics &amp; Cost
           </h1>
           <p className="mt-1.5 text-[11px] text-slate-500">
@@ -248,7 +248,7 @@ export function AnalyticsLive() {
             format={(value) => usd(value, 4)}
           />
           <div className="mt-4 rounded-xl bg-slate-50 p-3.5">
-            <div className="text-[10px] font-bold text-[#142b4b]">Prompt cache, measured</div>
+            <div className="text-[10px] font-bold text-[#0e0e0e]">Prompt cache, measured</div>
             <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
               Uncached these calls would have cost{" "}
               <span className="font-bold text-slate-700">{usd(a.totals.llmUncachedUsd, 4)}</span>. They cost{" "}
@@ -273,7 +273,7 @@ export function AnalyticsLive() {
             format={(value) => duration(value)}
           />
           <div className="mt-4 rounded-xl bg-slate-50 p-3.5">
-            <div className="text-[10px] font-bold text-[#142b4b]">Inside stage 2</div>
+            <div className="text-[10px] font-bold text-[#0e0e0e]">Inside stage 2</div>
             <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
               Classify {duration(a.latency.classifyMs)} · extract {duration(a.latency.extractMs)}. The
               extract call dominates because it carries the markdown and the field schema; the classify
@@ -326,13 +326,13 @@ export function AnalyticsLive() {
             format={(value) => String(value)}
           />
           <div className="mt-4 border-t border-slate-100 pt-3.5 text-[10px] leading-relaxed text-slate-500">
-            <span className="font-bold text-[#142b4b]">
+            <span className="font-bold text-[#0e0e0e]">
               {a.quality.fieldsNeedingReview} of {a.quality.fieldsTotal} fields
             </span>{" "}
             ({percent(reviewedFieldPct, 1)}) tripped a gate, across{" "}
-            <span className="font-bold text-[#142b4b]">{gatedDocs}</span> document-level routings.
+            <span className="font-bold text-[#0e0e0e]">{gatedDocs}</span> document-level routings.
             Straight-through rate is{" "}
-            <span className="font-bold text-[#142b4b]">{percent(a.quality.stpRate, 1)}</span> —{" "}
+            <span className="font-bold text-[#0e0e0e]">{percent(a.quality.stpRate, 1)}</span> —{" "}
             {a.quality.stpCount} of {a.totals.succeeded} documents needed no human at all.
           </div>
         </Card>

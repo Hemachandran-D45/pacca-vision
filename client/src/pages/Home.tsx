@@ -1,494 +1,123 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import {
-  Activity,
-  AlertCircle,
-  Archive,
-  ArrowDownRight,
-  ArrowLeft,
-  ArrowRight,
-  BarChart3,
-  Bell,
-  BrainCircuit,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  CircleHelp,
-  CirclePlay,
-  Clock3,
-  Cloud,
-  Code2,
-  Coins,
-  Columns3,
-  Copy,
-  Database,
-  Download,
-  Ellipsis,
-  Eye,
-  FileArchive,
-  FileCheck2,
-  FileCog,
-  FileSearch,
-  FileText,
-  Filter,
-  GitBranch,
-  Globe2,
-  GripVertical,
-  History as HistoryIcon,
-  HardDrive,
-  Inbox,
-  Info,
-  KeyRound,
-  Layers3,
-  LifeBuoy,
-  ListFilter,
-  LockKeyhole,
-  LogOut,
-  Menu,
-  MoreHorizontal,
-  Network,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Pause,
-  Pencil,
-  Play,
-  Plus,
-  RefreshCw,
-  Search,
-  Send,
-  Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Target,
-  TimerReset,
-  ToggleLeft,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-  Upload,
-  UserRound,
-  UsersRound,
-  WandSparkles,
-  X,
-  Zap,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AccessDenied, demoAllowedPaths, LoginScreen, SkeletonPage } from "@/components/MockAuth";
-import { useSolution } from "@/senderra/SolutionContext";
-import { SolutionSwitcher } from "@/senderra/SolutionSwitcher";
-import { CommandCenterLive } from "@/senderra/CommandCenterLive";
-import { DocumentsLive } from "@/senderra/DocumentsLive";
-import { DocumentDetailLive } from "@/senderra/DocumentDetailLive";
-import { HilLive } from "@/senderra/HilLive";
-import { AnalyticsLive } from "@/senderra/AnalyticsLive";
-import { SolutionsV2 } from "@/senderra/SolutionsV2";
 import type { MockUser } from "@/components/MockAuth";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-type NavItem = { label: string; path: string; icon: LucideIcon; badge?: string };
-type NavSection = { label: string; items: NavItem[] };
-
-type DocumentRow = {
-  id: string;
-  file: string;
-  type: string;
-  source: string;
-  status: "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing";
-  confidence: string;
-  pages: number;
-  received: string;
-  color: string;
-  pdfUrl: string;
-  previewUrl: string;
-};
-
-const navSections: NavSection[] = [
-  {
-    label: "Operate",
-    items: [
-      { label: "Dashboard", path: "/", icon: Activity },
-      { label: "Documents", path: "/documents", icon: FileText },
-      { label: "HIL Review", path: "/hil-review", icon: UserRound, badge: "27" },
-      { label: "Pipeline Monitor", path: "/monitor", icon: GitBranch },
-      { label: "Analytics & Cost", path: "/analytics", icon: BarChart3 },
-      { label: "Audit Trail", path: "/audit", icon: FileSearch },
-    ],
-  },
-  {
-    label: "Configure",
-    items: [
-      { label: "Solutions", path: "/solutions-v2", icon: FileCog },
-      { label: "Pipeline Studio", path: "/pipeline-studio", icon: WandSparkles },
-      { label: "Metadata Studio", path: "/metadata-studio", icon: Columns3 },
-      { label: "Rules & Validations", path: "/rules", icon: ShieldCheck },
-      { label: "Integrations", path: "/integrations", icon: Network },
-    ],
-  },
-  {
-    label: "Deploy",
-    items: [
-      { label: "Environment", path: "/environment", icon: Cloud },
-      { label: "Deployment Wizard", path: "/deployment", icon: Send },
-      { label: "Infrastructure", path: "/infrastructure", icon: HardDrive },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
-      { label: "Users & Roles", path: "/users", icon: UsersRound },
-      { label: "Settings", path: "/settings", icon: Settings2 },
-    ],
-  },
-];
-
-const documents: DocumentRow[] = [
-  { id: "DOC-001", file: "invoice_001.pdf", type: "Invoice", source: "Client 1 intake", status: "Processed", confidence: "96%", pages: 1, received: "Today, 14:02", color: "#1f9b72", pdfUrl: "/pdfs/invoice_001.pdf", previewUrl: "/pdfs/invoice_001.pdf" },
-  { id: "DOC-002", file: "invoice_002.pdf", type: "Invoice", source: "Client 1 intake", status: "Needs Review", confidence: "68%", pages: 1, received: "Today, 13:58", color: "#ed9a25", pdfUrl: "/pdfs/invoice_002.pdf", previewUrl: "/pdfs/invoice_002.pdf" },
-  { id: "DOC-003", file: "invoice_003.pdf", type: "Invoice", source: "Client 1 intake", status: "Processing", confidence: "84%", pages: 1, received: "Today, 13:54", color: "#4779de", pdfUrl: "/pdfs/invoice_003.pdf", previewUrl: "/pdfs/invoice_003.pdf" },
-];
-
-const hilQueue = [
-  { file: "invoice_002.pdf", issue: "Low confidence: Total Amount", age: "18 min ago", priority: "High", kind: "invoice", color: "#ed9a25" },
-];
-
-const stageData = [
-  { name: "Ingest", count: "128", delta: "+12", icon: Inbox, tone: "green" },
-  { name: "Preprocess", count: "128", delta: "+8", icon: WandSparkles, tone: "green" },
-  { name: "Understand", count: "97", delta: "+5", icon: BrainCircuit, tone: "green" },
-  { name: "Extract", count: "63", delta: "+3", icon: FileCheck2, tone: "green" },
-  { name: "Validate", count: "34", delta: "+6", icon: ShieldCheck, tone: "amber" },
-  { name: "HIL Review", count: "27", delta: "+8", icon: UserRound, tone: "red" },
-  { name: "Deliver", count: "4,785", delta: "+302", icon: Send, tone: "blue" },
-];
-
-const trendData = [
-  { day: "May 02", processed: 1170, hil: 520 },
-  { day: "May 03", processed: 1390, hil: 410 },
-  { day: "May 04", processed: 1410, hil: 600 },
-  { day: "May 05", processed: 1260, hil: 490 },
-  { day: "May 06", processed: 1580, hil: 560 },
-  { day: "May 07", processed: 1480, hil: 430 },
-  { day: "May 08", processed: 1430, hil: 530 },
-];
-
-const costData = [
-  { label: "Document understanding (representative)", value: 203.3, percent: 42, color: "#1c7088" },
-  { label: "LLM extraction (representative)", value: 135.2, percent: 28, color: "#15a3b5" },
-  { label: "Compute orchestration (representative)", value: 86.4, percent: 18, color: "#4eb6be" },
-  { label: "Storage (S3)", value: 33.2, percent: 7, color: "#8b8e99" },
-  { label: "Others", value: 24.5, percent: 5, color: "#c6c9cf" },
-];
-
-const analyticsData = [
-  { day: "Mon", processed: 590, hil: 68, failed: 14 },
-  { day: "Tue", processed: 730, hil: 81, failed: 10 },
-  { day: "Wed", processed: 680, hil: 74, failed: 16 },
-  { day: "Thu", processed: 820, hil: 88, failed: 12 },
-  { day: "Fri", processed: 760, hil: 75, failed: 8 },
-  { day: "Sat", processed: 510, hil: 55, failed: 11 },
-  { day: "Sun", processed: 720, hil: 65, failed: 9 },
-];
-
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function Logo() {
-  return (
-    <div className="flex items-center gap-3 px-1">
-      <div className="relative flex h-9 w-9 items-center justify-center rounded-[11px] bg-white/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,.12)]">
-        <div className="h-4 w-6 rotate-[-18deg] rounded-[60%] border-[3px] border-white" />
-        <div className="absolute h-1.5 w-1.5 rounded-full bg-white" />
-      </div>
-      <div className="leading-none">
-        <div className="font-display text-[17px] font-bold tracking-[-0.03em] text-white">PACCA <span className="font-normal text-slate-300">VISION</span></div>
-        <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-sky-200/70">Intelligent Document Platform</div>
-      </div>
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: DocumentRow["status"] | string }) {
-  const styles: Record<string, string> = {
-    Active: "bg-emerald-50 text-emerald-700 ring-emerald-600/15",
-    Processed: "bg-emerald-50 text-emerald-700 ring-emerald-600/15",
-    "Needs Review": "bg-amber-50 text-amber-700 ring-amber-600/15",
-    "HIL Review": "bg-amber-50 text-amber-700 ring-amber-600/15",
-    "Validation failed": "bg-rose-50 text-rose-700 ring-rose-600/15",
-    Processing: "bg-blue-50 text-blue-700 ring-blue-600/15",
-    Healthy: "bg-emerald-50 text-emerald-700 ring-emerald-600/15",
-    Attention: "bg-amber-50 text-amber-700 ring-amber-600/15",
-    Degraded: "bg-rose-50 text-rose-700 ring-rose-600/15",
-    Draft: "bg-slate-100 text-slate-600 ring-slate-600/10",
-    Live: "bg-blue-50 text-blue-700 ring-blue-600/15",
-  };
-  return <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ring-1", styles[status] ?? "bg-slate-100 text-slate-600 ring-slate-600/10")}><span className="h-1.5 w-1.5 rounded-full bg-current" />{status}</span>;
-}
-
-function Sparkline({ tone = "blue" }: { tone?: "blue" | "green" | "amber" | "purple" | "red" }) {
-  const colors = { blue: "#1f74d1", green: "#26a269", amber: "#e29424", purple: "#8264c9", red: "#db625a" };
-  const stroke = colors[tone];
-  return <svg viewBox="0 0 120 32" className="h-8 w-full overflow-visible" aria-hidden="true"><path d="M1 25 C 8 22, 10 26, 17 21 S 25 26, 32 20 S 42 22, 48 15 S 57 20, 65 16 S 76 23, 82 12 S 94 18, 101 10 S 111 17, 119 6" fill="none" stroke={stroke} strokeWidth="2.1" strokeLinecap="round" /><path d="M1 25 C 8 22, 10 26, 17 21 S 25 26, 32 20 S 42 22, 48 15 S 57 20, 65 16 S 76 23, 82 12 S 94 18, 101 10 S 111 17, 119 6 L119 32 L1 32Z" fill={stroke} opacity=".07" /></svg>;
-}
-
-function MetricCard({ icon: Icon, label, value, delta, detail, tone }: { icon: LucideIcon; label: string; value: string; delta: string; detail: string; tone: "blue" | "amber" | "green" | "purple" | "red" }) {
-  const iconStyles = { blue: "bg-blue-50 text-blue-600", amber: "bg-amber-50 text-amber-600", green: "bg-emerald-50 text-emerald-600", purple: "bg-violet-50 text-violet-600", red: "bg-rose-50 text-rose-600" };
-  return <div className="group rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(20,43,75,.025)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(20,43,75,.09)] sm:p-5">
-    <div className="flex items-start justify-between gap-3"><div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", iconStyles[tone])}><Icon size={18} strokeWidth={2} /></div>{delta && <span className={cn("flex items-center gap-1 text-[10px] font-bold", delta.startsWith("-") ? "text-rose-600" : "text-emerald-600")}><TrendingUp size={12} />{delta}</span>}</div>
-    <div className="mt-4 text-[11px] font-semibold text-slate-500">{label}</div><div className="mt-1 font-display text-[27px] font-bold tracking-[-0.045em] text-[#142b4b]">{value}</div><div className="mt-1 text-[10px] text-slate-400">{detail}</div><div className="mt-3"><Sparkline tone={tone} /></div>
-  </div>;
-}
-
-function SectionHeading({ title, eyebrow, action, onAction }: { title: string; eyebrow?: string; action?: string; onAction?: () => void }) {
-  return <div className="flex items-center justify-between gap-4"><div><h2 className="font-display text-[16px] font-bold tracking-[-0.025em] text-[#142b4b]">{title}</h2>{eyebrow && <p className="mt-1 text-[11px] text-slate-500">{eyebrow}</p>}</div>{action && <button onClick={onAction} className="group inline-flex items-center gap-1 text-[11px] font-bold text-[#155db5] transition hover:text-[#0c4386]">{action}<ChevronRight size={14} className="transition group-hover:translate-x-0.5" /></button>}</div>;
-}
-
-function EmptyState({ title, copy, icon: Icon = Inbox }: { title: string; copy: string; icon?: LucideIcon }) {
-  return <div className="flex min-h-[230px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 text-center"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm"><Icon size={20} /></div><div className="mt-4 text-sm font-bold text-slate-700">{title}</div><p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-400">{copy}</p></div>;
-}
-
-function Topbar({ title, subtitle, onMenu, collapsed, onCollapse, user, onRoleSwitch }: { title: string; subtitle: string; onMenu: () => void; collapsed: boolean; onCollapse: () => void; user: MockUser; onRoleSwitch: (role: MockUser["role"]) => void }) {
-  return <header className="sticky top-0 z-20 flex min-h-[76px] items-center justify-between gap-3 border-b border-slate-200/70 bg-[#f7f9fc]/90 px-4 backdrop-blur-xl sm:px-7 lg:px-9">
-    <div className="flex min-w-0 items-center gap-3"><button onClick={onMenu} className="rounded-xl p-2 text-slate-500 hover:bg-white lg:hidden"><Menu size={19} /></button><button onClick={onCollapse} className="hidden rounded-xl p-2 text-slate-400 hover:bg-white lg:block">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button><div className="min-w-0"><h1 className="truncate font-display text-[22px] font-bold tracking-[-0.04em] text-[#142b4b] sm:text-[25px]">{title}</h1><p className="hidden truncate text-[11px] text-slate-500 sm:block">{subtitle}</p></div><div className="ml-2 hidden md:block"><SolutionSwitcher /></div></div>
-    <div className="flex items-center gap-2 sm:gap-3"><div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-[10px] shadow-sm md:flex"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Role</span><select aria-label="Switch demo role" value={user.role} onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])} className="max-w-[145px] bg-transparent font-semibold text-[#142b4b] outline-none"><option value="PACCA Platform Admin">PACCA Platform Admin</option><option value="PACCA Solution Developer">PACCA Solution Developer</option><option value="Client Staff">Client Staff</option></select></div><div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex"><span className="font-bold text-[#142b4b]">{user.tenant}</span><span className="text-slate-300">/</span><span className="text-slate-500">Client Workspace</span><span className="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">Production</span></div><label className="hidden h-9 w-[245px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm lg:flex"><Search size={15} className="text-slate-400" /><input className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400" placeholder="Search documents, IDs, fields..." /></label><button aria-label="Notifications" onClick={() => toast("You’re all caught up", { description: "No new operational alerts." })} className="relative rounded-xl p-2 text-slate-500 hover:bg-white"><Bell size={18} /><span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d73532] px-1 text-[9px] font-bold text-white">12</span></button><button aria-label="Help" onClick={() => toast("PACCA Vision support", { description: "Your workspace runbook is available from the Help Center." })} className="hidden rounded-xl p-2 text-slate-500 hover:bg-white sm:block"><CircleHelp size={18} /></button><button onClick={() => toast(`Signed in as ${user.name}`, { description: `${user.role} · ${user.tenant}` })} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#236fd0] text-xs font-bold text-white shadow-[0_4px_10px_rgba(35,111,208,.22)]">{user.initials}</button></div>
-  </header>;
-}
-
-function Sidebar({ path, collapsed, mobileOpen, onNavigate, onCloseMobile, onLogout, user, allowedPaths }: { path: string; collapsed: boolean; mobileOpen: boolean; onNavigate: (path: string) => void; onCloseMobile: () => void; onLogout: () => void; user: MockUser; allowedPaths: string[] }) {
-  const DEMO_HIDDEN_PATHS = ["/deployment", "/infrastructure"];
-  const visibleSections = navSections.map((section) => ({ ...section, items: section.items.filter((item) => allowedPaths.includes(item.path) && !DEMO_HIDDEN_PATHS.includes(item.path)) })).filter((section) => section.items.length > 0);
-  return <aside className={cn("fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-[#061a36] text-slate-300 shadow-2xl transition-transform duration-200 lg:translate-x-0", collapsed && "lg:w-[78px]", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-    <div className={cn("flex h-[76px] items-center border-b border-white/8 px-5", collapsed && "lg:justify-center lg:px-0")}><Logo /></div>
-    <div className="flex items-center justify-between px-5 py-4"><div className={cn("min-w-0", collapsed && "lg:hidden")}><div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Workspace</div><div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-white">Client 1 <span className="rounded-md bg-white/8 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-slate-500">Authorized</span></div></div><button className="rounded-lg p-1 text-slate-500 hover:bg-white/10 lg:hidden" onClick={onCloseMobile}><X size={17} /></button><div className={cn("hidden h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-slate-300 lg:flex", !collapsed && "lg:hidden")}><Layers3 size={15} /></div></div>
-    <nav className="scrollbar-none flex-1 overflow-y-auto px-3 pb-4">
-      {visibleSections.map((section) => <div key={section.label} className="mb-5"><div className={cn("mb-2 px-3 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-600", collapsed && "lg:hidden")}>{section.label}</div>{section.items.map((item) => { const active = path === item.path || (item.path !== "/" && path.startsWith(item.path)); return <button key={item.path} onClick={() => { onNavigate(item.path); onCloseMobile(); }} title={collapsed ? item.label : undefined} className={cn("group mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] font-medium transition-all duration-150", active ? "bg-[#1169c9] text-white shadow-[0_7px_16px_rgba(17,105,201,.23)]" : "text-slate-400 hover:bg-white/7 hover:text-white", collapsed && "lg:justify-center lg:px-0")}><item.icon size={17} strokeWidth={active ? 2.2 : 1.8} className={cn(active ? "text-white" : "text-slate-500 group-hover:text-slate-300")} /><span className={cn("flex-1 truncate", collapsed && "lg:hidden")}>{item.label}</span>{item.badge && <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f08b25] px-1.5 text-[10px] font-bold text-white", collapsed && "lg:hidden")}>{item.badge}</span>}</button>; })}</div>)}
-    </nav>
-    <div className={cn("border-t border-white/8 p-3", collapsed && "lg:px-2")}><div className={cn("flex items-center gap-3 rounded-xl bg-white/6 p-2.5", collapsed && "lg:justify-center lg:bg-transparent")}><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#236fd0] text-xs font-bold text-white">{user.initials}</div><div className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}><div className="truncate text-[11px] font-semibold text-white">{user.name}</div><div className="mt-0.5 truncate text-[9px] text-slate-500">{user.role}</div></div><button onClick={onLogout} title="Sign out" className={cn("text-slate-500 hover:text-white", collapsed && "lg:hidden")}><LogOut size={16} /></button></div><div className={cn("mt-3 flex items-center justify-between px-2 text-slate-500", collapsed && "lg:hidden")}><button onClick={() => toast("No new notifications")}><Bell size={15} /></button><button onClick={() => toast("Workspace settings", { description: "Settings is available in Administration." })}><Settings2 size={15} /></button><button onClick={() => toast("Session secured", { description: "Your administrator session is active." })}><LockKeyhole size={15} /></button></div></div>
-  </aside>;
-}
-
-function CommandCenter({ onNavigate }: { onNavigate: (path: string) => void }) {
-  return <div className="space-y-6 p-4 sm:p-7 lg:p-9">
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><MetricCard icon={FileCheck2} label="Documents Processed" value="4,812" delta="18.6%" detail="vs previous 7 days" tone="blue" /><MetricCard icon={UserRound} label="Pending HIL Review" value="27" delta="8" detail="vs previous 7 days" tone="amber" /><MetricCard icon={Sparkles} label="Avg. Confidence" value="96.4%" delta="0.7%" detail="vs previous 7 days" tone="green" /><MetricCard icon={Clock3} label="Avg. Processing Time" value="8.2s" delta="1.4s" detail="vs previous 7 days" tone="purple" /><MetricCard icon={CheckCircle2} label="Success Rate" value="97.8%" delta="2.3%" detail="vs previous 7 days" tone="green" /></div>
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,.72fr)]"><PipelineCard onNavigate={onNavigate} /><HILQueueCard onNavigate={onNavigate} /></div>
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(290px,.9fr)_minmax(280px,.8fr)]"><TrendCard /><DonutCard /><CostCard /></div>
-    <RecentDocuments onNavigate={onNavigate} />
-  </div>;
-}
-
-function PipelineCard({ onNavigate }: { onNavigate: (path: string) => void }) {
-  return <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)] sm:p-6"><SectionHeading title="Live Document Processing Pipeline" action="View full pipeline" onAction={() => onNavigate("/monitor")} /><div className="mt-7 grid min-w-[620px] grid-cols-7 gap-1 overflow-x-auto">{stageData.map((stage, index) => <div key={stage.name} className="relative text-center"><div className="flex items-center justify-center"><div className={cn("relative z-10 flex h-12 w-12 items-center justify-center rounded-full ring-1", stage.tone === "green" ? "bg-emerald-50 text-emerald-600 ring-emerald-600/15" : stage.tone === "amber" ? "bg-amber-50 text-amber-600 ring-amber-600/20" : stage.tone === "red" ? "bg-rose-50 text-rose-600 ring-rose-600/20" : "bg-blue-50 text-blue-600 ring-blue-600/20")}><stage.icon size={21} />{index < stageData.length - 1 && <span className="absolute left-[calc(100%+1px)] top-1/2 h-px w-[calc(100%+8px)] bg-slate-300" />} </div></div><div className="mt-3 text-[11px] font-bold text-[#142b4b]">{stage.name}</div><div className="mt-1 font-display text-[17px] font-bold text-[#142b4b]">{stage.count}</div><div className={cn("mt-0.5 text-[10px] font-semibold", stage.tone === "red" ? "text-rose-600" : stage.tone === "amber" ? "text-amber-600" : stage.tone === "blue" ? "text-blue-600" : "text-emerald-600")}>{stage.delta}</div><div className="mt-3 whitespace-nowrap text-[9px] text-slate-400">{index === 0 ? "Source intake" : index === 1 ? "Representative OCR" : index === 2 ? "Representative LLM" : index === 3 ? "Structured output" : index === 4 ? "Rules Engine" : index === 5 ? "Human in Loop" : "Destination"}</div></div>)}</div><div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-[10px] text-slate-500"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-emerald-500" />Completed</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-blue-500" />In Progress</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-amber-500" />Attention</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-violet-500" />Waiting</span></div></section>;
-}
-
-function HILQueueCard({ onNavigate }: { onNavigate: (path: string) => void }) {
-  return <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)] sm:p-6"><SectionHeading title="HIL Queue" action="View all" onAction={() => onNavigate("/hil-review")} /><div className="mt-4 space-y-1">{hilQueue.map((item) => <button key={item.file} onClick={() => onNavigate("/hil-review")} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50" style={{ color: item.color }}>{item.kind === "image" ? <FileArchive size={16} /> : <FileText size={16} />}</div><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold text-[#142b4b]">{item.file}</div><div className="mt-0.5 truncate text-[10px] text-slate-400">{item.issue} · {item.age}</div></div><span className={cn("rounded-md px-2 py-1 text-[9px] font-bold", item.priority === "High" ? "bg-rose-50 text-rose-600" : item.priority === "Medium" ? "bg-amber-50 text-amber-600" : "bg-slate-100 text-slate-500")}>{item.priority}</span></button>)}</div><div className="mt-3 rounded-xl bg-[#f6f9fd] px-3 py-2 text-center text-[10px] text-slate-500">27 items need a human decision <button onClick={() => onNavigate("/hil-review")} className="ml-1 font-bold text-[#1768c3]">Open workbench</button></div></section>;
-}
-
-function TrendCard() {
-  return <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)]"><div className="flex items-center justify-between"><SectionHeading title="Processing Trend" /><select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-500 outline-none"><option>Last 7 days</option><option>Last 30 days</option></select></div><div className="mt-5 h-[180px] w-full"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trendData} margin={{ top: 5, right: 4, left: -26, bottom: 0 }}><defs><linearGradient id="processedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2ca46d" stopOpacity={0.2} /><stop offset="100%" stopColor="#2ca46d" stopOpacity={0} /></linearGradient><linearGradient id="hilFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ee8b2a" stopOpacity={0.16} /><stop offset="100%" stopColor="#ee8b2a" stopOpacity={0} /></linearGradient></defs><CartesianGrid vertical={false} stroke="#edf1f5" /><XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8b98a9" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9, fill: "#8b98a9" }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e6ebf1", fontSize: 11 }} /><Area type="monotone" dataKey="processed" stroke="#2ca46d" strokeWidth={2} fill="url(#processedFill)" /><Area type="monotone" dataKey="hil" stroke="#ee8b2a" strokeWidth={2} fill="url(#hilFill)" /></AreaChart></ResponsiveContainer></div><div className="mt-3 flex items-center gap-4 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-500" />Processed</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-orange-400" />HIL Required</span></div></section>;
-}
-
-function DonutCard() {
-  return <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)]"><SectionHeading title="Documents by Type" /><div className="mt-5 flex items-center gap-5"><div className="relative h-[142px] w-[142px] shrink-0"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{ value: 100 }]} dataKey="value" innerRadius={47} outerRadius={66} paddingAngle={2} stroke="none"><Cell fill="#2874d2" /></Pie></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><div className="text-[10px] text-slate-400">Demo documents</div><div className="font-display text-[17px] font-bold text-[#142b4b]">3</div></div></div><div className="min-w-0 flex-1 space-y-3">{[["Invoices", "100%", "3", "#2874d2"]].map(([name, percent, count, color]) => <div key={name} className="flex items-center gap-2 text-[10px]"><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} /><span className="min-w-0 flex-1 truncate text-slate-500">{name}</span><span className="font-semibold text-slate-700">{percent}</span><span className="hidden w-9 text-right text-slate-400 sm:block">{count}</span></div>)}</div></div></section>;
-}
-
-function CostCard() {
-  return <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)]"><div className="flex items-center justify-between"><SectionHeading title="Cost Overview" /><select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-500 outline-none"><option>By Service</option><option>By Model</option></select></div><div className="mt-3 text-[10px] text-slate-400">Estimated processing cost (USD)</div><div className="mt-0.5 flex items-baseline gap-2"><span className="font-display text-[27px] font-bold tracking-[-0.05em] text-[#142b4b]">$482.60</span><span className="flex items-center text-[10px] font-bold text-emerald-600"><ArrowDownRight size={12} /> 8.7%</span></div><div className="mt-4 space-y-3">{costData.map((cost) => <div key={cost.label}><div className="mb-1 flex items-center justify-between gap-2 text-[9px]"><span className="truncate text-slate-500">{cost.label}</span><span className="shrink-0 text-slate-500">${cost.value.toFixed(2)}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full" style={{ width: `${cost.percent * 2.1}%`, background: cost.color }} /></div></div>)}</div></section>;
-}
-
-function RecentDocuments({ onNavigate }: { onNavigate: (path: string) => void }) {
-  return <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(20,43,75,.025)]"><div className="p-5 sm:p-6"><SectionHeading title="Recent Documents" action="View all" onAction={() => onNavigate("/documents")} /></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] border-collapse text-left"><thead><tr className="border-y border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400"><th className="px-5 py-3 font-bold sm:px-6">Document ID</th><th className="px-3 py-3 font-bold">File Name</th><th className="px-3 py-3 font-bold">Solution</th><th className="px-3 py-3 font-bold">Source</th><th className="px-3 py-3 font-bold">Status</th><th className="px-3 py-3 font-bold">Confidence</th><th className="px-3 py-3 font-bold">Pages</th><th className="px-3 py-3 font-bold">Received</th><th className="px-5 py-3 font-bold sm:px-6">Actions</th></tr></thead><tbody>{documents.slice(0, 5).map((doc) => <tr key={doc.id} onClick={() => onNavigate(`/documents/${doc.id}`)} className="group cursor-pointer border-b border-slate-100 text-[10px] transition hover:bg-blue-50/30"><td className="px-5 py-3.5 font-semibold text-[#205c9c] sm:px-6">{doc.id}</td><td className="max-w-[195px] truncate px-3 py-3.5 font-medium text-[#142b4b]">{doc.file}</td><td className="px-3 py-3.5 text-slate-500">{doc.type}</td><td className="px-3 py-3.5 text-slate-500">{doc.source}</td><td className="px-3 py-3.5"><StatusPill status={doc.status} /></td><td className="px-3 py-3.5"><div className="flex items-center gap-2 text-slate-600">{doc.confidence !== "—" && <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: doc.confidence }} /></span>}{doc.confidence}</div></td><td className="px-3 py-3.5 text-slate-500">{doc.pages}</td><td className="px-3 py-3.5 text-slate-500">{doc.received}</td><td className="px-5 py-3.5 sm:px-6"><div className="flex items-center gap-2 text-slate-400"><Eye size={15} /><MoreHorizontal size={15} /></div></td></tr>)}</tbody></table></div></section>;
-}
-
-function DocumentsPage({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("All statuses");
-  const filtered = useMemo(() => documents.filter((d) => `${d.id} ${d.file} ${d.type} ${d.source}`.toLowerCase().includes(query.toLowerCase()) && (status === "All statuses" || d.status === status)), [query, status]);
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] text-slate-500">Operational document inventory</div><div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-[#142b4b]"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Client 1 · Invoice Processing · 3 documents</div></div><button onClick={() => toast.success("Upload started", { description: "Dropzone is ready for your next batch." })} className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(21,107,201,.18)] transition hover:bg-[#0d5aae] active:scale-[.98]"><Upload size={15} /> Upload document</button></div><section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(20,43,75,.025)]"><div className="flex flex-wrap gap-2"><label className="flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3"><Search size={15} className="text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400" placeholder="Search by ID, filename, type, or source" /></label><select value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none"><option>All statuses</option><option>Processed</option><option>Needs Review</option><option>Validation failed</option><option>Processing</option></select><button onClick={() => toast("Advanced filters", { description: "Additional fields and date ranges will appear here." })} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"><Filter size={14} /> Filters <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] text-blue-600">2</span></button><button onClick={() => toast("Export queued", { description: `${filtered.length} documents will be included.` })} className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"><Download size={14} /> Export</button></div></section><section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(20,43,75,.025)]"><div className="flex items-center justify-between border-b border-slate-100 p-5"><SectionHeading title="All documents" eyebrow={`${filtered.length} shown · updated just now`} /><button onClick={() => toast("Index refreshed")} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50"><RefreshCw size={15} /></button></div>{filtered.length ? <div className="overflow-x-auto"><table className="w-full min-w-[940px] border-collapse text-left"><thead><tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400"><th className="px-5 py-3 font-bold">Document</th><th className="px-3 py-3 font-bold">Type</th><th className="px-3 py-3 font-bold">Source</th><th className="px-3 py-3 font-bold">Status</th><th className="px-3 py-3 font-bold">Confidence</th><th className="px-3 py-3 font-bold">Pages</th><th className="px-3 py-3 font-bold">Received</th><th className="px-5 py-3 font-bold">Action</th></tr></thead><tbody>{filtered.map((doc) => <tr key={doc.id} onClick={() => onNavigate(`/documents/${doc.id}`)} className="cursor-pointer border-b border-slate-100 transition hover:bg-blue-50/30"><td className="px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-500"><FileText size={16} /></div><div><div className="text-[11px] font-bold text-[#142b4b]">{doc.file}</div><div className="mt-1 font-mono text-[9px] text-blue-600">{doc.id}</div></div></div></td><td className="px-3 py-4 text-[10px] text-slate-500">{doc.type}</td><td className="px-3 py-4 text-[10px] text-slate-500">{doc.source}</td><td className="px-3 py-4"><StatusPill status={doc.status} /></td><td className="px-3 py-4 text-[10px] text-slate-600">{doc.confidence}</td><td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td><td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td><td className="px-5 py-4"><button onClick={(e) => { e.stopPropagation(); onNavigate(`/documents/${doc.id}`); }} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600"><Eye size={15} /></button></td></tr>)}</tbody></table></div> : <div className="p-6"><EmptyState title="No documents found" copy="Try a different search or clear the status filter." icon={FileSearch} /></div>}</section></div>;
-}
-
-function DocumentDetailPage({ id, onBack, onNavigate }: { id: string; onBack: () => void; onNavigate: (path: string) => void }) {
-  const doc = documents.find((d) => d.id === id) ?? documents[0];
-  const canEdit = doc.status === "Needs Review" || doc.status === "HIL Review";
-  const timeline = doc.id === "DOC-003" ? [["Ingest", "Completed", "13:54:02", "green"], ["Preprocess", "Completed", "13:54:03", "green"], ["Understand / Classify", "In Progress", "13:54:04", "blue"], ["Extract", "Waiting", "—", "gray"], ["Validate", "Waiting", "—", "gray"], ["HIL Review", "Not applicable", "—", "gray"], ["Deliver", "Waiting", "—", "gray"]] : doc.id === "DOC-002" ? [["Ingest", "Completed", "13:58:02", "green"], ["Preprocess", "Completed", "13:58:03", "green"], ["Understand / Classify", "Completed", "13:58:05", "green"], ["Extract", "Completed", "13:58:07", "green"], ["Validate", "Exception", "13:58:08", "amber"], ["HIL Review", "Awaiting review", "13:58:09", "amber"], ["Deliver", "Waiting", "—", "gray"]] : [["Ingest", "Completed", "14:01:02", "green"], ["Preprocess", "Completed", "14:01:03", "green"], ["Understand / Classify", "Completed", "14:01:04", "green"], ["Extract", "Completed", "14:01:06", "green"], ["Validate", "Completed", "14:01:07", "green"], ["HIL Review", "Not required", "—", "gray"], ["Deliver", "Completed", "14:02:18", "green"]];
-  const extractedFields: Array<[string, string, string, string, string, string]> = doc.id === "DOC-002"
-    ? [["Invoice Number", "INV-2026-002", "98%", "Valid", "Required", "string"], ["Invoice Date", "29-Aug-2026", "97%", "Valid", "Required", "date"], ["Vendor Name", "Global Office Supplies", "95%", "Valid", "Required", "string"], ["Subtotal", "₹42,000", "94%", "Valid", "Required", "currency"], ["Tax Amount", "₹7,560", "93%", "Valid", "Required", "currency"], ["Total Amount", "₹49,560", "62%", "Needs Review", "Required", "currency"], ["Currency", "INR", "99%", "Valid", "Required", "string"], ["Purchase Order Number", "PO-45822", "91%", "Valid", "Optional", "string"], ["Due Date", "28-Sep-2026", "89%", "Valid", "Optional", "date"]]
-    : doc.id === "DOC-003"
-      ? [["Invoice Number", "INV-2026-003", "96%", "Valid", "Required", "string"], ["Invoice Date", "30-Aug-2026", "95%", "Valid", "Required", "date"], ["Vendor Name", "Brightline Workplace Services", "93%", "Valid", "Required", "string"], ["Subtotal", "₹28,750", "92%", "Valid", "Required", "currency"], ["Tax Amount", "₹5,175", "91%", "Valid", "Required", "currency"], ["Total Amount", "₹33,925", "90%", "Valid", "Required", "currency"], ["Currency", "INR", "99%", "Valid", "Required", "string"], ["Purchase Order Number", "PO-45837", "88%", "Valid", "Optional", "string"], ["Due Date", "29-Sep-2026", "87%", "Valid", "Optional", "date"]]
-      : [["Invoice Number", "INV-2026-001", "98%", "Valid", "Required", "string"], ["Invoice Date", "28-Aug-2026", "97%", "Valid", "Required", "date"], ["Vendor Name", "Northstar Office Supply Co.", "95%", "Valid", "Required", "string"], ["Subtotal", "₹36,500", "96%", "Valid", "Required", "currency"], ["Tax Amount", "₹6,570", "94%", "Valid", "Required", "currency"], ["Total Amount", "₹43,070", "93%", "Valid", "Required", "currency"], ["Currency", "INR", "99%", "Valid", "Required", "string"], ["Purchase Order Number", "PO-45810", "91%", "Valid", "Optional", "string"], ["Due Date", "27-Sep-2026", "90%", "Valid", "Optional", "date"]];
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><button onClick={onBack} className="inline-flex items-center gap-2 text-[11px] font-bold text-blue-600 hover:text-blue-800"><ArrowLeft size={15} /> Back to documents</button><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-start gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><FileText size={22} /></div><div><div className="font-display text-[22px] font-bold tracking-[-.04em] text-[#142b4b]">{doc.file}</div><div className="mt-1 font-mono text-[10px] text-blue-600">{doc.id}</div><div className="mt-2 flex flex-wrap items-center gap-2"><StatusPill status={doc.status} /><span className="text-[10px] text-slate-400">Received {doc.received}</span></div></div></div><div className="flex gap-2"><button onClick={() => toast("Download prepared")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"><Download size={14} /> Download</button><button onClick={() => toast("Document action menu")} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"><MoreHorizontal size={16} /></button></div></div><div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Document preview" eyebrow={`Page 1 of ${doc.pages} · source rendition`} /><div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-[#edf1f5] p-3"><div className="mb-2 flex items-center justify-between"><span className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">Source document · extracted input</span><a href={doc.pdfUrl} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-blue-600 hover:text-blue-800">Open PDF ↗</a></div><div className="flex h-[470px] items-start justify-center overflow-auto rounded-lg bg-slate-100 p-4"><iframe src={doc.previewUrl} title={`Source invoice ${doc.id}`} className="h-full w-full max-w-[430px] rounded-md bg-white shadow-sm" /></div></div></section><div className="space-y-5"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Processing summary" /><div className="mt-4 grid grid-cols-2 gap-3">{[["Solution", doc.type], ["Source", doc.source], ["Pages", String(doc.pages)], ["Processing time", "7.8s"], ["Confidence", doc.confidence], ["Correlation ID", "cor_7f42a9"]].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 p-3"><div className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">{label}</div><div className="mt-1 truncate text-[11px] font-semibold text-[#142b4b]">{value}</div></div>)}</div></section><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Processing timeline" /><div className="mt-4 space-y-4">{timeline.map(([label, state, time, color], index) => <div key={label} className="flex items-start gap-3"><div className="relative mt-0.5"><div className={cn("h-2.5 w-2.5 rounded-full", color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "blue" ? "bg-blue-500" : "bg-slate-300")} />{index < 3 && <div className="absolute left-[5px] top-3 h-7 w-px bg-slate-200" />}</div><div className="flex flex-1 items-center justify-between gap-3"><div><div className="text-[11px] font-semibold text-[#142b4b]">{label}</div><div className={cn("text-[9px]", state === "Exception" || state === "Awaiting review" ? "text-amber-700" : state === "In Progress" ? "text-blue-700" : "text-slate-400")}>{state} · {time}</div></div><span className="font-mono text-[9px] text-slate-400">{state === "Completed" ? "Completed" : state}</span></div></div>)}</div></section></div></div><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><SectionHeading title="Extracted Fields" eyebrow="Invoice Metadata Schema v1.0 · output from Invoice Processing" /><div className="flex items-center gap-2">{canEdit ? <button onClick={() => toast("Edit mode enabled", { description: "Review the flagged invoice fields before saving." })} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-bold text-amber-700"><Pencil size={13} /> Edit document</button> : <span className="rounded-xl bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500">Read-only final metadata</span>}<button onClick={() => onNavigate("/metadata-studio")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"><Pencil size={13} /> Edit schema</button></div></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{extractedFields.map(([field, value, confidence, validation, requirement]) => <div key={field} className={cn("rounded-xl border p-3", validation === "Needs Review" ? "border-amber-200 bg-amber-50/40" : "border-slate-100 bg-white")}><div className="flex items-start justify-between gap-2"><div className="text-[10px] font-bold text-[#142b4b]">{field}</div><span className={cn("rounded-md px-1.5 py-0.5 text-[8px] font-bold", requirement === "Required" ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-500")}>{requirement}</span></div><div className="mt-2 text-[12px] font-semibold text-[#142b4b]">{value}</div><div className="mt-3 flex items-center justify-between text-[9px]"><span className={cn("font-semibold", validation === "Needs Review" ? "text-amber-700" : "text-emerald-700")}>{confidence} confidence</span><span className={cn("font-bold", validation === "Needs Review" ? "text-amber-700" : "text-emerald-700")}>{validation === "Needs Review" ? "⚠ Needs Review" : "✓ Valid"}</span></div></div>)}</div></section></div>;
-}
-
-function HILPage() {
-  const [selected, setSelected] = useState(0);
-  const [resolved, setResolved] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [totalAmount, setTotalAmount] = useState("₹49,560");
-  const initialFieldValues = { invoiceNumber: "INV-2026-002", invoiceDate: "29-Aug-2026", vendorName: "Global Office Supplies", purchaseOrder: "PO-45822", subtotal: "₹42,000", taxAmount: "₹7,560", totalAmount: "₹49,560", currency: "INR", dueDate: "28-Sep-2026" };
-  const [fieldValues, setFieldValues] = useState(initialFieldValues);
-  const [changedFields, setChangedFields] = useState<string[]>([]);
-  const editableFields = [["Invoice Number", "invoiceNumber"], ["Invoice Date", "invoiceDate"], ["Vendor Name", "vendorName"], ["Purchase Order", "purchaseOrder"], ["Subtotal", "subtotal"], ["Tax Amount", "taxAmount"], ["Total Amount", "totalAmount"], ["Currency", "currency"], ["Due Date", "dueDate"]];
-  const item = hilQueue[selected] ?? hilQueue[0];
-  return <div className="flex min-h-[calc(100vh-76px)] flex-col lg:flex-row"><div className="w-full shrink-0 border-b border-slate-200 bg-white lg:w-[310px] lg:border-b-0 lg:border-r"><div className="flex items-center justify-between border-b border-slate-100 p-5"><div><div className="font-display text-[16px] font-bold text-[#142b4b]">Review queue <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">27</span></div><div className="mt-1 text-[10px] text-slate-400">Prioritized by SLA and confidence</div></div><button onClick={() => toast("Queue refreshed")} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50"><RefreshCw size={15} /></button></div><div className="flex gap-2 overflow-x-auto p-3 lg:block lg:space-y-1">{hilQueue.map((q, i) => <button key={q.file} onClick={() => { setSelected(i); setResolved(false); setSaved(false); setTotalAmount("₹49,560"); }} className={cn("flex min-w-[230px] items-center gap-3 rounded-xl p-3 text-left transition lg:w-full", selected === i ? "bg-blue-50 ring-1 ring-blue-100" : "hover:bg-slate-50")}><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm"><FileText size={16} /></div><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold text-[#142b4b]">{q.file}</div><div className="mt-1 truncate text-[10px] text-slate-400">{q.issue}</div></div><span className={cn("h-2 w-2 rounded-full", q.priority === "High" ? "bg-rose-500" : q.priority === "Medium" ? "bg-amber-500" : "bg-slate-400")} /></button>)}</div></div><div className="min-w-0 flex-1 bg-[#f7f9fc] p-4 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="text-[10px] font-bold uppercase tracking-[.15em] text-slate-400">Human-in-the-loop workbench</div><h2 className="mt-1 font-display text-[21px] font-bold tracking-[-.04em] text-[#142b4b]">{item.file}</h2><div className="mt-2 flex items-center gap-2"><span className="rounded-md bg-rose-50 px-2 py-1 text-[9px] font-bold text-rose-600">{item.priority} priority</span><span className="text-[10px] text-slate-400">Queued {item.age}</span><span className="font-mono text-[9px] text-blue-600">cor_7f42a9</span></div></div><div className="flex gap-2"><button onClick={() => toast("Document opened in a new tab")} className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 hover:bg-slate-50"><Eye size={16} /></button><button onClick={() => toast("Skip recorded", { description: "The item stays in queue for another reviewer." })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"><ArrowRight size={14} /> Skip</button></div></div><div className="mt-5 grid gap-5 xl:grid-cols-[minmax(300px,.92fr)_minmax(340px,1.08fr)]"><section className="rounded-2xl border border-slate-200/80 bg-[#e9eef5] p-4 shadow-sm"><div className="mb-3 flex items-center justify-between text-[10px] font-semibold text-slate-500"><span>Source document</span><span>Page 1 of 7</span></div><div className="flex min-h-[470px] items-center justify-center overflow-hidden rounded-xl bg-[#dfe6ef] p-7"><div className="min-h-[380px] w-full max-w-[340px] rounded-md bg-white p-8 shadow-[0_12px_24px_rgba(20,43,75,.13)]"><div className="flex items-center justify-between"><div className="h-3 w-28 rounded bg-slate-200" /><div className="h-3 w-10 rounded bg-slate-100" /></div><div className="mt-7 rounded border border-amber-200 bg-amber-50/70 p-4"><div className="text-[9px] font-bold uppercase tracking-wider text-amber-700">Needs attention</div><div className="mt-2 h-2 w-[80%] rounded bg-amber-200" /><div className="mt-2 h-2 w-[55%] rounded bg-amber-100" /></div><div className="mt-8 space-y-2">{[1,2,3,4,5,6,7].map((line) => <div key={line} className={cn("h-2 rounded bg-slate-100", line % 3 === 0 ? "w-3/5" : "w-full")} />)}</div><div className="mt-8 grid grid-cols-2 gap-3">{[1,2,3,4].map((box) => <div key={box} className="h-10 rounded border border-slate-100 bg-slate-50" />)}</div></div></div></section><section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="border-b border-slate-100 p-5"><div className="flex items-center justify-between"><div><div className="font-display text-[16px] font-bold text-[#142b4b]">Review decision</div><div className="mt-1 text-[10px] text-slate-400">Resolve the flagged field before delivery · Invoice Metadata Schema v1.0</div></div><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><AlertCircle size={18} /></div></div></div><div className="space-y-4 p-5"><div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4"><div className="flex items-center justify-between"><div className="text-[11px] font-bold text-amber-800">{resolved ? "Total Amount validated" : item.issue}</div><span className={cn("rounded bg-white px-2 py-1 text-[9px] font-bold", resolved ? "text-emerald-700" : "text-amber-700")}>{resolved ? "Confidence 100%" : "Confidence 62%"}</span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-amber-100"><div className={cn("h-full rounded-full", resolved ? "w-full bg-emerald-500" : "w-[62%] bg-amber-500")} /></div><p className="mt-3 text-[10px] leading-relaxed text-amber-800/70">{resolved ? "Human correction recorded. Field is ready for validated delivery." : "The model could not confidently identify a value. Review the highlighted area and confirm or correct the suggested extraction."}</p><div className="mt-3 flex flex-wrap gap-1.5">{["Invoice Number", "Invoice Date", "Vendor Name", "Purchase Order", "Subtotal", "Tax Amount", "Total Amount", "Currency", "Due Date"].map((field) => <span key={field} className={cn("rounded-md px-2 py-1 text-[8px] font-semibold", field === "Total Amount" ? "bg-amber-100 text-amber-800" : "bg-white/70 text-amber-800/70")}>{field}</span>)}</div></div><div><div className="mb-2 flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.08em] text-slate-400">Editable extracted metadata</span><span className="text-[9px] font-semibold text-amber-600">HIL review document only</span></div><div className="grid gap-3 sm:grid-cols-2">{editableFields.map(([label, key]) => <label key={key} className="block"><span className="mb-1.5 block text-[9px] font-bold text-slate-500">{label}{key === "totalAmount" && " · flagged"}</span><input value={fieldValues[key as keyof typeof fieldValues]} onChange={(e) => { setFieldValues({ ...fieldValues, [key]: e.target.value }); if (key === "totalAmount") setTotalAmount(e.target.value); setChangedFields(changedFields.includes(key) ? changedFields : [...changedFields, key]); setSaved(false); setResolved(false); }} className={cn("h-9 w-full rounded-lg border px-2.5 text-[10px] font-semibold text-slate-700 outline-none focus:border-blue-500", key === "totalAmount" ? "border-amber-300 bg-amber-50/30" : "border-slate-200 bg-white")} /></label>)}</div></div><div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4"><div className="flex items-center justify-between"><div><div className="text-[11px] font-bold text-[#142b4b]">Reviewer change summary</div><div className="mt-1 text-[10px] text-slate-500">Audit preview for this HIL correction draft</div></div><span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-blue-700">{changedFields.length} changed</span></div>{changedFields.length === 0 ? <div className="mt-3 rounded-lg border border-dashed border-blue-200 bg-white/70 p-3 text-[10px] text-slate-400">No field changes yet. Corrections will appear here with original and revised values.</div> : <div className="mt-3 space-y-2">{changedFields.map((key) => { const label = editableFields.find((field) => field[1] === key)?.[0] ?? key; return <div key={key} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg bg-white p-2.5 text-[10px]"><div><div className="text-[9px] font-bold text-slate-400">{label}</div><div className="mt-0.5 truncate text-slate-400 line-through">{initialFieldValues[key as keyof typeof initialFieldValues]}</div></div><ArrowRight size={13} className="text-blue-400" /><div><div className="text-[9px] font-bold text-blue-600">Revised</div><div className="mt-0.5 truncate font-semibold text-[#142b4b]">{fieldValues[key as keyof typeof fieldValues]}</div></div></div>})}</div>}</div><label className="block"><span className="mb-2 block text-[10px] font-bold uppercase tracking-[.08em] text-slate-400">Reviewer note</span><textarea defaultValue="Confirm the total amount against the invoice source before approval." className="min-h-[86px] w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-[11px] leading-relaxed text-slate-700 outline-none focus:border-blue-400" /></label><div className="flex flex-wrap gap-2 pt-1"><button onClick={() => { setSaved(true); toast.success("Changes saved", { description: `${changedFields.length} reviewer field change${changedFields.length === 1 ? "" : "s"} recorded in the audit summary.` }); }} className={cn("inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-[11px] font-bold", saved ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}><Check size={14} /> {saved ? "Changes saved" : "Save changes"}</button><button onClick={() => { setResolved(true); toast.success("Document approved", { description: "The document is moving to delivery." }); }} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#168a62] px-4 py-2.5 text-[11px] font-bold text-white shadow-[0_7px_14px_rgba(22,138,98,.16)] hover:bg-[#117652]"><Check size={15} /> {resolved ? "Approved" : "Approve & deliver"}</button><button onClick={() => toast("Sent back to pipeline", { description: "A reprocess action has been recorded." })} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><RefreshCw size={14} /> Reprocess</button></div></div></section></div></div></div>;
-}
-
-function MonitorPage() {
-  const [paused, setPaused] = useState(false);
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2 text-[11px] font-semibold text-emerald-600"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Representative demo telemetry · static snapshot</div><p className="mt-1 text-[11px] text-slate-500">Stage health, throughput, and currently processing jobs across the workspace.</p></div><div className="flex gap-2"><button onClick={() => setPaused(!paused)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50">{paused ? <Play size={14} /> : <Pause size={14} />} {paused ? "Resume live" : "Pause live"}</button><button onClick={() => toast("Monitor refreshed")} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"><RefreshCw size={15} /></button></div></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><MetricCard icon={Activity} label="Processing now" value="128" delta="+12" detail="documents in stages" tone="blue" /><MetricCard icon={TimerReset} label="Median latency" value="8.2s" delta="1.4s" detail="vs previous 7 days" tone="purple" /><MetricCard icon={AlertCircle} label="Failures" value="14" delta="-22%" detail="last 24 hours" tone="red" /><MetricCard icon={RefreshCw} label="Retries" value="36" delta="-8%" detail="last 24 hours" tone="amber" /><MetricCard icon={Target} label="SLA compliance" value="98.6%" delta="+0.8%" detail="last 24 hours" tone="green" /></div><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"><SectionHeading title="Stage status" eyebrow="Documents currently in each logical pipeline stage" /><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{stageData.slice(0, 7).map((stage) => <div key={stage.name} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2 text-[11px] font-bold text-[#142b4b]"><stage.icon size={15} className="text-blue-600" />{stage.name}</div><StatusPill status={stage.tone === "red" ? "Attention" : stage.tone === "amber" ? "Warning" : "Healthy"} /></div><div className="mt-4 flex items-end justify-between"><div className="font-display text-2xl font-bold text-[#142b4b]">{stage.count}</div><div className="text-[10px] font-semibold text-emerald-600">{stage.delta} / 7d</div></div><div className="mt-2 text-[9px] font-semibold text-slate-500">{stage.name === "HIL Review" ? "Awaiting review" : "Documents in stage"}</div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={cn("h-full rounded-full", stage.tone === "red" ? "bg-rose-500" : stage.tone === "amber" ? "bg-amber-500" : "bg-blue-500")} style={{ width: `${stage.tone === "red" ? 34 : stage.tone === "amber" ? 48 : 78}%` }} /></div><div className="mt-2 text-[9px] text-slate-400">{stage.tone === "red" ? "Queue requires attention" : "Within expected operating range"}</div></div>)}</div></section><div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Currently processing" eyebrow="Documents moving through logical stages" /><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400"><th className="pb-3 font-bold">Document</th><th className="pb-3 font-bold">Stage</th><th className="pb-3 font-bold">Started</th><th className="pb-3 font-bold">Latency</th></tr></thead><tbody>{documents.slice(0, 4).map((doc, i) => <tr key={doc.id} className="border-b border-slate-100 text-[10px]"><td className="py-3 font-semibold text-[#142b4b]">{doc.file}</td><td className="py-3"><span className="inline-flex items-center gap-1.5 text-slate-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />{stageData[(i + 1) % stageData.length].name}</span></td><td className="py-3 text-slate-400">{i + 1}m ago</td><td className="py-3 font-mono text-slate-500">{["2.1s", "4.8s", "7.2s", "1.9s"][i]}</td></tr>)}</tbody></table></div></section><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Failure & retry signal" eyebrow="Last 24 hours" /><div className="mt-5 h-[210px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData} margin={{ top: 5, right: 0, left: -28, bottom: 0 }}><CartesianGrid vertical={false} stroke="#edf1f5" /><XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8b98a9" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9, fill: "#8b98a9" }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e6ebf1", fontSize: 11 }} /><Bar dataKey="failed" fill="#e77c67" radius={[4,4,0,0]} barSize={18} /></BarChart></ResponsiveContainer></div></section></div></div>;
-}
-
-function AnalyticsPage() {
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] text-slate-500">Operational intelligence across your document estate.</div><div className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-[#142b4b]"><span className="h-2 w-2 rounded-full bg-blue-500" /> Reporting window · Demo reporting window</div></div><select className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-600 outline-none"><option>Last 7 days</option><option>Last 30 days</option><option>Last quarter</option></select></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><MetricCard icon={Zap} label="Throughput" value="4,812" delta="18.6%" detail="documents processed" tone="blue" /><MetricCard icon={WandSparkles} label="Automation rate" value="94.2%" delta="2.1%" detail="without HIL intervention" tone="green" /><MetricCard icon={UserRound} label="HIL rate" value="5.8%" delta="-2.1%" detail="of total documents" tone="amber" /><MetricCard icon={Sparkles} label="Mean confidence" value="96.4%" delta="1.2%" detail="across extracted fields" tone="purple" /></div><div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"><div className="flex items-center justify-between"><SectionHeading title="Throughput & intervention" eyebrow="Daily document volume by outcome" /><div className="flex items-center gap-3 text-[9px] text-slate-500"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded bg-blue-500" />Processed</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded bg-amber-400" />HIL</span></div></div><div className="mt-5 h-[260px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData} margin={{ top: 6, right: 0, left: -20, bottom: 0 }}><CartesianGrid vertical={false} stroke="#edf1f5" /><XAxis dataKey="day" tick={{ fontSize: 10, fill: "#8b98a9" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 10, fill: "#8b98a9" }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e6ebf1", fontSize: 11 }} /><Bar dataKey="processed" fill="#2874d2" radius={[4,4,0,0]} barSize={20} /><Bar dataKey="hil" fill="#efa92b" radius={[4,4,0,0]} barSize={20} /></BarChart></ResponsiveContainer></div></section><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"><SectionHeading title="SLA / processing time" eyebrow="P95 latency by stage" /><div className="mt-6 space-y-5">{[["Ingest", "0.8s", 22], ["Understand", "2.9s", 58], ["Extract", "1.7s", 43], ["Validate", "1.1s", 31], ["Deliver", "0.9s", 26]].map(([label, value, width]) => <div key={label}><div className="mb-2 flex justify-between text-[10px]"><span className="font-semibold text-slate-600">{label}</span><span className="font-mono text-slate-400">{value}</span></div><div className="h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-700" style={{ width: `${width}%` }} /></div></div>)}</div><div className="mt-7 rounded-xl bg-emerald-50 p-3 text-[10px] leading-relaxed text-emerald-800"><CheckCircle2 size={14} className="mb-1" />98.6% of documents completed within the 30-second workspace SLA.</div></section></div><div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Cost per document" eyebrow="Blended processing cost" /><div className="mt-4 flex items-end gap-3"><div className="font-display text-4xl font-bold tracking-[-.05em] text-[#142b4b]">$0.10</div><div className="mb-1 text-[10px] font-bold text-emerald-600">↓ 8.7% vs prior period</div></div><div className="mt-6 h-[120px]"><ResponsiveContainer width="100%" height="100%"><AreaChart data={analyticsData} margin={{ top: 5, right: 0, left: -28, bottom: 0 }}><defs><linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8264c9" stopOpacity={0.23} /><stop offset="100%" stopColor="#8264c9" stopOpacity={0} /></linearGradient></defs><XAxis dataKey="day" hide /><YAxis hide domain={[0, 0.18]} /><Area type="monotone" dataKey="failed" stroke="#8264c9" strokeWidth={2} fill="url(#costFill)" /></AreaChart></ResponsiveContainer></div></section><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Cost by service / model" eyebrow="Demo snapshot · $482.60 estimated" /><div className="mt-4 space-y-4">{costData.map((cost) => <div key={cost.label} className="flex items-center gap-3"><div className="w-[180px] shrink-0 truncate text-[10px] font-semibold text-slate-600">{cost.label}</div><div className="h-2 flex-1 rounded-full bg-slate-100"><div className="h-full rounded-full" style={{ width: `${cost.percent * 2.1}%`, background: cost.color }} /></div><div className="w-12 text-right font-mono text-[10px] text-slate-500">${cost.value.toFixed(2)}</div></div>)}</div><div className="mt-6 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">{[["AWS", "$338.50"], ["Compute", "$86.40"], ["Storage", "$33.20"]].map(([a,b]) => <div key={a}><div className="text-[9px] text-slate-400">{a}</div><div className="mt-1 text-[13px] font-bold text-[#142b4b]">{b}</div></div>)}</div></section></div></div>;
-}
-
-function AuditPage() {
-  const events = [
-    ["14:02:18", "Document delivered", "invoice_001.pdf", "PACCA Admin", "Deliver", "Validated", "Delivered", "Processing complete", "cor_7f42a9"],
-    ["14:02:14", "Validation passed", "invoice_001.pdf", "Rules Engine", "Validate", "Extracted", "Validated", "All invoice rules passed", "cor_7f42a9"],
-    ["14:01:56", "HIL field flagged", "invoice_002.pdf", "System", "HIL Review", "Extracted", "Needs Review", "Total Amount confidence 62%", "cor_1ab33c"],
-    ["14:01:24", "Document received", "invoice_003.pdf", "Client 1 intake", "Ingest", "—", "Processing", "Source upload", "cor_b98211"],
-  ];
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] text-slate-500">Chronological operational history across documents, users, and automation.</div><div className="mt-1 text-[11px] font-semibold text-[#142b4b]">Showing the last 24 hours · immutable event log</div></div><div className="flex gap-2"><button onClick={() => toast("Audit export queued")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"><Download size={14} /> Export log</button><button onClick={() => toast("Audit filters", { description: "Filter by actor, event type, document, or correlation ID." })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"><ListFilter size={14} /> Filters</button></div></div><section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="flex flex-wrap gap-2 border-b border-slate-100 p-4"><label className="flex h-9 min-w-[230px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3"><Search size={14} className="text-slate-400" /><input className="w-full bg-transparent text-[11px] outline-none" placeholder="Search event, document, user, correlation ID" /></label><select className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-600"><option>All event types</option><option>Document events</option><option>Configuration changes</option><option>System events</option></select></div><div className="overflow-x-auto"><table className="w-full min-w-[1160px] border-collapse text-left"><thead><tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400"><th className="px-5 py-3 font-bold">Timestamp</th><th className="px-3 py-3 font-bold">Event</th><th className="px-3 py-3 font-bold">Document</th><th className="px-3 py-3 font-bold">User / actor</th><th className="px-3 py-3 font-bold">Action</th><th className="px-3 py-3 font-bold">Previous</th><th className="px-3 py-3 font-bold">New status</th><th className="px-3 py-3 font-bold">Reason</th><th className="px-5 py-3 font-bold">Correlation ID</th></tr></thead><tbody>{events.map((event) => <tr key={`${event[0]}-${event[1]}`} className="border-b border-slate-100 text-[10px] hover:bg-slate-50"><td className="px-5 py-4 font-mono text-slate-400">{event[0]}</td><td className="px-3 py-4 font-semibold text-[#142b4b]">{event[1]}</td><td className="max-w-[180px] truncate px-3 py-4 text-slate-500">{event[2]}</td><td className="px-3 py-4 text-slate-500">{event[3]}</td><td className="px-3 py-4"><span className="rounded-md bg-blue-50 px-2 py-1 text-[9px] font-bold text-blue-600">{event[4]}</span></td><td className="px-3 py-4 text-slate-400">{event[5]}</td><td className="px-3 py-4 text-slate-600">{event[6]}</td><td className="max-w-[190px] truncate px-3 py-4 text-slate-500">{event[7]}</td><td className="px-5 py-4 font-mono text-[9px] text-blue-600">{event[8]}</td></tr>)}</tbody></table></div></section></div>;
-}
-
-const solutions: Array<[string, string, string, string, LucideIcon]> = [
-  ["Invoice Processing", "Extract, validate, and route Client 1 invoices into trusted final metadata.", "3 docs in demo", "#2b73d2", FileCheck2],
-  ["Referral Creation", "Classify referral documents and route complete referral packets for review.", "Conditional HIL", "#0d9f9c", Coins],
-  ["Payment Posting", "Validate remittance details and deliver posting-ready metadata downstream.", "30s target SLA", "#8b5ac7", Send],
-];
-
-function PipelineStudioPage() {
-  const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
-  const [connectorSaved, setConnectorSaved] = useState(true);
-  const [connectorConfig, setConnectorConfig] = useState({ inputConnector: "Amazon S3", inputIntegration: "Client 1 — Invoice Intake", inputBucket: "client-1-invoices", inputPath: "/incoming/", outputConnector: "Amazon S3", outputIntegration: "Client 1 — Invoice Output", outputBucket: "client-1-output", outputPath: "/processed/" });
-  const nodes = [["Document Intake", "Receive documents from configured source", Inbox, "blue"], ["Preprocess", "PACCA Standard", WandSparkles, "purple"], ["Understand / Classify", "PACCA Document Understanding", BrainCircuit, "teal"], ["Extract", "Uses Invoice Metadata v1.0", Columns3, "amber"], ["Validate", "Uses Invoice Validation Rules v1.0", ShieldCheck, "green"], ["HIL", "Conditional · confidence / validation exceptions", UserRound, "red"], ["Deliver", "Send final metadata to configured destination", Send, "blue"]] as const;
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Configure</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">Pipeline Studio</h2><p className="mt-2 text-[11px] text-slate-500">Compose the processing path. Keep inputs flexible, outputs predictable.</p></div><div className="flex gap-2"><button onClick={() => toast("Preview started", { description: "Test data is moving through this draft pipeline." })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"><CirclePlay size={14} /> Test run</button><button onClick={() => toast.success("Pipeline saved", { description: "Draft v2.4 is ready for review." })} className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white"><Check size={14} /> Save draft</button></div></div><div className="grid gap-5 xl:grid-cols-[1fr_300px]"><section className="min-h-[550px] rounded-2xl border border-slate-200/80 bg-[#f7f9fc] p-5 shadow-sm sm:p-7"><div className="mb-7 flex items-center justify-between"><div className="flex items-center gap-2 text-[10px] font-semibold text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Draft · contract intelligence v2.4</div><div className="flex items-center gap-1 text-slate-400"><button className="rounded-lg p-2 hover:bg-white"><Plus size={15} /></button><button className="rounded-lg p-2 hover:bg-white"><SlidersHorizontal size={15} /></button><button className="rounded-lg p-2 hover:bg-white"><MoreHorizontal size={15} /></button></div></div><div className="mx-auto max-w-[720px] space-y-0">{nodes.map(([title, copy, Icon, tone], index) => <button type="button" onClick={() => setSelectedNodeIndex(index)} className={cn("relative flex w-full items-center gap-4 rounded-2xl text-left transition", selectedNodeIndex === index ? "bg-blue-50/60" : "hover:bg-white/60")}><div className="absolute left-[26px] top-[66px] h-[38px] w-px bg-slate-300" />{index < nodes.length - 1 && <div className="absolute left-[23px] top-[86px] z-10 border-x-4 border-t-4 border-x-transparent border-t-slate-300" />}<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white bg-white text-blue-600 shadow-[0_4px_12px_rgba(20,43,75,.08)]"><Icon size={21} /></div><div className="mb-2 flex flex-1 items-center justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"><div><div className="text-[12px] font-bold text-[#142b4b]">{title}</div><div className="mt-1 text-[10px] text-slate-400">{copy}</div></div><div className="flex items-center gap-3"><span className={cn("hidden rounded-md px-2 py-1 text-[9px] font-bold sm:inline", tone === "green" ? "bg-emerald-50 text-emerald-600" : tone === "amber" ? "bg-amber-50 text-amber-600" : tone === "purple" ? "bg-violet-50 text-violet-600" : tone === "teal" ? "bg-teal-50 text-teal-600" : "bg-blue-50 text-blue-600")}>{index === 5 ? "Output" : index === 4 ? "Gate" : "Step 0" + (index + 1)}</span><GripVertical size={15} className="text-slate-300" /></div></div></button>)}</div></section><aside className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title={selectedNodeIndex === 0 ? "Input connector" : selectedNodeIndex === 6 ? "Output connector" : "Pipeline settings"} /><p className="mt-1 text-[10px] text-slate-400">{selectedNodeIndex === 0 ? "Configuration attached to Document Intake" : selectedNodeIndex === 6 ? "Configuration attached to Deliver" : "Common PACCA logical processing stage"}</p>{(selectedNodeIndex === 0 || selectedNodeIndex === 6) && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><div className="text-[9px] font-bold uppercase tracking-[.1em] text-blue-600">{selectedNodeIndex === 0 ? "Document Intake" : "Deliver"}</div><div className="mt-3 space-y-2.5 text-[10px]">{(selectedNodeIndex === 0 ? [["Connector", "inputConnector"], ["Integration", "inputIntegration"], ["Bucket", "inputBucket"], ["Path", "inputPath"]] : [["Output connector", "outputConnector"], ["Integration", "outputIntegration"], ["Bucket", "outputBucket"], ["Path", "outputPath"]]).map(([label, key]) => <label key={key} className="block"><span className="mb-1 block text-slate-400">{label}</span><input value={connectorConfig[key as keyof typeof connectorConfig]} onChange={(e) => { setConnectorConfig({ ...connectorConfig, [key]: e.target.value }); setConnectorSaved(false); }} className="h-8 w-full rounded-lg border border-blue-100 bg-white px-2.5 font-mono text-[10px] font-semibold text-[#142b4b] outline-none focus:border-blue-400" /></label>)}<button onClick={() => { setConnectorSaved(true); toast.success("Connector changes saved"); }} className={cn("mt-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[9px] font-bold", connectorSaved ? "bg-emerald-50 text-emerald-700" : "bg-blue-600 text-white")}>{connectorSaved ? "Saved" : "Save connector changes"}</button></div></div>}<div className="mt-5 space-y-4"><label className="block"><span className="mb-2 block text-[10px] font-bold text-slate-400">Pipeline name</span><input defaultValue="Invoice Processing" className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] outline-none focus:border-blue-400" /></label><label className="block"><span className="mb-2 block text-[10px] font-bold text-slate-400">Version</span><input defaultValue="2.4" className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] outline-none focus:border-blue-400" /></label><div className="border-t border-slate-100 pt-4"><div className="text-[10px] font-bold text-[#142b4b]">Output contract</div><div className="mt-3 space-y-2">{["document_id", "document_type", "confidence", "validation_status", "entities[]"].map((field) => <div key={field} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 font-mono text-[9px] text-slate-500"><Code2 size={12} className="text-blue-500" />{field}</div>)}</div></div><button onClick={() => toast("Add node", { description: "Choose a connector, model, transform, or rule." })} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-3 text-[10px] font-bold text-slate-500 hover:border-blue-400 hover:text-blue-600"><Plus size={14} /> Add step</button></div></aside></div></div>;
-}
-
-function MetadataStudioPage() {
-  const [showHistory, setShowHistory] = useState(false);
-  const [activeVersion, setActiveVersion] = useState("1.0");
-  const fields = [["Invoice Number", "String", "Document extraction", "Required"], ["Invoice Date", "Date", "Document extraction", "Required"], ["Vendor Name", "String", "Entity extraction", "Required"], ["Subtotal", "Currency", "Entity extraction", "Required"], ["Tax Amount", "Currency", "Entity extraction", "Required"], ["Total Amount", "Currency", "Entity extraction", "Required"], ["Currency", "String", "Document extraction", "Required"], ["Purchase Order Number", "String", "Document extraction", "Optional"], ["Due Date", "Date", "Document extraction", "Optional"]];
-  const versions = [["1.0", "Current", "PACCA Admin", "01 Sep 2026", "Added field-level validation mapping and clarified invoice output contract"], ["0.9", "Published", "Solution Team", "28 Aug 2026", "Added Purchase Order Number and Due Date as optional fields"], ["0.8", "Archived", "PACCA Admin", "22 Aug 2026", "Initial Invoice Processing schema with seven required fields"]];
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Configure</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">Metadata Studio</h2><p className="mt-2 text-[11px] text-slate-500">Define the stable final metadata contract consumed by downstream solutions.</p></div><div className="flex flex-wrap gap-2"><button onClick={() => setShowHistory(!showHistory)} className={cn("inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[10px] font-bold", showHistory ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600")}><HistoryIcon size={14} /> Version history</button><button onClick={() => toast.success("Schema saved")} className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white"><Check size={14} /> Save schema</button></div></div>{showHistory && <section className="rounded-2xl border border-blue-100 bg-[#f5f9ff] p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-600">Schema governance</div><h3 className="mt-1 font-display text-lg font-bold text-[#142b4b]">Version history</h3><p className="mt-1 text-[10px] text-slate-500">Track how the Client 1 invoice output contract evolved over time.</p></div><span className="rounded-full bg-white px-3 py-1.5 text-[9px] font-bold text-blue-700 ring-1 ring-blue-100">{versions.length} versions</span></div><div className="mt-5 grid gap-2">{versions.map(([version, status, author, date, note]) => <div key={version} className={cn("flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3", activeVersion === version ? "border-blue-200 shadow-sm" : "border-slate-100")}><div className="flex min-w-[76px] items-center gap-2"><span className="font-mono text-[11px] font-bold text-[#142b4b]">v{version}</span><span className={cn("rounded-md px-1.5 py-0.5 text-[8px] font-bold", status === "Current" ? "bg-emerald-50 text-emerald-700" : status === "Published" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>{status}</span></div><div className="min-w-[150px] flex-1"><div className="text-[10px] font-semibold text-[#142b4b]">{note}</div><div className="mt-1 text-[9px] text-slate-400">{author} · {date}</div></div>{status !== "Current" && <button onClick={() => { setActiveVersion(version); toast("Schema version selected"); }} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50">View version</button>}</div>)}</div></section>}<section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><SectionHeading title="Invoice Metadata Schema" eyebrow="Version 1.0 · consumed by Invoice Processing Pipeline" /><div className="flex items-center gap-2"><span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[9px] font-bold text-emerald-700">9 fields</span><span className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-[9px] font-bold text-blue-700">7 required</span><span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-bold text-slate-500">2 optional</span></div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[660px] text-left"><thead><tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400"><th className="pb-3 font-bold">Field</th><th className="pb-3 font-bold">Type</th><th className="pb-3 font-bold">Source</th><th className="pb-3 font-bold">Requirement</th><th className="pb-3 font-bold">Action</th></tr></thead><tbody>{fields.map(([field, type, source, required]) => <tr key={field} className="border-b border-slate-100 text-[10px]"><td className="py-4 font-mono font-semibold text-blue-600">{field}</td><td className="py-4"><span className="rounded-md bg-slate-100 px-2 py-1 text-slate-600">{type}</span></td><td className="py-4 text-slate-500">{source}</td><td className="py-4"><span className={cn("rounded-md px-2 py-1", required === "Required" ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-500")}>{required}</span></td><td className="py-4"><button onClick={() => toast("Field editor opened")} className="text-slate-400 hover:text-blue-600"><Pencil size={14} /></button></td></tr>)}</tbody></table></div><button onClick={() => toast("New field added", { description: "Field editor is ready for configuration." })} className="mt-4 inline-flex items-center gap-2 text-[10px] font-bold text-blue-600"><Plus size={14} /> Add metadata field</button></section></div>;
-}
-
-function ConfigListPage({ kind }: { kind: "rules" | "integrations" }) {
-  const rules = [["Invoice total check", "Invoice Processing", "12 rules", "Live"], ["Invoice total reconciliation", "Invoice Processing", "8 rules", "Live"], ["Required invoice field gate", "Invoice Processing", "16 rules", "Draft"], ["Tax amount normalization", "Invoice Processing", "6 rules", "Live"]];
-  const integrations = [["AWS Textract", "Document understanding", "Connected", "2.3M calls"], ["AWS Bedrock", "Claude 3.5 Sonnet", "Connected", "48.2K calls"], ["Microsoft OneDrive", "Source connector", "Connected", "1,204 docs"], ["Client 1 intake", "Source connector", "Attention", "Credential expires in 8d"]];
-  const rows = kind === "rules" ? rules : integrations;
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Configure</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">{kind === "rules" ? "Rules & Validations" : "Integrations"}</h2><p className="mt-2 text-[11px] text-slate-500">{kind === "rules" ? "Guard the handoff from extracted data to trusted final metadata." : "Manage platform services, source connectors, and model providers."}</p></div><button onClick={() => toast.success(`${kind === "rules" ? "Rule" : "Integration"} draft created`)} className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white"><Plus size={14} /> Add {kind === "rules" ? "rule" : "integration"}</button></div><section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="flex flex-wrap gap-2 border-b border-slate-100 p-4"><label className="flex h-9 min-w-[230px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3"><Search size={14} className="text-slate-400" /><input className="w-full bg-transparent text-[11px] outline-none" placeholder={`Search ${kind}...`} /></label><button onClick={() => toast("Filter options")} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[10px] font-bold text-slate-600"><Filter size={14} /> Filter</button></div><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left"><thead><tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] uppercase tracking-wider text-slate-400"><th className="px-5 py-3 font-bold">Name</th><th className="px-3 py-3 font-bold">Scope</th><th className="px-3 py-3 font-bold">{kind === "rules" ? "Coverage" : "Usage"}</th><th className="px-3 py-3 font-bold">Status</th><th className="px-5 py-3 font-bold">Action</th></tr></thead><tbody>{rows.map((row) => <tr key={row[0]} className="border-b border-slate-100 text-[10px] hover:bg-slate-50"><td className="px-5 py-4 font-semibold text-[#142b4b]">{row[0]}</td><td className="px-3 py-4 text-slate-500">{row[1]}</td><td className="px-3 py-4 text-slate-500">{row[2]}</td><td className="px-3 py-4"><StatusPill status={row[3]} /></td><td className="px-5 py-4"><button onClick={() => toast(`${kind === "rules" ? "Rule" : "Integration"} editor opened`)} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600"><Pencil size={14} /></button></td></tr>)}</tbody></table></div></section></div>;
-}
-
-function DeployPage({ kind }: { kind: "environment" | "deployment" | "infrastructure" }) {
-  if (kind === "deployment") return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Deploy</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">Deployment Wizard</h2><p className="mt-2 text-[11px] text-slate-500">Promote a validated pipeline configuration through controlled environments.</p></div><div className="grid gap-5 xl:grid-cols-[1fr_320px]"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"><div className="flex items-center justify-between"><SectionHeading title="Promote release" eyebrow="Invoice Processing v2.4" /><StatusPill status="Draft" /></div><div className="mt-7 flex items-center gap-2">{["Review", "Test", "Approve", "Deploy"].map((step, i) => <div key={step} className="flex flex-1 items-center gap-2"><div className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold", i === 0 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400")}>{i + 1}</div><span className={cn("hidden text-[10px] font-bold sm:block", i === 0 ? "text-[#142b4b]" : "text-slate-400")}>{step}</span>{i < 3 && <div className="h-px flex-1 bg-slate-200" />}</div>)}</div><div className="mt-8 rounded-2xl bg-slate-50 p-5"><div className="text-[11px] font-bold text-[#142b4b]">Release summary</div><div className="mt-4 grid gap-3 sm:grid-cols-2">{[["Pipeline", "Invoice Processing"], ["Version", "v2.4"], ["Metadata contract", "v1.8"], ["Changed by", "Suresh Kiran · 12 min ago"], ["Test coverage", "48 / 48 passed"], ["Target", "Client 1"]].map(([a,b]) => <div key={a}><div className="text-[9px] uppercase tracking-wider text-slate-400">{a}</div><div className="mt-1 text-[11px] font-semibold text-[#142b4b]">{b}</div></div>)}</div></div><div className="mt-6 flex justify-end"><button onClick={() => toast.success("Deployment started", { description: "Release v2.4 is rolling out to Client 1." })} className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white"><RocketIcon /> Start deployment</button></div></section><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Recent deployments" /><div className="mt-4 space-y-3">{[["v2.3", "May 07, 16:24", "Live"], ["v2.2", "May 02, 11:08", "Live"], ["v2.1", "Apr 22, 09:43", "Live"]].map(([v,time,status]) => <div key={v} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><Check size={15} /></div><div className="flex-1"><div className="text-[11px] font-semibold text-[#142b4b]">{v}</div><div className="mt-0.5 text-[9px] text-slate-400">{time}</div></div><StatusPill status={status} /></div>)}</div></section></div></div>;
-  const title = kind === "environment" ? "Environment" : "Infrastructure";
-  const cards: Array<[string, string, string, LucideIcon]> = kind === "environment" ? [["Client 1", "Primary workspace", "Healthy", Cloud], ["IHCS Staging", "Pre-release validation", "Healthy", Code2], ["Development", "Local iteration", "Attention", WandSparkles]] : [["Document ingestion", "Managed compute · representative", "Healthy", Inbox], ["Processing orchestration", "Workflow orchestration · representative", "Healthy", GitBranch], ["Metadata store", "Metadata store · representative", "Healthy", Database], ["Model gateway", "LLM gateway · representative", "Healthy", BrainCircuit], ["Observability", "Observability · representative", "Healthy", Activity], ["Dead-letter queue", "14 failed messages", "Attention", AlertCircle]];
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Deploy</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">{title}</h2><p className="mt-2 text-[11px] text-slate-500">{kind === "environment" ? "Workspace-specific variables, secrets, and operating modes." : "Technical runtime health for the document platform."}</p></div><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{cards.map(([name, description, status, Icon]) => <div key={name} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon size={18} /></div><StatusPill status={status} /></div><div className="mt-4 text-[13px] font-bold text-[#142b4b]">{name}</div><div className="mt-1 text-[10px] text-slate-400">{description}</div><button onClick={() => toast(name + " details", { description: "Technical configuration is available to platform administrators." })} className="mt-5 inline-flex items-center gap-1 text-[10px] font-bold text-blue-600">View details <ChevronRight size={13} /></button></div>)}</div>{kind === "environment" && <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><SectionHeading title="Environment variables" eyebrow="Values are encrypted at rest and masked in the UI" /><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left"><thead><tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400"><th className="pb-3 font-bold">Key</th><th className="pb-3 font-bold">Value</th><th className="pb-3 font-bold">Updated</th><th className="pb-3 font-bold">Action</th></tr></thead><tbody>{[["PACCA_REGION", "ap-south-1", "Today, 09:12"], ["DEFAULT_SLA_SECONDS", "30", "May 07, 16:24"], ["HIL_ESCALATION_MINUTES", "60", "May 01, 11:08"]].map(([a,b,c]) => <tr key={a} className="border-b border-slate-100 text-[10px]"><td className="py-4 font-mono font-semibold text-[#142b4b]">{a}</td><td className="py-4 font-mono text-slate-500">{b}</td><td className="py-4 text-slate-400">{c}</td><td className="py-4"><button onClick={() => toast("Environment variable editor opened")} className="text-slate-400 hover:text-blue-600"><Pencil size={14} /></button></td></tr>)}</tbody></table></div></section>}</div>;
-}
-
-function RocketIcon() { return <Send size={14} />; }
-
-function AdminPage({ kind }: { kind: "users" | "settings" }) {
-  if (kind === "settings") return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Administration</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">Settings</h2><p className="mt-2 text-[11px] text-slate-500">Workspace preferences and policy controls for PACCA Vision.</p></div><div className="grid gap-5 lg:grid-cols-[220px_1fr]"><aside className="space-y-1 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">{["Workspace", "Notifications", "Security", "Data retention", "API access"].map((label, i) => <button key={label} onClick={() => toast(`${label} settings selected`)} className={cn("flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-semibold", i === 0 ? "bg-blue-50 text-blue-700" : "text-slate-500 hover:bg-slate-50")}>{label}{i === 0 && <ChevronRight size={14} />}</button>)}</aside><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"><SectionHeading title="Workspace defaults" eyebrow="These settings apply to new pipelines and solutions." /><div className="mt-6 max-w-xl space-y-5">{[["Workspace name", "Client 1"], ["Default processing SLA", "30 seconds"], ["Time zone", "Asia / Kolkata"]].map(([label, value]) => <label key={label} className="block"><span className="mb-2 block text-[10px] font-bold text-slate-500">{label}</span><input defaultValue={value} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-blue-400" /></label>)}<div className="flex items-center justify-between rounded-xl bg-slate-50 p-4"><div><div className="text-[11px] font-bold text-[#142b4b]">Require reviewer reason</div><div className="mt-1 text-[10px] text-slate-400">Require a note for manual overrides and reprocessing.</div></div><button onClick={() => toast("Reviewer reason policy updated")} className="h-6 w-11 rounded-full bg-blue-600 p-1"><span className="ml-5 block h-4 w-4 rounded-full bg-white shadow-sm" /></button></div><button onClick={() => toast.success("Settings saved")} className="rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white">Save changes</button></div></section></div></div>;
-  const users = [["Suresh Kiran", "suresh@pacca.vision", "Platform Administrator", "Active", "Today, 09:12"], ["Aisha Rahman", "aisha@pacca.vision", "Reviewer", "Active", "Today, 08:45"], ["Maya Chen", "maya@pacca.vision", "Solution Builder", "Active", "Yesterday"], ["Oliver Grant", "oliver@pacca.vision", "Analyst", "Invited", "May 07"]];
-  return <div className="space-y-5 p-4 sm:p-7 lg:p-9"><div className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.15em] text-blue-600">Administration</div><h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#142b4b]">Users & Roles</h2><p className="mt-2 text-[11px] text-slate-500">Control access without mixing administrative concerns into operations.</p></div><button onClick={() => toast.success("Invitation ready", { description: "Enter an email address to invite a new teammate." })} className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white"><Plus size={14} /> Invite user</button></div><section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="flex flex-wrap gap-2 border-b border-slate-100 p-4"><label className="flex h-9 min-w-[230px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3"><Search size={14} className="text-slate-400" /><input className="w-full bg-transparent text-[11px] outline-none" placeholder="Search people or roles" /></label><button onClick={() => toast("Role filters")} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[10px] font-bold text-slate-600"><Filter size={14} /> Filter</button></div><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left"><thead><tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] uppercase tracking-wider text-slate-400"><th className="px-5 py-3 font-bold">User</th><th className="px-3 py-3 font-bold">Role</th><th className="px-3 py-3 font-bold">Status</th><th className="px-3 py-3 font-bold">Last active</th><th className="px-5 py-3 font-bold">Action</th></tr></thead><tbody>{users.map(([name, email, role, status, last]) => <tr key={email} className="border-b border-slate-100 text-[10px] hover:bg-slate-50"><td className="px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[9px] font-bold text-blue-600">{name.split(" ").map((n) => n[0]).join("")}</div><div><div className="font-semibold text-[#142b4b]">{name}</div><div className="mt-0.5 text-[9px] text-slate-400">{email}</div></div></div></td><td className="px-3 py-4"><span className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">{role}</span></td><td className="px-3 py-4"><StatusPill status={status} /></td><td className="px-3 py-4 text-slate-500">{last}</td><td className="px-5 py-4"><button onClick={() => toast("User actions", { description: `Manage ${name}'s role and access.` })} className="text-slate-400 hover:text-blue-600"><MoreHorizontal size={15} /></button></td></tr>)}</tbody></table></div></section></div>;
-}
-
-const pageMeta: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Dashboard", subtitle: "Real-time overview of your intelligent document operations" },
-  "/documents": { title: "Documents", subtitle: "Search, investigate, and trace every document through the platform" },
-  "/hil-review": { title: "HIL Review", subtitle: "Resolve low-confidence fields before they reach your downstream systems" },
-  "/monitor": { title: "Pipeline Monitor", subtitle: "Monitor processing stages, latency, failures, and jobs in flight" },
-  "/analytics": { title: "Analytics & Cost", subtitle: "Understand throughput, automation, confidence, SLA, and cost" },
-  "/audit": { title: "Audit Trail", subtitle: "Chronological operational history across your document estate" },
-  "/solutions-v2": { title: "Solutions", subtitle: "Document types from field_meta.json, generated into senderra-idp-sol" },
-  "/pipeline-studio": { title: "Pipeline Studio", subtitle: "Compose document-processing steps into a reliable operating path" },
-  "/metadata-studio": { title: "Metadata Studio", subtitle: "Define the final metadata contract consumed by downstream solutions" },
-  "/rules": { title: "Rules & Validations", subtitle: "Guard the handoff from extracted data to trusted final metadata" },
-  "/integrations": { title: "Integrations", subtitle: "Connect source systems, services, and model providers" },
-  "/environment": { title: "Environment", subtitle: "Manage workspace-specific variables and operating modes" },
-  "/deployment": { title: "Deployment Wizard", subtitle: "Promote validated pipeline configurations through environments" },
-  "/infrastructure": { title: "Infrastructure", subtitle: "Technical runtime health for the document platform" },
-  "/users": { title: "Users & Roles", subtitle: "Control access without mixing administrative concerns into operations" },
-  "/settings": { title: "Settings", subtitle: "Workspace preferences and policy controls for PACCA Vision" },
-};
-
-function CentralAdminPortal({ user, onLogout, onClientWorkspace }: { user: MockUser; onLogout: () => void; onClientWorkspace: (client?: string) => void }) {
-  const clients = [["Client 1", "Active", "Invoice Processing", "#1f9b72"], ["Client 2", "Active", "Claims Intake", "#1f9b72"], ["Client 3", "Provisioning", "Workspace setup", "#e39b2b"]];
-  const stats: Array<[LucideIcon, string, string, string, string]> = [[UsersRound, "Clients", "3", "Active tenants and provisioning workspaces", "blue"], [Send, "Active deployments", "5", "Across client environments", "purple"], [Activity, "Platform health", "Healthy", "All representative services within range", "green"], [ShieldCheck, "Access posture", "Enforced", "Central administration policies active", "amber"]];
-  return <div className="min-h-screen bg-[#f3f6fa] text-[#142b4b]"><header className="border-b border-white/10 bg-[#071d3a] text-white"><div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-4 sm:px-8"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-sky-300"><Globe2 size={20} /></div><div><div className="font-display text-[17px] font-bold tracking-[-.03em]">PACCA <span className="font-normal text-slate-300">VISION</span></div><div className="mt-1 text-[9px] font-bold uppercase tracking-[.18em] text-sky-200/70">Central Admin Portal</div></div></div><div className="flex items-center gap-3"><button onClick={() => onClientWorkspace()} className="rounded-xl border border-white/15 px-3 py-2 text-[10px] font-bold text-slate-200 hover:bg-white/10">Open Client Workspace</button><button onClick={onLogout} className="rounded-xl bg-white/10 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/15"><LogOut size={14} /></button></div></div></header><main className="mx-auto max-w-[1440px] space-y-7 px-5 py-7 sm:px-8 lg:py-10"><div><div className="text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Platform administration · {user.name}</div><h1 className="mt-2 font-display text-3xl font-bold tracking-[-.06em] text-[#142b4b]">One platform. Every client workspace.</h1><p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-slate-500">Central visibility for PACCA Vision deployments, client lifecycle, environments, and platform health — separate from day-to-day document operations.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(([Icon, label, value, detail, tone]) => <div key={String(label)} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><div className="flex items-start justify-between"><div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tone === "blue" ? "bg-blue-50 text-blue-600" : tone === "purple" ? "bg-violet-50 text-violet-600" : tone === "green" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600")}><Icon size={19} /></div><span className="rounded-full bg-slate-50 px-2 py-1 text-[9px] font-bold text-slate-400">Central</span></div><div className="mt-5 text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">{label}</div><div className="mt-1 font-display text-2xl font-bold tracking-[-.04em] text-[#142b4b]">{value}</div><div className="mt-2 text-[10px] leading-relaxed text-slate-500">{detail}</div></div>)}</div><div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]"><section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"><div className="flex items-center justify-between"><div><div className="text-[10px] font-bold uppercase tracking-[.15em] text-blue-600">Tenant directory</div><h2 className="mt-1 font-display text-xl font-bold tracking-[-.04em]">Clients</h2></div><button onClick={() => toast("Client provisioning flow opened")} className="rounded-xl bg-[#156bc9] px-3 py-2 text-[10px] font-bold text-white"><Plus size={13} className="mr-1 inline" /> Add client</button></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400"><th className="pb-3 font-bold">Client</th><th className="pb-3 font-bold">Status</th><th className="pb-3 font-bold">Primary workload</th><th className="pb-3 text-right font-bold">Action</th></tr></thead><tbody>{clients.map(([name, status, workload, color]) => <tr key={name} className="border-b border-slate-100 text-[11px]"><td className="py-4 font-bold text-[#142b4b]">{name}</td><td className="py-4"><span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-bold" style={{ background: `${color}16`, color }}><span className="h-1.5 w-1.5 rounded-full bg-current" />{status}</span></td><td className="py-4 text-slate-500">{workload}</td><td className="py-4 text-right"><button onClick={() => { if (name === "Client 1") onClientWorkspace("Client 1"); else toast(`${name} overview opened`); }} className="text-[10px] font-bold text-blue-600">View overview <ArrowRight size={12} className="ml-1 inline" /></button></td></tr>)}</tbody></table></div></section><aside className="rounded-2xl border border-slate-200/80 bg-[#0c2749] p-6 text-white shadow-sm"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-sky-300"><Layers3 size={21} /></div><h2 className="mt-6 font-display text-xl font-bold tracking-[-.04em]">Platform overview</h2><p className="mt-2 text-[11px] leading-relaxed text-slate-300">PACCA Vision is the common control plane. Each client workspace keeps its own pipelines, metadata, policies, and operational data isolated.</p><div className="mt-6 space-y-3">{[["Client workspaces", "3 provisioned"], ["Representative regions", "2 active"], ["Last platform check", "Today, 14:08"]].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-white/10 pb-3 text-[10px]"><span className="text-slate-400">{label}</span><span className="font-bold text-sky-200">{value}</span></div>)}</div><button onClick={() => toast("Infrastructure overview opened")} className="mt-6 w-full rounded-xl border border-white/15 px-3 py-2.5 text-[10px] font-bold text-white hover:bg-white/10">View platform health</button></aside></div></main></div>;
-}
+import { AppLayout } from "@/components/layout/AppLayout";
+import { CentralAdminPortal } from "@/pages/admin/CentralAdminPortal";
+import { AppRoutes } from "@/routes/AppRoutes";
+import { pageMeta } from "@/routes/pageMeta";
 
 export default function Home() {
   const [path, navigate] = useLocation();
   const [user, setUser] = useState<MockUser | null>(null);
   const [loading, setLoading] = useState(false);
   const allowedPaths = user ? demoAllowedPaths(user.role) : [];
+
   useEffect(() => {
     if (!user) return;
     setLoading(true);
     const timer = window.setTimeout(() => setLoading(false), 650);
     return () => window.clearTimeout(timer);
   }, [path, user]);
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  // Which solution the workspace is operating. `priorauth` swaps the three
-  // operational surfaces onto the live Senderra pipeline; `invoice` leaves the
-  // original fixtures untouched.
-  const { isLive } = useSolution();
+
   // Set when the reviewer jumps from a document straight into HIL, so the
   // workbench opens on that document instead of the top of the queue.
   const [hilFocus, setHilFocus] = useState<string | null>(null);
-  if (!user) return <LoginScreen onLogin={(nextUser) => { setUser(nextUser); navigate(nextUser.experience === "central" ? "/central-admin" : "/"); }} />;
-  if (user.experience === "central") return <CentralAdminPortal user={user} onLogout={() => setUser(null)} onClientWorkspace={(client) => { if (client === "Client 1") { setUser({ ...user, name: "PACCA Admin · Client 1", tenant: "Client 1", tenantCode: "CLIENT1", experience: "client" }); navigate("/"); } else { setUser(null); navigate("/"); } }} />;
+
+  if (!user) {
+    return (
+      <LoginScreen
+        onLogin={(nextUser) => {
+          setUser(nextUser);
+          navigate(nextUser.experience === "central" ? "/central-admin" : "/");
+        }}
+      />
+    );
+  }
+
+  if (user.experience === "central") {
+    return (
+      <CentralAdminPortal
+        user={user}
+        onLogout={() => setUser(null)}
+        onClientWorkspace={(client) => {
+          if (client === "Client 1") {
+            setUser({
+              ...user,
+              name: "PACCA Admin · Client 1",
+              tenant: "Client 1",
+              tenantCode: "CLIENT1",
+              experience: "client",
+            });
+            navigate("/");
+          } else {
+            setUser(null);
+            navigate("/");
+          }
+        }}
+      />
+    );
+  }
+
   const detailMatch = path.match(/^\/documents\/(.+)$/);
   const basePath = detailMatch ? "/documents" : path;
   const meta = pageMeta[basePath] ?? pageMeta["/"];
   const go = (next: string) => navigate(next);
   const hasAccess = allowedPaths.includes(basePath);
-  const switchRole = (role: MockUser["role"]) => { const isClient = role === "Client Staff"; const next = { ...user, role, name: role === "PACCA Platform Admin" ? "PACCA Platform Admin" : role === "PACCA Solution Developer" ? "PACCA Solution Developer" : "Client Staff · Client 1", tenant: isClient ? "Client 1" : "PACCA Platform", tenantCode: isClient ? "CLIENT1" : "PACCA", experience: isClient ? "client" as const : "central" as const }; setUser(next); const nextAllowed = demoAllowedPaths(role); if (!nextAllowed.includes(basePath)) go(isClient ? "/documents" : "/solutions-v2"); toast.success(`Role switched to ${role}`); };
+
+  const switchRole = (role: MockUser["role"]) => {
+    const isClient = role === "Client Staff";
+    const next = {
+      ...user,
+      role,
+      name:
+        role === "PACCA Platform Admin"
+          ? "PACCA Platform Admin"
+          : role === "PACCA Solution Developer"
+            ? "PACCA Solution Developer"
+            : "Client Staff · Client 1",
+      tenant: isClient ? "Client 1" : "PACCA Platform",
+      tenantCode: isClient ? "CLIENT1" : "PACCA",
+      experience: isClient ? ("client" as const) : ("central" as const),
+    };
+    setUser(next);
+    const nextAllowed = demoAllowedPaths(role);
+    if (!nextAllowed.includes(basePath)) go(isClient ? "/documents" : "/solutions-v2");
+    toast.success(`Role switched to ${role}`);
+  };
+
   const openDocument = (documentId: string) => go(`/documents/${encodeURIComponent(documentId)}`);
-  const openHil = (documentId: string) => { setHilFocus(documentId); go("/hil-review"); };
-  let content;
-  if (detailMatch && isLive) content = <DocumentDetailLive documentId={decodeURIComponent(detailMatch[1])} onBack={() => go("/documents")} onReview={openHil} />;
-  else if (detailMatch) content = <DocumentDetailPage id={detailMatch[1]} onBack={() => go("/documents")} onNavigate={go} />;
-  else if (path === "/" && isLive) content = <CommandCenterLive onNavigate={go} onOpenDocument={openDocument} />;
-  else if (path === "/") content = <CommandCenter onNavigate={go} />;
-  else if (path === "/documents" && isLive) content = <DocumentsLive onOpen={openDocument} />;
-  else if (path === "/documents") content = <DocumentsPage onNavigate={go} />;
-  else if (path === "/hil-review" && isLive) content = <HilLive reviewer={user.email} reviewerName={user.name} focusDocumentId={hilFocus} />;
-  else if (path === "/hil-review") content = <HILPage />;
-  else if (path === "/monitor") content = <MonitorPage />;
-  else if (path === "/analytics" && isLive) content = <AnalyticsLive />;
-  else if (path === "/analytics") content = <AnalyticsPage />;
-  else if (path === "/audit") content = <AuditPage />;
-  else if (path === "/solutions-v2") content = <SolutionsV2 />;
-  else if (path === "/pipeline-studio") content = <PipelineStudioPage />;
-  else if (path === "/metadata-studio") content = <MetadataStudioPage />;
-  else if (path === "/rules") content = <ConfigListPage kind="rules" />;
-  else if (path === "/integrations") content = <ConfigListPage kind="integrations" />;
-  else if (path === "/environment") content = <DeployPage kind="environment" />;
-  else if (path === "/deployment") content = <DeployPage kind="deployment" />;
-  else if (path === "/infrastructure") content = <DeployPage kind="infrastructure" />;
-  else if (path === "/users") content = <AdminPage kind="users" />;
-  else if (path === "/settings") content = <AdminPage kind="settings" />;
-  else content = <CommandCenter onNavigate={go} />;
-  return <div className="min-h-screen bg-[#f7f9fc] text-[#142b4b]"><Sidebar path={basePath} collapsed={collapsed} mobileOpen={mobileOpen} onNavigate={go} onCloseMobile={() => setMobileOpen(false)} onLogout={() => setUser(null)} user={user} allowedPaths={allowedPaths} /><div className={cn("min-h-screen transition-[padding] duration-200 lg:pl-[260px]", collapsed && "lg:pl-[78px]")}><Topbar title={meta.title} subtitle={meta.subtitle} onMenu={() => setMobileOpen(true)} collapsed={collapsed} onCollapse={() => setCollapsed(!collapsed)} user={user} onRoleSwitch={switchRole} /><main className="min-h-[calc(100vh-76px)]">{loading ? <SkeletonPage /> : hasAccess ? content : <AccessDenied role={user.role} onNavigate={go} />}</main></div>{mobileOpen && <button aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-30 bg-[#061a36]/40 backdrop-blur-sm lg:hidden" />}</div>;
+  const openHil = (documentId: string) => {
+    setHilFocus(documentId);
+    go("/hil-review");
+  };
+
+  return (
+    <AppLayout
+      path={basePath}
+      title={meta.title}
+      subtitle={meta.subtitle}
+      user={user}
+      allowedPaths={allowedPaths}
+      onNavigate={go}
+      onLogout={() => setUser(null)}
+      onRoleSwitch={switchRole}
+    >
+      {loading ? (
+        <SkeletonPage />
+      ) : hasAccess ? (
+        <AppRoutes
+          path={path}
+          user={user}
+          hilFocus={hilFocus}
+          onNavigate={go}
+          onOpenDocument={openDocument}
+          onOpenHil={openHil}
+        />
+      ) : (
+        <AccessDenied role={user.role} onNavigate={go} />
+      )}
+    </AppLayout>
+  );
 }

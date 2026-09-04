@@ -60,7 +60,7 @@ export function ReasonChips({ reasons, className }: { reasons: string[]; classNa
 export function LoadingBlock({ label = "Loading live data…" }: { label?: string }) {
   return (
     <div className="flex items-center justify-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white py-14 text-[11px] text-slate-500">
-      <Loader2 size={15} className="animate-spin text-[#156bc9]" />
+      <Loader2 size={15} className="animate-spin text-[#47a2b0]" />
       {label}
     </div>
   );
@@ -98,7 +98,7 @@ export function ErrorBlock({ error, onRetry }: { error: string; onRetry?: () => 
 export function EmptyBlock({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-14 text-center">
-      <div className="font-display text-[14px] font-bold text-[#142b4b]">{title}</div>
+      <div className="font-display text-[14px] font-bold text-[#0e0e0e]">{title}</div>
       <p className="mx-auto mt-2 max-w-sm text-[11px] leading-relaxed text-slate-500">{hint}</p>
     </div>
   );

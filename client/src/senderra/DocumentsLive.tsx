@@ -60,18 +60,18 @@ export function DocumentsLive({ onOpen }: { onOpen: (documentId: string) => void
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#156bc9]">
+            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
               Client 1 · Prior Auth Processing
             </div>
             <LiveBadge />
           </div>
-          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#142b4b]">
+          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#0e0e0e]">
             Documents
           </h1>
           <p className="mt-1.5 text-[11px] text-slate-500">
             {documents.length} document{documents.length === 1 ? "" : "s"} in the pipeline
             {inFlight > 0 && (
-              <span className="ml-1 font-semibold text-[#4779de]">· {inFlight} in flight</span>
+              <span className="ml-1 font-semibold text-[#47a2b0]">· {inFlight} in flight</span>
             )}
             <span className="ml-1 text-slate-400">· refreshing every 5s</span>
           </p>
@@ -86,7 +86,7 @@ export function DocumentsLive({ onOpen }: { onOpen: (documentId: string) => void
           </button>
           <button
             onClick={() => setShowUpload((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#156bc9] px-4 py-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(21,107,201,.2)] hover:bg-[#0d5aae]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.2)] hover:bg-[#37828e]"
           >
             <Upload size={13} />
             {showUpload ? "Hide upload" : "Upload documents"}
@@ -112,13 +112,13 @@ export function DocumentsLive({ onOpen }: { onOpen: (documentId: string) => void
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search document id, run or type…"
-              className="h-9 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-[11px] text-slate-700 outline-none focus:border-[#156bc9]"
+              className="h-9 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
             />
           </div>
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as (typeof STATUS_FILTERS)[number])}
-            className="h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 outline-none focus:border-[#156bc9]"
+            className="h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 outline-none focus:border-[#47a2b0]"
           >
             {STATUS_FILTERS.map((value) => (
               <option key={value} value={value}>
@@ -129,7 +129,7 @@ export function DocumentsLive({ onOpen }: { onOpen: (documentId: string) => void
           <select
             value={docType}
             onChange={(event) => setDocType(event.target.value)}
-            className="h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 outline-none focus:border-[#156bc9]"
+            className="h-9 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 outline-none focus:border-[#47a2b0]"
           >
             {docTypes.map((value) => (
               <option key={value} value={value}>
@@ -183,10 +183,10 @@ function DocumentRow({ doc, onOpen }: { doc: DocumentSummary; onOpen: (id: strin
   return (
     <tr
       onClick={() => onOpen(doc.documentId)}
-      className="cursor-pointer border-b border-slate-50 transition hover:bg-slate-50/70"
+      className="cursor-pointer border-b border-slate-50 transition hover:bg-[#ebf5f7]/40"
     >
       <td className="px-4 py-3">
-        <div className="text-[11px] font-bold text-[#142b4b]">{doc.file}</div>
+        <div className="text-[11px] font-bold text-[#0e0e0e]">{doc.file}</div>
         <div className="mt-0.5 text-[9px] text-slate-400">
           {doc.runId} · {bytes(doc.fileBytes)}
         </div>
