@@ -371,3 +371,36 @@ export function humanize(value: string | null | undefined): string {
     .replace(/[_-]+/g, " ")
     .replace(/^./, (c) => c.toUpperCase());
 }
+
+/** Formats field values gracefully (including address objects, arrays, and primitives) without rendering [object Object]. */
+export function formatFieldValue(val: unknown): string {
+  if (val === null || val === undefined || val === "") return "—";
+  if (typeof val === "object") {
+    if (Array.isArray(val)) {
+      return val.map((v) => (typeof v === "object" ? formatFieldValue(v) : String(v))).join(", ");
+    }
+    const rec = val as Record<string, unknown>;
+    // Handle structured address objects
+    const addressParts = [
+      rec.street,
+      rec.unit || rec.suite,
+      rec.city,
+      rec.state,
+      rec.zip || rec.postal_code,
+    ].filter(Boolean);
+    if (addressParts.length > 0) {
+      return addressParts.join(", ");
+    }
+    const entries = Object.entries(rec);
+    if (entries.length === 0) return "—";
+    if (entries.every(([, v]) => typeof v !== "object")) {
+      return entries.map(([, v]) => v).filter(Boolean).join(", ");
+    }
+    return entries
+      .map(([k, v]) => (v ? `${humanize(k)}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}` : null))
+      .filter(Boolean)
+      .join(", ");
+  }
+  return String(val);
+}
+

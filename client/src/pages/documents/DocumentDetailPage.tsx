@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ArrowLeft, Download, FileText, MoreHorizontal, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,17 @@ function MockDocumentDetail({
   onReview?: (documentId: string) => void;
 }) {
   const doc = documents.find((d) => d.id === id) ?? documents[0];
+
+  useEffect(() => {
+    if (doc.status === "Needs Review" || doc.status === "HIL Review") {
+      if (onReview) {
+        onReview(doc.id);
+      } else {
+        onNavigate("/hil-review");
+      }
+    }
+  }, [doc.status, doc.id, onReview, onNavigate]);
+
   const canEdit = doc.status === "Needs Review" || doc.status === "HIL Review";
 
   const timeline =
@@ -211,21 +223,12 @@ function MockDocumentDetail({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionHeading
             title="Extracted Fields"
-            eyebrow={`${doc.type} Metadata Schema · AI Extraction Output`}
+            eyebrow={`${doc.type} Metadata Schema · Processed Output`}
           />
           <div className="flex items-center gap-2">
-            {canEdit ? (
-              <button
-                onClick={() => (onReview ? onReview(doc.id) : onNavigate("/hil-review"))}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-3.5 py-2 text-[10px] font-bold text-white shadow-sm hover:bg-[#37828e] transition"
-              >
-                <Pencil size={13} /> Open in HIL Review
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#45bd8d]/25 bg-[#45bd8d]/10 px-3 py-2 text-[10px] font-bold text-[#1f845d]">
-                ✓ Validated · Straight-Through Processing (STP)
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#45bd8d]/25 bg-[#45bd8d]/10 px-3 py-2 text-[10px] font-bold text-[#1f845d]">
+              ✓ Validated · Straight-Through Processing (STP)
+            </span>
             <button
               onClick={() => onNavigate("/metadata-studio")}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"

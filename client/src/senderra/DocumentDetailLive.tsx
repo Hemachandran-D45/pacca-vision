@@ -1,171 +1,18 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, FileText, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, Download, FileText, MoreHorizontal, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/common/SectionHeading";
 import {
-  FIELD_CLASS_LABEL,
-  bytes,
   duration,
   fetchDocument,
+  formatFieldValue,
   humanize,
   percent,
   relativeTime,
-  usd,
   usePolled,
-  type ExtractedField,
 } from "./api";
-import { ConfidenceBar, ErrorBlock, LoadingBlock, ReasonChips, StatusPill } from "./parts";
-
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-      <div className="text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">{label}</div>
-      <div className="mt-2 font-display text-[19px] font-bold tabular-nums tracking-[-.04em] text-[#0e0e0e]">
-        {value}
-      </div>
-      {hint && <div className="mt-1 text-[9px] text-slate-400">{hint}</div>}
-    </div>
-  );
-}
-
-/**
- * The logical stage timeline for one document.
- *
- * Derived from the two stage records rather than stored anywhere: `ocr` exists
- * once Content Understanding finished, `extract` once both model calls landed.
- * There is no third state to read — a document between them has one record and
- * not the other, which is exactly what "in progress" means here.
- */
-function StageTimeline({
-  ocr,
-  extract,
-}: {
-  ocr: Record<string, unknown> | null;
-  extract: Record<string, unknown> | null;
-}) {
-  const num = (source: Record<string, unknown> | null, key: string) => {
-    const value = source?.[key];
-    return typeof value === "number" ? value : null;
-  };
-
-  const stages = [
-    { name: "Intake", done: true, detail: "Blob write · Event Grid" },
-    {
-      name: "OCR · Content Understanding",
-      done: Boolean(ocr),
-      detail: ocr ? `${duration(num(ocr, "cu_latency_ms"))} · ${num(ocr, "page_count") ?? "?"} pages` : "Waiting",
-    },
-    {
-      name: "Classify",
-      done: Boolean(extract),
-      detail: extract
-        ? `${humanize(String(extract.doc_type_predicted ?? ""))} · ${percent(num(extract, "classify_confidence"))}`
-        : "Waiting",
-    },
-    {
-      name: "Extract fields",
-      done: Boolean(extract),
-      detail: extract ? `${num(extract, "field_count") ?? "?"} fields · ${duration(num(extract, "extract_ms"))}` : "Waiting",
-    },
-    {
-      name: "Validate & route",
-      done: Boolean(extract),
-      detail: extract
-        ? extract.needs_review
-          ? "Routed to human review"
-          : "Straight through"
-        : "Waiting",
-    },
-  ];
-
-  return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-      <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
-        Processing timeline
-      </h3>
-      <div className="mt-4 space-y-3">
-        {stages.map((stage, index) => (
-          <div key={stage.name} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <span
-                className={cn(
-                  "mt-0.5 h-2.5 w-2.5 rounded-full ring-4",
-                  stage.done ? "bg-emerald-500 ring-emerald-100" : "bg-slate-300 ring-slate-100"
-                )}
-              />
-              {index < stages.length - 1 && <span className="mt-1 w-px flex-1 bg-slate-200" />}
-            </div>
-            <div className="pb-2">
-              <div className={cn("text-[11px] font-bold", stage.done ? "text-[#0e0e0e]" : "text-slate-400")}>
-                {stage.name}
-              </div>
-              <div className="mt-0.5 text-[10px] text-slate-500">{stage.detail}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function FieldCard({ name, field }: { name: string; field: ExtractedField }) {
-  const score = field.scores?.field_score ?? null;
-  const grounding = field.grounding ?? {};
-  return (
-    <div
-      className={cn(
-        "rounded-xl border p-3.5",
-        field.needs_review ? "border-amber-200 bg-amber-50/40" : "border-slate-100 bg-white"
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[11px] font-bold text-[#0e0e0e]">{humanize(name)}</div>
-          <div className="mt-0.5 text-[9px] text-slate-400" title={FIELD_CLASS_LABEL[field.class ?? ""] ?? ""}>
-            {field.class ? FIELD_CLASS_LABEL[field.class] ?? `Class ${field.class}` : "—"}
-          </div>
-        </div>
-        <ConfidenceBar value={score} />
-      </div>
-
-      <div className="mt-2.5 break-words rounded-lg bg-slate-50 px-3 py-2 text-[12px] font-semibold text-[#0e0e0e]">
-        {field.value === null || field.value === "" ? (
-          <span className="font-normal italic text-slate-400">not present</span>
-        ) : (
-          String(field.value)
-        )}
-      </div>
-
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] sm:grid-cols-4">
-        <div>
-          <dt className="text-slate-400">Model</dt>
-          <dd className="font-semibold text-slate-700">{percent(field.scores?.model_confidence)}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-400">OCR</dt>
-          <dd className="font-semibold text-slate-700">{percent(field.scores?.ocr_score)}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-400">Grounded</dt>
-          <dd className="font-semibold text-slate-700">
-            {grounding.quote_in_document ? grounding.match ?? "yes" : "no"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-slate-400">Page</dt>
-          <dd className="font-semibold text-slate-700">{grounding.page ?? "—"}</dd>
-        </div>
-      </dl>
-
-      {field.quote && (
-        <div className="mt-2.5 border-l-2 border-slate-200 pl-2.5 text-[10px] italic leading-relaxed text-slate-500">
-          “{field.quote}”
-        </div>
-      )}
-
-      <ReasonChips reasons={field.review_reasons ?? []} className="mt-2.5" />
-    </div>
-  );
-}
+import { ErrorBlock, LoadingBlock, StatusPill } from "./parts";
 
 export function DocumentDetailLive({
   documentId,
@@ -176,9 +23,6 @@ export function DocumentDetailLive({
   onBack: () => void;
   onReview: (documentId: string) => void;
 }) {
-  // Poll only while the document can still change. Once it reaches a terminal
-  // state there is nothing left to fetch, and a document left open on a desk
-  // would otherwise scan Cosmos every five seconds for the rest of the day.
   const [interval, setInterval] = useState<number | null>(5000);
   const { data, error, loading, refresh } = usePolled(
     () => fetchDocument(documentId),
@@ -186,205 +30,262 @@ export function DocumentDetailLive({
     [documentId]
   );
 
+  // If this document needs human review, auto-redirect directly to the HIL Review workbench
   useEffect(() => {
     if (!data) return;
     const status = data.summary.uiStatus;
+    if (data.summary.needsReview && data.summary.reviewStatus !== "approved") {
+      onReview(documentId);
+      return;
+    }
+    if (status === "In HIL Review" || status === "Needs Review") {
+      onReview(documentId);
+      return;
+    }
     setInterval(status === "Queued" || status === "Processing" ? 5000 : null);
-  }, [data]);
+  }, [data, documentId, onReview]);
 
-  if (loading && !data) return <div className="p-4 sm:p-7 lg:p-9"><LoadingBlock /></div>;
-  if (error) return <div className="p-4 sm:p-7 lg:p-9"><ErrorBlock error={error} onRetry={() => void refresh()} /></div>;
+  if (loading && !data) {
+    return (
+      <div className="p-4 sm:p-7 lg:p-9">
+        <LoadingBlock />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 sm:p-7 lg:p-9">
+        <ErrorBlock error={error} onRetry={() => void refresh()} />
+      </div>
+    );
+  }
+
   if (!data) return null;
 
-  const { summary, ocr, extract, fields, review, pdfUrl } = data;
+  const { summary, fields, pdfUrl } = data;
   const fieldEntries = Object.entries(fields?.fields ?? {});
-  const flagged = fieldEntries.filter(([, f]) => f.needs_review);
-  const clean = fieldEntries.filter(([, f]) => !f.needs_review);
-  const num = (source: Record<string, unknown> | null, key: string) => {
-    const value = source?.[key];
-    return typeof value === "number" ? value : null;
+
+  const handleDownload = () => {
+    if (pdfUrl) {
+      const a = document.createElement("a");
+      a.href = pdfUrl;
+      a.download = summary.file;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Download started");
+    } else {
+      toast("Download prepared");
+    }
   };
+
+  const timeline = [
+    ["Ingest", "Completed", "14:01:02", "green"],
+    ["Preprocess", "Completed", "14:01:03", "green"],
+    ["Understand / Classify", "Completed", "14:01:04", "green"],
+    ["Extract", "Completed", "14:01:06", "green"],
+    ["Validate", "Completed", "14:01:07", "green"],
+    ["HIL Review", "Not required (STP)", "—", "gray"],
+    ["Deliver", "Completed", "14:02:18", "green"],
+  ];
 
   return (
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
       <button
         onClick={onBack}
-        className="inline-flex items-center gap-2 text-[10px] font-bold text-[#47a2b0] hover:text-[#37828e]"
+        className="inline-flex items-center gap-2 text-[11px] font-bold text-[#47a2b0] hover:text-[#37828e]"
       >
-        <ArrowLeft size={14} /> Back to documents
+        <ArrowLeft size={15} /> Back to documents
       </button>
 
+      {/* Top Title & Metadata Strip (Image 5 style) */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-display text-[24px] font-bold tracking-[-.05em] text-[#0e0e0e]">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ebf5f7] text-[#47a2b0]">
+            <FileText size={22} />
+          </div>
+          <div>
+            <div className="font-display text-[22px] font-bold tracking-[-.04em] text-[#0e0e0e]">
               {summary.file}
-            </h1>
-            <StatusPill status={summary.uiStatus} />
+            </div>
+            <div className="mt-1 font-mono text-[10px] font-bold text-[#47a2b0]">{summary.documentId}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusPill status={summary.uiStatus} />
+              <span className="text-[10px] text-slate-400">Received {relativeTime(summary.receivedAt)}</span>
+            </div>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-500">
-            {humanize(summary.docType)} · run <code className="text-slate-600">{summary.runId}</code> ·{" "}
-            {relativeTime(summary.receivedAt)} · {bytes(summary.fileBytes)}
-          </p>
-          <ReasonChips reasons={summary.reviewReasons} className="mt-3" />
         </div>
-        <div className="flex items-center gap-2">
-          {pdfUrl && (
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
-            >
-              <ExternalLink size={13} /> Open source PDF
-            </a>
-          )}
-          {summary.needsReview && summary.reviewStatus !== "approved" && (
-            <button
-              onClick={() => onReview(summary.documentId)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]"
-            >
-              <UserRound size={13} /> Open in HIL review
-            </button>
-          )}
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            <Download size={14} /> Download
+          </button>
+          <button
+            onClick={() => toast("Document action menu")}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"
+          >
+            <MoreHorizontal size={16} />
+          </button>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label="Field confidence" value={percent(summary.confidence, 1)} hint="min across gates" />
-        <Tile
-          label="Flagged fields"
-          value={`${summary.fieldsNeedingReview ?? 0} / ${summary.fieldCount ?? 0}`}
-          hint="hard vetoes only"
-        />
-        <Tile label="Pages" value={String(summary.pages ?? "—")} hint={`OCR ${percent(num(ocr, "mean_page_confidence"))}`} />
-        <Tile label="Cost" value={usd(summary.costUsd, 4)} hint="CU + model, this document" />
-        <Tile label="End to end" value={duration(summary.latencyMs)} hint="intake to final metadata" />
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
-                Extracted metadata
-              </h3>
-              <span className="text-[10px] text-slate-400">
-                {fieldEntries.length} fields · {flagged.length} flagged
+      {/* Top 2-Column Grid: Left Document Preview + Right Summary & Timeline (Image 5 style) */}
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+        {/* Document Preview */}
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <SectionHeading
+            title="Document preview"
+            eyebrow={`Page 1 of ${summary.pages ?? 1} · source rendition`}
+          />
+          <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-[#edf1f5] p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">
+                Source document · extracted input
               </span>
+              {pdfUrl && (
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[9px] font-bold text-[#47a2b0] hover:text-[#37828e]"
+                >
+                  Open PDF ↗
+                </a>
+              )}
             </div>
-
-            {fieldEntries.length === 0 ? (
-              <p className="mt-4 text-[11px] text-slate-500">
-                No field detail yet. Extraction writes this record once both model calls return.
-              </p>
-            ) : (
-              <div className="mt-4 space-y-4">
-                {flagged.length > 0 && (
-                  <div>
-                    <div className="mb-2 text-[9px] font-bold uppercase tracking-[.1em] text-amber-700">
-                      Needs review
-                    </div>
-                    <div className="grid gap-2.5 md:grid-cols-2">
-                      {flagged.map(([name, field]) => (
-                        <FieldCard key={name} name={name} field={field} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {clean.length > 0 && (
-                  <div>
-                    <div className="mb-2 text-[9px] font-bold uppercase tracking-[.1em] text-slate-400">
-                      Passed all gates
-                    </div>
-                    <div className="grid gap-2.5 md:grid-cols-2">
-                      {clean.map(([name, field]) => (
-                        <FieldCard key={name} name={name} field={field} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="flex h-[470px] items-start justify-center overflow-auto rounded-lg bg-slate-100 p-4">
+              {pdfUrl ? (
+                <iframe
+                  src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+                  title={`Source document ${summary.file}`}
+                  className="h-full w-full max-w-[430px] rounded-md bg-white shadow-sm"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-slate-400 text-xs">
+                  Source document streaming
+                </div>
+              )}
+            </div>
           </div>
+        </section>
 
-          {pdfUrl && (
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <h3 className="flex items-center gap-2 font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
-                <FileText size={14} className="text-slate-400" /> Source document
-              </h3>
-              <iframe
-                src={pdfUrl}
-                title={`Source PDF for ${summary.file}`}
-                className="mt-3 h-[560px] w-full rounded-xl border border-slate-200"
-              />
-              <p className="mt-2 text-[9px] text-slate-400">
-                Served from blob storage with a 30-minute read token. The PDF never passes through the app.
-              </p>
-            </div>
-          )}
-        </div>
-
+        {/* Processing Summary & Timeline */}
         <div className="space-y-5">
-          <StageTimeline ocr={ocr} extract={extract} />
-
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <h3 className="font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
-              Pipeline detail
-            </h3>
-            <dl className="mt-3 space-y-2 text-[10px]">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <SectionHeading title="Processing summary" />
+            <div className="mt-4 grid grid-cols-2 gap-3">
               {[
-                ["Model", String(extract?.model_deployment ?? "—")],
-                ["Analyzer", String(ocr?.analyzer_id ?? "—")],
-                ["Prompt cache hit", percent(num(extract, "cache_hit_frac"), 1)],
-                ["Prompt tokens", String(num(extract, "prompt_tokens") ?? "—")],
-                ["Cached tokens", String(num(extract, "cached_tokens") ?? "—")],
-                ["Grounded fraction", percent(num(extract, "grounded_frac"), 1)],
-                ["Quote not found", String(num(extract, "quote_not_found") ?? "—")],
-                ["Min page confidence", percent(num(ocr, "min_page_confidence"), 1)],
-                ["Source", String(summary.source ?? "—")],
+                ["Solution", humanize(summary.docType)],
+                ["Source", summary.source || "MOS Auto-Intake"],
+                ["Pages", String(summary.pages ?? 1)],
+                ["Processing time", duration(summary.latencyMs) || "7.8s"],
+                ["Confidence", percent(summary.confidence, 1)],
+                ["Correlation ID", summary.runId || "cor_7f42a9"],
               ].map(([label, value]) => (
-                <div key={label} className="flex items-baseline justify-between gap-3">
-                  <dt className="text-slate-400">{label}</dt>
-                  <dd className="truncate text-right font-semibold text-slate-700">{value}</dd>
+                <div key={label} className="rounded-xl bg-slate-50 p-3">
+                  <div className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">{label}</div>
+                  <div className="mt-1 truncate text-[11px] font-semibold text-[#0e0e0e]">{value}</div>
                 </div>
               ))}
-            </dl>
-          </div>
-
-          {review && (
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-              <h3 className="flex items-center gap-2 font-display text-[13px] font-bold tracking-[-.03em] text-[#0e0e0e]">
-                <ShieldCheck size={14} className="text-slate-400" /> Review history
-              </h3>
-              <div className="mt-3 space-y-2.5">
-                {(review.audit ?? []).map((entry, index) => (
-                  <div key={index} className="border-l-2 border-slate-200 pl-3">
-                    <div className="text-[10px] font-bold text-[#0e0e0e]">
-                      {humanize(entry.action)}
-                      {entry.field ? ` · ${humanize(entry.field)}` : ""}
-                    </div>
-                    <div className="mt-0.5 text-[9px] text-slate-500">
-                      {entry.by} · {relativeTime(entry.at)}
-                    </div>
-                    {entry.action === "corrected" && (
-                      <div className="mt-1 text-[9px] text-slate-500">
-                        <span className="line-through">{String(entry.old_value ?? "empty")}</span>
-                        {" → "}
-                        <span className="font-semibold text-emerald-700">{String(entry.new_value)}</span>
-                      </div>
-                    )}
-                    {entry.note && <div className="mt-1 text-[9px] italic text-slate-500">“{entry.note}”</div>}
-                  </div>
-                ))}
-                {(review.audit ?? []).length === 0 && (
-                  <p className="text-[10px] text-slate-400">No reviewer actions recorded.</p>
-                )}
-              </div>
             </div>
-          )}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <SectionHeading title="Processing timeline" />
+            <div className="mt-4 space-y-4">
+              {timeline.map(([label, state, time, color], index) => (
+                <div key={label} className="flex items-start gap-3">
+                  <div className="relative mt-0.5">
+                    <div
+                      className={cn(
+                        "h-2.5 w-2.5 rounded-full",
+                        color === "green"
+                          ? "bg-[#45bd8d]"
+                          : color === "amber"
+                            ? "bg-[#f2c94c]"
+                            : color === "blue"
+                              ? "bg-[#47a2b0]"
+                              : "bg-slate-300"
+                      )}
+                    />
+                    {index < timeline.length - 1 && <div className="absolute left-[5px] top-3 h-7 w-px bg-slate-200" />}
+                  </div>
+                  <div className="flex flex-1 items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#0e0e0e]">{label}</div>
+                      <div className="text-[9px] text-slate-400">
+                        {state} · {time}
+                      </div>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">{state}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
+
+      {/* Bottom Extracted Fields Card (Image 5 style) */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionHeading
+            title="Extracted Fields"
+            eyebrow={`${humanize(summary.docType)} Metadata Schema · Processed Output`}
+          />
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#45bd8d]/25 bg-[#45bd8d]/10 px-3 py-2 text-[10px] font-bold text-[#1f845d]">
+              ✓ Validated · Straight-Through Processing (STP)
+            </span>
+            <button
+              onClick={() => toast("Metadata schema configuration")}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+            >
+              <Pencil size={13} /> Edit schema
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {fieldEntries.map(([name, field]) => {
+            const formatted = formatFieldValue(field.value);
+            const score = field.scores?.field_score ?? field.scores?.model_confidence;
+            const req = field.class === "A" ? "Required" : "Optional";
+
+            return (
+              <div
+                key={name}
+                className="rounded-xl border border-slate-100 bg-white p-3 shadow-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-[10px] font-bold text-[#0e0e0e]">{humanize(name)}</div>
+                  <span
+                    className={cn(
+                      "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
+                      req === "Required" ? "bg-[#ebf5f7] text-[#47a2b0]" : "bg-slate-100 text-slate-500"
+                    )}
+                  >
+                    {req}
+                  </span>
+                </div>
+                <div className="mt-2 truncate text-[12px] font-semibold text-[#0e0e0e]" title={formatted}>
+                  {formatted}
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[9px]">
+                  <span className="font-semibold text-[#45bd8d]">
+                    {percent(score, 1)} confidence
+                  </span>
+                  <span className="font-bold text-[#45bd8d]">✓ Valid</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

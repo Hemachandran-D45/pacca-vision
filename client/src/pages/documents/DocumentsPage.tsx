@@ -10,9 +10,11 @@ import { fetchDocuments, humanize, relativeTime, percent, usePolled, type Docume
 export default function DocumentsPage({
   onNavigate,
   onOpenDocument,
+  onOpenHil,
 }: {
   onNavigate: (path: string) => void;
-  onOpenDocument: (id: string) => void;
+  onOpenDocument?: (id: string) => void;
+  onOpenHil?: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
@@ -157,42 +159,62 @@ export default function DocumentsPage({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    onClick={() => onNavigate(`/documents/${doc.id}`)}
-                    className="cursor-pointer border-b border-slate-100 transition hover:bg-[#ebf5f7]/40"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
-                          <FileText size={16} />
+                {filtered.map((doc) => {
+                  const needsReview = doc.status === "Needs Review" || doc.status === "HIL Review";
+                  const handleOpen = () => {
+                    if (needsReview) {
+                      if (onOpenHil) {
+                        onOpenHil(doc.id);
+                      } else {
+                        onNavigate("/hil-review");
+                      }
+                    } else {
+                      if (onOpenDocument) {
+                        onOpenDocument(doc.id);
+                      } else {
+                        onNavigate(`/documents/${doc.id}`);
+                      }
+                    }
+                  };
+
+                  return (
+                    <tr
+                      key={doc.id}
+                      onClick={handleOpen}
+                      className="cursor-pointer border-b border-slate-100 transition hover:bg-[#ebf5f7]/40"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                            <FileText size={16} />
+                          </div>
+                          <div>
+                            <div className="text-[11px] font-bold text-[#0e0e0e]">{doc.file}</div>
+                            <div className="mt-1 font-mono text-[9px] font-bold text-[#47a2b0]">{doc.id}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-[11px] font-bold text-[#0e0e0e]">{doc.file}</div>
-                          <div className="mt-1 font-mono text-[9px] font-bold text-[#47a2b0]">{doc.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
-                    <td className="px-3 py-4 text-[10px] text-slate-500">{doc.source}</td>
-                    <td className="px-3 py-4"><StatusPill status={doc.status} /></td>
-                    <td className="px-3 py-4 text-[10px] text-slate-600">{doc.confidence}</td>
-                    <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
-                    <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
-                    <td className="px-5 py-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNavigate(`/documents/${doc.id}`);
-                        }}
-                        className="rounded-lg p-2 text-slate-400 hover:bg-[#ebf5f7] hover:text-[#47a2b0]"
-                      >
-                        <Eye size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
+                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.source}</td>
+                      <td className="px-3 py-4"><StatusPill status={doc.status} /></td>
+                      <td className="px-3 py-4 text-[10px] text-slate-600">{doc.confidence}</td>
+                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
+                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
+                      <td className="px-5 py-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpen();
+                          }}
+                          className="rounded-lg p-2 text-slate-400 hover:bg-[#ebf5f7] hover:text-[#47a2b0]"
+                          title={needsReview ? "Open in HIL Review" : "View Document Details"}
+                        >
+                          <Eye size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

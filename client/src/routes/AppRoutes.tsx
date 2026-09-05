@@ -50,7 +50,7 @@ export function AppRoutes({
           return <DashboardPage onNavigate={onNavigate} onOpenDocument={onOpenDocument} />;
         }
         if (path === "/documents") {
-          return <DocumentsPage onNavigate={onNavigate} onOpenDocument={onOpenDocument} />;
+          return <DocumentsPage onNavigate={onNavigate} onOpenDocument={onOpenDocument} onOpenHil={onOpenHil} />;
         }
         if (path === "/hil-review") {
           return (
