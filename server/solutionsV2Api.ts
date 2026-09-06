@@ -183,9 +183,18 @@ function readSchema(typeKey: string): { properties: Record<string, unknown>; req
   const raw = readLocal(`schemas/${typeKey}.json`);
   if (!raw) return { properties: {}, required: [] };
   try {
-    const parsed = JSON.parse(raw) as { properties?: Record<string, unknown>; required?: unknown };
-    const properties = parsed.properties && typeof parsed.properties === "object" ? parsed.properties : {};
-    const required = Array.isArray(parsed.required) ? parsed.required.filter((item) => typeof item === "string") : [];
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const schemaObj =
+      parsed.schema && typeof parsed.schema === "object" && !Array.isArray(parsed.schema)
+        ? (parsed.schema as Record<string, unknown>)
+        : parsed;
+    const properties =
+      schemaObj.properties && typeof schemaObj.properties === "object" && !Array.isArray(schemaObj.properties)
+        ? (schemaObj.properties as Record<string, unknown>)
+        : {};
+    const required = Array.isArray(schemaObj.required)
+      ? (schemaObj.required as unknown[]).filter((item): item is string => typeof item === "string")
+      : [];
     return { properties, required };
   } catch {
     return { properties: {}, required: [] };

@@ -5,7 +5,7 @@ export const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/monitor": { title: "Pipeline Monitor", subtitle: "Monitor processing stages, latency, failures, and jobs in flight" },
   "/analytics": { title: "Analytics & Cost", subtitle: "Understand throughput, automation, confidence, SLA, and cost" },
   "/audit": { title: "Audit Trail", subtitle: "Chronological operational history across your document estate" },
-  "/solutions-v2": { title: "Solutions", subtitle: "Document types from field_meta.json, generated into senderra-idp-sol" },
+  "/solutions-v2": { title: "Solutions", subtitle: "Configure document extraction schemas, field rules, and AI model prioritization" },
   "/pipeline-studio": { title: "Pipeline Studio", subtitle: "Compose document-processing steps into a reliable operating path" },
   "/metadata-studio": { title: "Metadata Studio", subtitle: "Define the final metadata contract consumed by downstream solutions" },
   "/rules": { title: "Rules & Validations", subtitle: "Guard the handoff from extracted data to trusted final metadata" },

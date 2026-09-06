@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   FileCog,
   FileText,
+  Layers,
   Loader2,
+  Lock,
   Plus,
   Save,
+  Search,
+  ShieldCheck,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +48,21 @@ type SaveResponse = CatalogResponse & {
 
 const FIELD_TYPES: FieldType[] = ["string", "date", "number", "boolean"];
 
+const FIELD_CLASSES = [
+  { value: "A", label: "Class A · Deterministic Anchor", short: "Anchor", desc: "Hard text / key-value pair in document" },
+  { value: "B", label: "Class B · Context Derived", short: "Derived", desc: "Parsed or normalized from surrounding context" },
+  { value: "C", label: "Class C · Model Inference", short: "Inference", desc: "LLM reasoning / unstructured contextual extraction" },
+  { value: "D", label: "Class D · Categorical / Boolean", short: "Classify", desc: "Discrete option or presence detection" },
+];
+
+const GUIDANCE_PRESETS = [
+  "Prioritize attending prescriber signature block",
+  "Format all dates as YYYY-MM-DD",
+  "Validate prescriber NPI is exactly 10 digits",
+  "Extract NDC / drug code verbatim without rounding",
+  "Flag as Needs Review if patient address is incomplete",
+];
+
 async function readJson<T>(response: Response): Promise<T> {
   try {
     return (await response.json()) as T;
@@ -54,11 +75,21 @@ export function SolutionsV2() {
   const [types, setTypes] = useState<CatalogType[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Create dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newGuidance, setNewGuidance] = useState("");
   const [nameError, setNameError] = useState("");
+
+  // Quick add field draft state
   const [draftField, setDraftField] = useState("");
+  const [draftType, setDraftType] = useState<FieldType>("string");
+  const [draftClass, setDraftClass] = useState("A");
+  const [draftRequired, setDraftRequired] = useState(false);
+
+  // Saving state
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [step, setStep] = useState("");
   const [localName, setLocalName] = useState("");
@@ -78,7 +109,11 @@ export function SolutionsV2() {
       }
       const incoming = payload.types ?? [];
       applyTypes(incoming);
-      if (selectedKey && !incoming.find((t) => t.key === selectedKey)) {
+      if (!selectedKey && incoming.length > 0) {
+        setSelectedKey(incoming[0].key);
+        setLocalName(incoming[0].name);
+        setLocalGuidance(incoming[0].guidance ?? "");
+      } else if (selectedKey && !incoming.find((t) => t.key === selectedKey)) {
         setSelectedKey(incoming[0]?.key ?? null);
       }
     } catch {
@@ -98,7 +133,7 @@ export function SolutionsV2() {
       setLocalName(selected.name);
       setLocalGuidance(selected.guidance ?? "");
     }
-  }, [selectedKey, types]);
+  }, [selectedKey]);
 
   const persist = async (next: CatalogType[]) => {
     applyTypes(next);
@@ -167,8 +202,8 @@ export function SolutionsV2() {
     if (!name || !selectedKey) return;
     const selected = types.find((item) => item.key === selectedKey);
     if (!selected) return;
-    if (selected.fields.some((field) => field.name === name)) {
-      toast.error("Field already exists.");
+    if (selected.fields.some((field) => field.name.toLowerCase() === name.toLowerCase())) {
+      toast.error("Field already exists in this schema.");
       return;
     }
     const ok = await persist(
@@ -176,12 +211,18 @@ export function SolutionsV2() {
         item.key === selectedKey
           ? {
               ...item,
-              fields: [...item.fields, { name, type: "string" as const, required: false }],
+              fields: [
+                ...item.fields,
+                { name, type: draftType, required: draftRequired, class: draftClass },
+              ],
             }
           : item
       )
     );
-    if (ok) setDraftField("");
+    if (ok) {
+      setDraftField("");
+      toast.success(`Field "${name}" added`);
+    }
   };
 
   const updateField = async (index: number, changes: Partial<CatalogField>) => {
@@ -202,6 +243,7 @@ export function SolutionsV2() {
 
   const removeField = async (index: number) => {
     if (!selectedKey) return;
+    const fieldName = selected?.fields[index]?.name;
     await persist(
       types.map((item) =>
         item.key === selectedKey
@@ -209,6 +251,9 @@ export function SolutionsV2() {
           : item
       )
     );
+    if (fieldName) {
+      toast("Field removed", { description: `Removed ${fieldName} from schema.` });
+    }
   };
 
   const updateLocalEdits = async () => {
@@ -222,8 +267,18 @@ export function SolutionsV2() {
     );
   };
 
+  const appendGuidancePreset = (preset: string) => {
+    setLocalGuidance((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return preset;
+      if (trimmed.includes(preset)) return prev;
+      return `${trimmed}\n• ${preset}`;
+    });
+    setTimeout(() => void updateLocalEdits(), 50);
+  };
+
   const deleteType = async (key: string) => {
-    if (!window.confirm("Delete \"" + key + "\"? This removes its schema and prompt files from the repo.")) return;
+    if (!window.confirm(`Delete "${key}"? This removes its schema and prompt files from the repo.`)) return;
     setSavingKey(key);
     setStep("Deleting...");
     try {
@@ -265,7 +320,7 @@ export function SolutionsV2() {
       return;
     }
     setSavingKey(selectedKey);
-    setStep("Saving...");
+    setStep("Generating analyzer...");
     try {
       const response = await fetch("/api/solutions-v2", {
         method: "POST",
@@ -278,10 +333,10 @@ export function SolutionsV2() {
         return;
       }
       if (payload.types) applyTypes(payload.types);
-      toast.success("Saved and committed", {
+      toast.success("Saved & analyzer generated", {
         description: payload.commitSha
-          ? "Committed to " + (payload.repository ?? "GitHub") + " (" + payload.commitSha.slice(0, 7) + ")."
-          : "Analyzer files updated.",
+          ? `Committed to ${payload.repository ?? "GitHub"} (${payload.commitSha.slice(0, 7)}).`
+          : "Extraction schema and prompt updated.",
       });
     } catch {
       toast.error("Could not reach the server.");
@@ -293,75 +348,104 @@ export function SolutionsV2() {
 
   const selected = types.find((t) => t.key === selectedKey);
 
+  const filteredTypes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return types;
+    return types.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.key.toLowerCase().includes(q)
+    );
+  }, [types, searchQuery]);
+
   return (
-    <div className="flex h-full min-h-0 gap-0 p-4 sm:p-7 lg:p-9">
-      {/* LEFT SIDEBAR */}
-      <aside className="w-[260px] shrink-0 space-y-3 pr-6">
+    <div className="flex h-full min-h-0 flex-col lg:flex-row gap-6 p-4 sm:p-7 lg:p-9">
+      {/* LEFT SIDEBAR: Document Types Catalog */}
+      <aside className="w-full lg:w-[280px] shrink-0 space-y-3">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[.15em] text-[#47a2b0]">Configure</div>
+          <div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">Configure</div>
           <h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#0e0e0e]">Solutions</h2>
-          <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
-            Document types from field_meta.json. Save generates and commits analyzer files.
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+            Manage extraction schemas, validation gates, and AI guidance for automated processing.
           </p>
         </div>
 
+        {/* Search bar */}
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filter document types..."
+            className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-[11px] text-slate-700 outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
+          />
+        </div>
+
         {/* Document type list */}
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
           {loading ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-400">
-              Loading...
+            <div className="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-400 flex items-center justify-center gap-2">
+              <Loader2 size={15} className="animate-spin text-[#47a2b0]" /> Loading schemas...
             </div>
-          ) : types.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-[10px] text-slate-400">
-              No document types yet.
+          ) : filteredTypes.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-[11px] text-slate-400">
+              No matching document types.
             </div>
           ) : (
-            types.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => selectType(item.key)}
-                className={
-                  "w-full rounded-2xl border p-4 text-left transition " +
-                  (selectedKey === item.key
-                    ? "border-blue-200 bg-blue-50/60 shadow-sm"
-                    : "border-slate-200/80 bg-white hover:border-blue-100")
-                }
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                    style={{
-                      background: selectedKey === item.key ? "#47a2b020" : "#f1f5f9",
-                      color: selectedKey === item.key ? "#47a2b0" : "#64748b",
-                    }}
-                  >
-                    <FileCog size={17} />
+            filteredTypes.map((item) => {
+              const isSelected = selectedKey === item.key;
+              const reqCount = item.fields.filter((f) => f.required).length;
+
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => selectType(item.key)}
+                  className={cn(
+                    "w-full rounded-2xl border p-4 text-left transition",
+                    isSelected
+                      ? "border-[#47a2b0]/40 bg-[#ebf5f7]/50 shadow-xs ring-1 ring-[#47a2b0]/30"
+                      : "border-slate-200/80 bg-white hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                        isSelected ? "bg-[#47a2b0] text-white" : "bg-slate-100 text-slate-500"
+                      )}
+                    >
+                      <FileCog size={17} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] font-bold text-[#0e0e0e]">{item.name}</div>
+                      <div className="mt-0.5 font-mono text-[9px] text-slate-400">{item.key}</div>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[11px] font-bold text-[#0e0e0e]">{item.name}</div>
-                    <div className="mt-0.5 font-mono text-[8px] text-slate-400">{item.key}</div>
+
+                  <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="font-semibold text-slate-600">
+                      {item.fields.length} {item.fields.length === 1 ? "field" : "fields"}
+                      {reqCount > 0 && (
+                        <span className="ml-1 text-amber-700 font-bold">· {reqCount} req</span>
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
+                        isSelected ? "bg-[#47a2b0] text-white" : "bg-slate-100 text-slate-600"
+                      )}
+                    >
+                      {isSelected ? "Editing" : "Configured"}
+                    </span>
                   </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between text-[9px] text-slate-400">
-                  <span>{item.fields.length} fields</span>
-                  <span
-                    className={
-                      "rounded-md px-1.5 py-0.5 font-bold " +
-                      (selectedKey === item.key ? "bg-[#ebf5f7] text-[#2d6b75]" : "bg-slate-100 text-slate-500")
-                    }
-                  >
-                    {selectedKey === item.key ? "Editing" : "Configured"}
-                  </span>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
 
         {/* Create button */}
         <button
           onClick={() => setCreateOpen(true)}
-          className="inline-flex w-full items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#37828e]"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#37828e] transition"
         >
           <Plus size={15} /> Add document type
         </button>
@@ -370,40 +454,47 @@ export function SolutionsV2() {
       {/* RIGHT CONFIGURATION PANEL */}
       {selected ? (
         <main className="min-w-0 flex-1 space-y-5">
-          {/* Header */}
+          {/* Header Action Strip */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#47a2b0]">
                 Document type configuration
               </div>
-              <h3 className="mt-1 font-display text-lg font-bold text-[#0e0e0e]">{selected.name}</h3>
-              <div className="mt-1 font-mono text-[9px] text-slate-400">{selected.key}</div>
+              <div className="mt-1 flex items-center gap-2.5">
+                <h3 className="font-display text-xl font-bold tracking-[-.04em] text-[#0e0e0e]">
+                  {selected.name}
+                </h3>
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-600">
+                  {selected.key}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => void deleteType(selected.key)}
                 disabled={savingKey !== null}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50"
               >
                 <Trash2 size={13} /> Delete
               </button>
               <button
                 onClick={() => void saveType()}
                 disabled={savingKey !== null || selected.fields.length === 0}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2 text-[11px] font-bold text-white hover:bg-[#37828e] disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2 text-[11px] font-bold text-white shadow-sm hover:bg-[#37828e] transition disabled:opacity-50"
               >
                 {savingKey === selected.key ? (
                   <Loader2 size={14} className="animate-spin" />
                 ) : (
                   <Save size={14} />
                 )}
-                {savingKey === selected.key ? step || "Saving..." : "Save"}
+                {savingKey === selected.key ? step || "Saving..." : "Save schema"}
               </button>
             </div>
           </div>
 
-          {/* Name + Schema Key */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+          {/* Document Type Name & Schema Key */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-400">
@@ -413,67 +504,108 @@ export function SolutionsV2() {
                   value={localName}
                   onChange={(e) => setLocalName(e.target.value)}
                   onBlur={updateLocalEdits}
-                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-[#0e0e0e] outline-none focus:border-[#47a2b0]"
+                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-[#0e0e0e] outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
                 />
               </label>
+
               <label className="block">
                 <span className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-400">
                   Schema key
                 </span>
-                <input
-                  value={selected.key}
-                  readOnly
-                  className="h-9 w-full cursor-not-allowed rounded-xl border border-slate-100 bg-slate-50 px-3 font-mono text-[10px] text-slate-500"
-                />
+                <div className="relative">
+                  <input
+                    value={selected.key}
+                    readOnly
+                    className="h-9 w-full cursor-not-allowed rounded-xl border border-slate-100 bg-slate-50 pl-3 pr-8 font-mono text-[10px] font-semibold text-slate-500"
+                  />
+                  <Lock size={12} className="absolute right-3 top-2.5 text-slate-400" />
+                </div>
               </label>
             </div>
           </section>
 
-          {/* Guidance */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                  What does this process do?
-                </span>
+          {/* AI Guidance & Document Overview */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              {/* Guidance Textarea & Quick Prompt Presets */}
+              <div>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <Sparkles size={12} className="text-[#47a2b0]" />
+                  <span>AI Extraction Guidance &amp; Rules</span>
+                </div>
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  Domain instructions provided to the model when extracting metadata from this document type.
+                </p>
+
                 <textarea
                   value={localGuidance}
                   onChange={(e) => setLocalGuidance(e.target.value)}
                   onBlur={updateLocalEdits}
                   rows={4}
-                  placeholder="Describe the document type and what the extraction model should prioritize..."
-                  className="min-h-[76px] w-full rounded-xl border border-slate-200 p-3 text-[10px] leading-relaxed text-slate-700 outline-none focus:border-[#47a2b0]"
+                  placeholder="e.g., Prioritize attending prescriber signature block. Format date as YYYY-MM-DD. Never hallucinate BIN/PCN..."
+                  className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-[11px] leading-relaxed text-slate-700 outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
                 />
-              </label>
-              <div className="flex flex-col justify-center">
-                <div className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Document type info
+
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {GUIDANCE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => appendGuidancePreset(preset)}
+                      className="rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1 text-[9px] font-semibold text-slate-600 hover:border-[#47a2b0] hover:bg-[#ebf5f7] hover:text-[#47a2b0] transition"
+                    >
+                      + {preset}
+                    </button>
+                  ))}
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[10px]">
-                    <span className="text-slate-500">Fields</span>
-                    <span className="font-bold text-[#0e0e0e]">{selected.fields.length}</span>
+              </div>
+
+              {/* Document Type Info Stats */}
+              <div className="flex flex-col justify-between border-t border-slate-100 pt-4 lg:border-t-0 lg:border-l lg:pl-5 lg:pt-0">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Document Schema Health
+                </div>
+
+                <div className="my-auto space-y-2.5">
+                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Layers size={14} className="text-slate-400" />
+                      <span className="text-[11px] font-medium text-slate-600">Total Extracted Fields</span>
+                    </div>
+                    <span className="font-display text-[15px] font-bold text-[#0e0e0e]">{selected.fields.length}</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[10px]">
-                    <span className="text-slate-500">Required fields</span>
-                    <span className="font-bold text-[#0e0e0e]">
-                      {selected.fields.filter((f) => f.required).length}
+
+                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck size={14} className="text-[#45bd8d]" />
+                      <span className="text-[11px] font-medium text-slate-600">Required Validation Gates</span>
+                    </div>
+                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                      {selected.fields.filter((f) => f.required).length} required
                     </span>
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-[10px]">
-                    <span className="text-slate-500">Field types</span>
-                    <span className="font-bold text-[#0e0e0e]">
-                      {[...new Set(selected.fields.map((f) => f.type))].join(", ") || "---"}
+
+                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-[#47a2b0]" />
+                      <span className="text-[11px] font-medium text-slate-600">Field Data Types</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-700">
+                      {[...new Set(selected.fields.map((f) => f.type))].join(", ") || "string"}
                     </span>
                   </div>
+                </div>
+
+                <div className="text-[9px] text-slate-400">
+                  Schemas are compiled into Azure Content Understanding analyzers upon save.
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Output Schema */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          {/* Output Schema Table */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#47a2b0]">
                   Output schema
@@ -482,30 +614,31 @@ export function SolutionsV2() {
                   Fields extracted from each document
                 </h3>
               </div>
-              <span className="rounded-lg bg-[#47a2b0]/10 px-2.5 py-1.5 text-[9px] font-bold text-[#47a2b0]">
-                {selected.fields.length} fields
+              <span className="rounded-lg bg-[#47a2b0]/10 px-3 py-1.5 text-[10px] font-bold text-[#47a2b0]">
+                {selected.fields.length} fields · {selected.fields.filter((f) => f.required).length} required
               </span>
             </div>
 
-            {/* Fields table */}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[650px] text-left">
+            {/* Compact, Sleek Enterprise Table */}
+            <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <table className="w-full min-w-[700px] text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400">
-                    <th className="pb-3 pr-3 font-bold">Field name</th>
-                    <th className="pb-3 pr-3 font-bold">Type</th>
-                    <th className="pb-3 pr-3 font-bold">Default / format</th>
-                    <th className="pb-3 font-bold">Required</th>
-                    <th className="pb-3 font-bold">Action</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="py-3 px-4">Field name</th>
+                    <th className="py-3 px-3">Data type</th>
+                    <th className="py-3 px-3">Field Classification</th>
+                    <th className="py-3 px-3">Validation</th>
+                    <th className="py-3 px-3 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {selected.fields.map((field, index) => (
                     <tr
                       key={field.name + "-" + index}
-                      className="border-b border-slate-100 text-[10px]"
+                      className="text-[11px] transition hover:bg-slate-50/60"
                     >
-                      <td className="py-2.5 pr-3">
+                      {/* Field Name */}
+                      <td className="py-2 px-4">
                         <input
                           defaultValue={field.name}
                           onBlur={(e) => {
@@ -513,16 +646,18 @@ export function SolutionsV2() {
                             if (!name || name === field.name) return;
                             void updateField(index, { name });
                           }}
-                          className="h-8 w-full rounded-lg border border-slate-200 px-2 font-mono text-[10px] font-semibold text-[#47a2b0] outline-none focus:border-[#47a2b0]"
+                          className="h-8 w-full max-w-[240px] rounded-lg border border-slate-200 bg-white px-2.5 font-mono text-[11px] font-semibold text-[#0e3d36] outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
                         />
                       </td>
-                      <td className="py-2.5 pr-3">
+
+                      {/* Data Type */}
+                      <td className="py-2 px-3">
                         <select
                           value={field.type}
                           onChange={(e) =>
                             void updateField(index, { type: e.target.value as FieldType })
                           }
-                          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] text-slate-600"
+                          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700 outline-none focus:border-[#47a2b0]"
                         >
                           {FIELD_TYPES.map((type) => (
                             <option key={type} value={type}>
@@ -531,31 +666,54 @@ export function SolutionsV2() {
                           ))}
                         </select>
                       </td>
-                      <td className="py-2.5 pr-3">
-                        <input
-                          defaultValue={field.class ?? ""}
-                          placeholder="e.g. YYYY-MM-DD"
-                          onBlur={(e) => {
-                            const cls = e.target.value.trim();
-                            void updateField(index, { class: cls || undefined });
-                          }}
-                          className="h-8 w-full rounded-lg border border-slate-200 px-2 text-[10px] text-slate-600 outline-none focus:border-[#47a2b0]"
-                        />
-                      </td>
-                      <td className="py-2.5">
-                        <input
-                          type="checkbox"
-                          checked={field.required}
+
+                      {/* Classification (Anchor / Derived / Inference) */}
+                      <td className="py-2 px-3">
+                        <select
+                          value={field.class ?? "B"}
                           onChange={(e) =>
-                            void updateField(index, { required: e.target.checked })
+                            void updateField(index, { class: e.target.value })
                           }
-                          className="accent-[#47a2b0]"
-                        />
+                          className="h-8 w-full max-w-[210px] rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700 outline-none focus:border-[#47a2b0]"
+                        >
+                          {FIELD_CLASSES.map((fc) => (
+                            <option key={fc.value} value={fc.value} title={fc.desc}>
+                              {fc.label}
+                            </option>
+                          ))}
+                        </select>
                       </td>
-                      <td className="py-2.5">
+
+                      {/* Required Checkbox with Badge */}
+                      <td className="py-2 px-3">
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={field.required}
+                            onChange={(e) =>
+                              void updateField(index, { required: e.target.checked })
+                            }
+                            className="h-4 w-4 rounded border-slate-300 text-[#47a2b0] focus:ring-[#47a2b0] accent-[#47a2b0] cursor-pointer"
+                          />
+                          <span
+                            className={cn(
+                              "text-[9px] font-bold rounded px-1.5 py-0.5",
+                              field.required
+                                ? "bg-amber-50 text-amber-700 border border-amber-200/60"
+                                : "text-slate-400"
+                            )}
+                          >
+                            {field.required ? "Required" : "Optional"}
+                          </span>
+                        </label>
+                      </td>
+
+                      {/* Delete action */}
+                      <td className="py-2 px-3 text-center">
                         <button
                           onClick={() => void removeField(index)}
-                          className="rounded-lg px-2 py-1.5 text-[9px] font-bold text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                          title="Remove field"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -566,39 +724,71 @@ export function SolutionsV2() {
               </table>
             </div>
 
-            {/* Add field */}
-            <div className="mt-4 flex flex-wrap gap-2">
+            {/* Quick Add Field Bar */}
+            <div className="mt-4 flex flex-wrap items-center gap-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-3">
               <input
                 value={draftField}
                 onChange={(e) => setDraftField(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void addField()}
-                placeholder="Add a field, e.g. MemberId"
-                className="h-9 min-w-[260px] flex-1 rounded-xl border border-dashed border-slate-300 px-3 text-[10px] outline-none focus:border-[#47a2b0]"
+                placeholder="Add new field name (e.g. RxNumber, Refills)..."
+                className="h-8 min-w-[220px] flex-1 rounded-lg border border-slate-200 bg-white px-3 font-mono text-[11px] text-[#0e0e0e] outline-none focus:border-[#47a2b0]"
               />
+
+              <select
+                value={draftType}
+                onChange={(e) => setDraftType(e.target.value as FieldType)}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] text-slate-600 outline-none"
+              >
+                {FIELD_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+
+              <select
+                value={draftClass}
+                onChange={(e) => setDraftClass(e.target.value)}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] text-slate-600 outline-none"
+              >
+                {FIELD_CLASSES.map((fc) => (
+                  <option key={fc.value} value={fc.value}>{fc.short}</option>
+                ))}
+              </select>
+
+              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draftRequired}
+                  onChange={(e) => setDraftRequired(e.target.checked)}
+                  className="accent-[#47a2b0]"
+                />
+                Required
+              </label>
+
               <button
                 onClick={() => void addField()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#47a2b0]/30 bg-[#47a2b0]/10 px-3 py-2 text-[10px] font-bold text-[#47a2b0] hover:bg-[#47a2b0]/20 transition-colors"
+                disabled={!draftField.trim()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#47a2b0] px-3.5 py-1.5 text-[10px] font-bold text-white shadow-xs hover:bg-[#37828e] transition disabled:opacity-40"
               >
-                <Plus size={14} /> Add field
+                <Plus size={13} /> Add Field
               </button>
             </div>
           </section>
         </main>
       ) : (
         <main className="flex min-w-0 flex-1 items-center justify-center">
-          <div className="text-center">
+          <div className="text-center p-8">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
               <FileText size={22} className="text-slate-400" />
             </div>
             <div className="text-[13px] font-bold text-slate-500">No document type selected</div>
             <div className="mt-1 text-[10px] text-slate-400">
-              {types.length > 0 ? "Select a document type from the left." : "Create one to get started."}
+              {types.length > 0 ? "Select a document type from the catalog on the left." : "Create one to get started."}
             </div>
           </div>
         </main>
       )}
 
-      {/* Create dialog */}
+      {/* Create document type dialog */}
       <Dialog
         open={createOpen}
         onOpenChange={(open) => {
@@ -617,12 +807,12 @@ export function SolutionsV2() {
               Create document type
             </DialogTitle>
             <DialogDescription className="text-[11px] leading-relaxed text-slate-500">
-              Name the type and add extraction guidance. Guidance is fed to the LLM when it writes the
-              prompts/[typeKey].txt file.
+              Name the document type and add model extraction guidance to calibrate the AI extractor.
             </DialogDescription>
           </DialogHeader>
+
           <label className="block">
-            <span className="mb-2 block text-[10px] font-bold text-slate-500">Name</span>
+            <span className="mb-2 block text-[10px] font-bold text-slate-500">Document Type Name</span>
             <input
               value={newName}
               onChange={(e) => {
@@ -636,18 +826,20 @@ export function SolutionsV2() {
               <p className="mt-2 text-[10px] font-semibold text-rose-600">{nameError}</p>
             ) : null}
           </label>
+
           <label className="mt-4 block">
             <span className="mb-2 block text-[10px] font-bold text-slate-500">
-              Guidance for extraction prompt
+              Extraction Guidance &amp; Prioritization
             </span>
             <textarea
               value={newGuidance}
               onChange={(e) => setNewGuidance(e.target.value)}
-              rows={5}
+              rows={4}
               placeholder="e.g. Prefer header member IDs. Dates as YYYY-MM-DD. Never invent BIN/PCN."
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
             />
           </label>
+
           <DialogFooter className="gap-2">
             <button
               type="button"
