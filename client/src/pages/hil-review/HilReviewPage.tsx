@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -33,40 +33,53 @@ import { hilQueue, type HilItem } from "@/data/mockData";
  * Isolated, strictly memoized PDF Viewer.
  *
  * Prevents Chrome's embedded PDF viewer from re-rendering and flickering
- * on every polling cycle or form input keystroke.
+ * on every polling cycle, form input keystroke, or SAS token signature update.
  *
- * Parameters added:
- * - navpanes=0: Hides Chrome's left thumbnails sidebar (removes squished, off-center document)
- * - toolbar=0: Hides Chrome's native PDF top toolbar (removes Chrome's AI 'Summarize' button)
- * - view=FitH: Fits the PDF width comfortably to container
+ * Freezes the iframe src per documentId so the browser never reloads the PDF
+ * while the reviewer is looking at the same document.
  */
 const MemoizedPdfViewer = memo(
-  function MemoizedPdfViewer({ url, title }: { url: string; title: string }) {
-    const stableUrl = useMemo(() => {
-      if (!url) return "";
-      const clean = url.split("#")[0];
-      return `${clean}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
-    }, [url]);
+  function MemoizedPdfViewer({
+    documentId,
+    url,
+    title,
+  }: {
+    documentId: string;
+    url: string;
+    title: string;
+  }) {
+    const frozenUrlRef = useRef<{ id: string; url: string }>({ id: "", url: "" });
 
-    if (!url) {
+    if (url && frozenUrlRef.current.id !== documentId) {
+      const clean = url.split("#")[0];
+      frozenUrlRef.current = {
+        id: documentId,
+        url: `${clean}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`,
+      };
+    }
+
+    const currentFrozenUrl = frozenUrlRef.current.id === documentId ? frozenUrlRef.current.url : "";
+
+    if (!currentFrozenUrl) {
       return (
         <div className="flex h-full min-h-[640px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center">
           <FileText size={32} className="text-slate-300" />
-          <div className="mt-2 text-xs font-bold text-slate-700">Source PDF not available</div>
+          <div className="mt-2 text-xs font-bold text-slate-700">Source PDF streaming…</div>
         </div>
       );
     }
 
     return (
       <iframe
-        src={stableUrl}
+        src={currentFrozenUrl}
         title={title}
         className="h-full min-h-[720px] lg:min-h-[820px] w-full rounded-xl border border-slate-200 bg-white shadow-xs"
       />
     );
   },
   (prevProps, nextProps) => {
-    return prevProps.url === nextProps.url && prevProps.title === nextProps.title;
+    // Only re-render when switching to a completely different document!
+    return prevProps.documentId === nextProps.documentId;
   }
 );
 
@@ -94,8 +107,8 @@ export default function HilReviewPage({
   userName?: string;
   focusDocumentId?: string | null;
 }) {
-  // Live polling for real pipeline documents awaiting human review
-  const queuePoller = usePolled(() => fetchDocuments({ needsReview: "true" }), 8000);
+  // Live polling for real pipeline documents awaiting human review (relaxed to 30s)
+  const queuePoller = usePolled(() => fetchDocuments({ needsReview: "true" }), 30000);
   const liveDocuments = queuePoller.data?.documents ?? [];
   const isLiveConnected = liveDocuments.length > 0;
 
@@ -401,7 +414,7 @@ function StandardWorkbench({
 
         {/* Stable Memoized PDF Iframe */}
         <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-3 sm:p-4 min-h-[720px] lg:min-h-[820px]">
-          <MemoizedPdfViewer url={pdfUrl} title={`Source document ${currentDoc.file}`} />
+          <MemoizedPdfViewer documentId={currentDoc.id} url={pdfUrl} title={`Source document ${currentDoc.file}`} />
         </div>
       </section>
 
@@ -630,9 +643,8 @@ function LiveWorkbench({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<null | "save" | "approve" | "reject">(null);
 
-  // Poll only when there are NO unsaved draft edits to prevent overwriting active typing
-  const pollInterval = Object.keys(drafts).length > 0 ? null : 12000;
-  const { data, error, loading, refresh } = usePolled(() => fetchDocument(documentId), pollInterval, [documentId]);
+  // Fetch document details once upon opening; pause periodic polling while staff is reviewing
+  const { data, error, loading, refresh } = usePolled(() => fetchDocument(documentId), null, [documentId]);
 
   const toggleUnlock = (key: string) => {
     setUnlockedFields((prev) => {
@@ -771,7 +783,7 @@ function LiveWorkbench({
 
         {/* Stable Memoized PDF Container */}
         <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-3 sm:p-4 min-h-[720px] lg:min-h-[820px]">
-          <MemoizedPdfViewer url={pdfUrl || ""} title={`Source PDF for ${summary.file}`} />
+          <MemoizedPdfViewer documentId={documentId} url={pdfUrl || ""} title={`Source PDF for ${summary.file}`} />
         </div>
       </section>
 
