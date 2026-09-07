@@ -616,25 +616,13 @@ export function SolutionsV2() {
           )}
         </div>
 
-        {/* Action buttons: Add Department & Add Document Type */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => {
-              setNewDeptName("");
-              setNewDeptError("");
-              setAddDeptOpen(true);
-            }}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-[11px] font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition"
-          >
-            <Building2 size={13} className="text-[#47a2b0]" /> Add Dept
-          </button>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#47a2b0] px-2.5 py-2.5 text-[11px] font-bold text-white shadow-xs hover:bg-[#37828e] transition"
-          >
-            <Plus size={14} /> Add Doc Type
-          </button>
-        </div>
+        {/* Create button */}
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#37828e] transition"
+        >
+          <Plus size={15} /> Add document type
+        </button>
       </aside>
 
       {/* RIGHT CONFIGURATION PANEL */}

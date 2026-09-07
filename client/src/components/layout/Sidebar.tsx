@@ -124,15 +124,9 @@ export function Sidebar({
             <div className="truncate text-[11px] font-semibold text-white">{user.name}</div>
             <div className="mt-0.5 truncate text-[9px] text-slate-400">{user.role}</div>
           </div>
-          <button onClick={onLogout} title="Sign out" className={cn("text-slate-400 hover:text-white", collapsed && "lg:hidden")}>
+          <button onClick={onLogout} title="Sign out" className={cn("text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-white/10", collapsed && "lg:hidden")}>
             <LogOut size={16} />
           </button>
-        </div>
-
-        <div className={cn("mt-3 flex items-center justify-between px-2 text-slate-400", collapsed && "lg:hidden")}>
-          <button onClick={() => toast("No new notifications")} className="hover:text-white"><Bell size={15} /></button>
-          <button onClick={() => toast("Workspace settings", { description: "Settings is available in Administration." })} className="hover:text-white"><Settings2 size={15} /></button>
-          <button onClick={() => toast("Session secured", { description: "Your administrator session is active." })} className="hover:text-white"><LockKeyhole size={15} /></button>
         </div>
       </div>
     </aside>

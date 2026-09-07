@@ -8,15 +8,11 @@ import {
   ChevronRight,
   CircleHelp,
   Cloud,
-  FileText,
-  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
   Server,
-  ShieldCheck,
-  User,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -45,11 +41,9 @@ export function Topbar({
   const [, navigate] = useLocation();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
 
   // Close menus on outside click
@@ -60,9 +54,6 @@ export function Topbar({
         !notificationsRef.current.contains(event.target as Node)
       ) {
         setNotificationsOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setProfileOpen(false);
       }
       if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
         setHelpOpen(false);
@@ -90,26 +81,20 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {user.role === "PACCA Platform Admin" ? (
-          <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm md:flex">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Perspective</span>
-            <select
-              aria-label="Switch demo perspective"
-              value={user.role}
-              onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
-              className="max-w-[155px] cursor-pointer bg-transparent font-semibold text-[#0e0e0e] outline-none"
-            >
-              <option value="PACCA Platform Admin">PACCA Platform Admin</option>
-              <option value="PACCA Solution Developer">PACCA Solution Developer</option>
-              <option value="Client Staff">Client Staff</option>
-            </select>
-          </div>
-        ) : (
-          <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Role</span>
-            <span className="font-semibold text-[#0e0e0e]">{user.role}</span>
-          </div>
-        )}
+        {/* Permanent Perspective Switcher (Admin / Dev / Staff) */}
+        <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Perspective</span>
+          <select
+            aria-label="Switch demo perspective"
+            value={user.role}
+            onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
+            className="cursor-pointer bg-transparent font-semibold text-[#0e0e0e] outline-none hover:text-[#47a2b0] transition"
+          >
+            <option value="PACCA Platform Admin">PACCA Platform Admin</option>
+            <option value="PACCA Solution Developer">PACCA Solution Developer</option>
+            <option value="Client Staff">Client Staff</option>
+          </select>
+        </div>
 
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex">
           <span className="font-bold text-[#0e0e0e]">Client Workspace</span>
@@ -132,7 +117,6 @@ export function Topbar({
             aria-label="Notifications"
             onClick={() => {
               setNotificationsOpen(!notificationsOpen);
-              setProfileOpen(false);
               setHelpOpen(false);
             }}
             className={cn(
@@ -266,7 +250,6 @@ export function Topbar({
             onClick={() => {
               setHelpOpen(!helpOpen);
               setNotificationsOpen(false);
-              setProfileOpen(false);
             }}
             className={cn(
               "hidden rounded-xl p-2 text-stone-500 transition hover:bg-white sm:block",
@@ -297,65 +280,6 @@ export function Topbar({
                   <div className="font-bold text-slate-800">Security & Compliance</div>
                   <div className="text-[10px] text-slate-400">FedRAMP High & HIPAA architecture on Azure</div>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* USER PROFILE DROPDOWN */}
-        <div className="relative" ref={profileRef}>
-          <button
-            onClick={() => {
-              setProfileOpen(!profileOpen);
-              setNotificationsOpen(false);
-              setHelpOpen(false);
-            }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#47a2b0] text-xs font-bold text-white shadow-[0_3px_8px_rgba(71,162,176,.3)] transition hover:opacity-95"
-          >
-            {user.initials}
-          </button>
-
-          {profileOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#47a2b0] font-display text-sm font-bold text-white">
-                  {user.initials}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-display text-[13px] font-bold text-[#0e0e0e]">{user.name}</div>
-                  <div className="truncate text-[10px] text-slate-400">{user.role}</div>
-                </div>
-              </div>
-
-              <div className="mt-3 space-y-2 text-[10px]">
-                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
-                  <span className="text-slate-400">Tenant Workspace</span>
-                  <span className="font-bold text-slate-700">{user.tenant}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
-                  <span className="text-slate-400">Cloud Host</span>
-                  <span className="font-bold text-[#47a2b0] flex items-center gap-1">
-                    <Cloud size={12} /> Microsoft Azure
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
-                  <span className="text-slate-400">Compliance</span>
-                  <span className="font-bold text-emerald-700 flex items-center gap-1">
-                    <ShieldCheck size={12} /> FedRAMP / HIPAA
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-3 border-t border-slate-100 pt-2.5">
-                <button
-                  onClick={() => {
-                    setProfileOpen(false);
-                    toast("Signed out of demo session");
-                  }}
-                  className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition"
-                >
-                  <LogOut size={13} /> Sign out of workspace
-                </button>
               </div>
             </div>
           )}
