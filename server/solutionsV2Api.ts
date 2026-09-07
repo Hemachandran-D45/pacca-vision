@@ -129,13 +129,13 @@ function defaultDepartmentForType(key: string): string {
   if (k.includes("appeal") || k.includes("denial")) {
     return "Appeals & Compliance";
   }
-  if (k.includes("invoice") || k.includes("claim") || k.includes("insurance") || k.includes("bill") || k.includes("cms") || k.includes("ub04")) {
+  if (k.includes("invoice") || k.includes("claim") || k.includes("insurance") || k.includes("bill") || k.includes("cms") || k.includes("ub04") || k.includes("explanation") || k.includes("eob")) {
     return "Billing & Claims";
   }
-  if (k.includes("demographic") || k.includes("intake") || k.includes("enroll")) {
+  if (k.includes("demographic") || k.includes("intake") || k.includes("enroll") || k.includes("referral")) {
     return "Patient Intake";
   }
-  if (k.includes("chart") || k.includes("necessity") || k.includes("clinical") || k.includes("encounter") || k.includes("note")) {
+  if (k.includes("chart") || k.includes("necessity") || k.includes("clinical") || k.includes("encounter") || k.includes("note") || k.includes("lab")) {
     return "Clinical Operations";
   }
   return "General Operations";

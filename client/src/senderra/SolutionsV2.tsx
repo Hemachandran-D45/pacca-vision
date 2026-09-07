@@ -229,7 +229,7 @@ export function SolutionsV2() {
       setNameError("Enter a document type name.");
       return;
     }
-    const key = name
+    const baseKey = name
       .replace(/[^A-Za-z0-9]+/g, " ")
       .trim()
       .split(/\s+/)
@@ -238,20 +238,31 @@ export function SolutionsV2() {
         index === 0 ? part.toLowerCase() : part.slice(0, 1).toUpperCase() + part.slice(1).toLowerCase()
       )
       .join("");
-    if (!key) {
+    if (!baseKey) {
       setNameError("Name must include letters.");
       return;
     }
-    if (types.some((item) => item.key === key)) {
-      setNameError("That document type already exists.");
+    const deptTrimmed = newDepartment.trim() || "Prior Authorization";
+    if (
+      types.some(
+        (item) =>
+          item.name.toLowerCase() === name.toLowerCase() &&
+          (item.department || "Prior Authorization").toLowerCase() === deptTrimmed.toLowerCase()
+      )
+    ) {
+      setNameError(`A document type named "${name}" already exists in ${deptTrimmed}.`);
       return;
     }
+    // Maintain unique UID across departments: if baseKey is taken by another department, scope by department
+    const deptSlug = deptTrimmed.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const key = types.some((item) => item.key === baseKey) ? `${baseKey}_${deptSlug}` : baseKey;
+
     const next = [
       ...types,
       {
         key,
         name,
-        department: newDepartment.trim() || "Prior Authorization",
+        department: deptTrimmed,
         guidance: newGuidance.trim(),
         fields: [],
       },

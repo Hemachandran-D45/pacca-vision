@@ -913,5 +913,167 @@
       ],
       "description": "Whether a handwritten or electronic provider signature mark appears in the signature area. Detect presence of a mark, do not transcribe a name."
     }
+  },
+  "referralForm": {
+    "PatientName": {
+      "doc_type": "referralForm",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Patient full legal name."
+    },
+    "PatientDOB": {
+      "doc_type": "referralForm",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "description": "Patient birth date."
+    },
+    "ReferringProvider": {
+      "doc_type": "referralForm",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Referring physician or practice name."
+    },
+    "ProviderNPI": {
+      "doc_type": "referralForm",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "10-digit National Provider Identifier."
+    },
+    "ReferredSpecialty": {
+      "doc_type": "referralForm",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "description": "Specialty or service requested."
+    },
+    "ClinicalIndication": {
+      "doc_type": "referralForm",
+      "class": "C",
+      "type": "string",
+      "method": "extract",
+      "description": "Diagnosis or reason for referral."
+    }
+  },
+  "clinicalNote": {
+    "PatientName": {
+      "doc_type": "clinicalNote",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Patient full legal name."
+    },
+    "EncounterDate": {
+      "doc_type": "clinicalNote",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "description": "Date of clinical visit or service."
+    },
+    "AttendingClinician": {
+      "doc_type": "clinicalNote",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Name and credentials of provider."
+    },
+    "ChiefComplaint": {
+      "doc_type": "clinicalNote",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "description": "Primary reason for encounter."
+    },
+    "AssessmentPlan": {
+      "doc_type": "clinicalNote",
+      "class": "C",
+      "type": "string",
+      "method": "extract",
+      "description": "Clinical assessment, diagnoses, and treatment plan."
+    }
+  },
+  "labReport": {
+    "PatientName": {
+      "doc_type": "labReport",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Patient full legal name."
+    },
+    "CollectionDate": {
+      "doc_type": "labReport",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "description": "Date and time specimen was collected."
+    },
+    "OrderingPhysician": {
+      "doc_type": "labReport",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Physician who ordered the laboratory panel."
+    },
+    "PanelName": {
+      "doc_type": "labReport",
+      "class": "B",
+      "type": "string",
+      "method": "extract",
+      "description": "Test or panel identifier (e.g. CBC, CMP, Lipid)."
+    },
+    "ResultValues": {
+      "doc_type": "labReport",
+      "class": "C",
+      "type": "string",
+      "method": "extract",
+      "description": "Quantitative results and out-of-range flags."
+    }
+  },
+  "explanationOfBenefits": {
+    "ClaimNumber": {
+      "doc_type": "explanationOfBenefits",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Payer adjudication claim identifier."
+    },
+    "PayerName": {
+      "doc_type": "explanationOfBenefits",
+      "class": "A",
+      "type": "string",
+      "method": "extract",
+      "description": "Insurance company or health plan."
+    },
+    "ServiceDate": {
+      "doc_type": "explanationOfBenefits",
+      "class": "A",
+      "type": "date",
+      "method": "extract",
+      "description": "Date of medical service."
+    },
+    "BilledAmount": {
+      "doc_type": "explanationOfBenefits",
+      "class": "A",
+      "type": "number",
+      "method": "extract",
+      "description": "Total charge submitted."
+    },
+    "PaidAmount": {
+      "doc_type": "explanationOfBenefits",
+      "class": "A",
+      "type": "number",
+      "method": "extract",
+      "description": "Amount paid by insurance plan."
+    },
+    "PatientResponsibility": {
+      "doc_type": "explanationOfBenefits",
+      "class": "B",
+      "type": "number",
+      "method": "extract",
+      "description": "Co-pay, deductible, or co-insurance due."
+    }
   }
 }

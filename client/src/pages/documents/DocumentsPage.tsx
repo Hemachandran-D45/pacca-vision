@@ -55,6 +55,20 @@ export default function DocumentsPage({
     return [...uploadedLocalDocs, ...baseDocs];
   }, [isLive, liveDocs, uploadedLocalDocs]);
 
+  // Dynamically compute all available document types from the live inventory
+  const availableDocTypes = useMemo(() => {
+    const typesSet = new Set<string>();
+    allDocuments.forEach((d) => {
+      if (d.type && d.type.trim()) {
+        typesSet.add(d.type.trim());
+      }
+    });
+    if (typesSet.size === 0) {
+      return ["All Document Types", "Prior Authorization", "Clinical Note", "Referral Form"];
+    }
+    return ["All Document Types", ...Array.from(typesSet)];
+  }, [allDocuments]);
+
   const filtered = useMemo(
     () =>
       allDocuments.filter((d) => {
@@ -102,7 +116,7 @@ export default function DocumentsPage({
             onChange={(e) => setDocType(e.target.value)}
             className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none"
           >
-            {DOCUMENT_TYPES.map((t) => (
+            {availableDocTypes.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>

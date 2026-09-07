@@ -475,6 +475,20 @@ export default function DashboardPage({
     return [...uploadedLocalDocs, ...baseDocs];
   }, [isLive, liveDocs, uploadedLocalDocs]);
 
+  // Dynamically compute all available document types from the live inventory
+  const availableDocTypes = useMemo(() => {
+    const typesSet = new Set<string>();
+    allDocuments.forEach((d) => {
+      if (d.type && d.type.trim()) {
+        typesSet.add(d.type.trim());
+      }
+    });
+    if (typesSet.size === 0) {
+      return ["All Document Types", "Prior Authorization", "Clinical Note", "Referral Form"];
+    }
+    return ["All Document Types", ...Array.from(typesSet)];
+  }, [allDocuments]);
+
   const processedCount = useMemo(() => {
     if (backendStats?.processed) return backendStats.processed;
     return allDocuments.filter((d) => d.status === "Processed").length;
@@ -535,9 +549,9 @@ export default function DashboardPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Document Type Selector */}
+          {/* Dynamic Document Type Selector */}
           <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-xs">
-            {DOCUMENT_TYPES.map((dt) => {
+            {availableDocTypes.map((dt) => {
               const isSelected = selectedDocType === dt;
               return (
                 <button
