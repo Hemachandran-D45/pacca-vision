@@ -27,6 +27,7 @@ export function Topbar({
   collapsed,
   onCollapse,
   user,
+  canSwitchPerspective = false,
   onRoleSwitch,
 }: {
   title: string;
@@ -35,6 +36,7 @@ export function Topbar({
   collapsed: boolean;
   onCollapse: () => void;
   user: MockUser;
+  canSwitchPerspective?: boolean;
   onRoleSwitch: (role: MockUser["role"]) => void;
 }) {
   const { notificationCount } = useQueueCount();
@@ -81,20 +83,27 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Permanent Perspective Switcher (Admin / Dev / Staff) */}
-        <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Perspective</span>
-          <select
-            aria-label="Switch demo perspective"
-            value={user.role}
-            onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
-            className="cursor-pointer bg-transparent font-semibold text-[#0e0e0e] outline-none hover:text-[#47a2b0] transition"
-          >
-            <option value="PACCA Platform Admin">PACCA Platform Admin</option>
-            <option value="PACCA Solution Developer">PACCA Solution Developer</option>
-            <option value="Client Staff">Client Staff</option>
-          </select>
-        </div>
+        {/* Perspective Switcher for Platform Admin; static Role badge for non-admin personas */}
+        {canSwitchPerspective ? (
+          <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Perspective</span>
+            <select
+              aria-label="Switch demo perspective"
+              value={user.role}
+              onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
+              className="cursor-pointer bg-transparent font-semibold text-[#0e0e0e] outline-none hover:text-[#47a2b0] transition"
+            >
+              <option value="PACCA Platform Admin">PACCA Platform Admin</option>
+              <option value="PACCA Solution Developer">PACCA Solution Developer</option>
+              <option value="Client Staff">Client Staff</option>
+            </select>
+          </div>
+        ) : (
+          <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Role</span>
+            <span className="font-semibold text-[#0e0e0e]">{user.role}</span>
+          </div>
+        )}
 
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex">
           <span className="font-bold text-[#0e0e0e]">Client Workspace</span>

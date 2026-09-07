@@ -10,9 +10,13 @@ import { pageMeta } from "@/routes/pageMeta";
 
 export default function Home() {
   const [path, navigate] = useLocation();
-  const [user, setUser] = useState<MockUser | null>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<MockUser | null>(null);
+  const [activeUser, setActiveUser] = useState<MockUser | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const user = activeUser;
   const allowedPaths = user ? demoAllowedPaths(user.role) : [];
+  const canSwitchPerspective = authenticatedUser?.role === "PACCA Platform Admin";
 
   useEffect(() => {
     if (!user) return;
@@ -29,7 +33,8 @@ export default function Home() {
     return (
       <LoginScreen
         onLogin={(nextUser) => {
-          setUser(nextUser);
+          setAuthenticatedUser(nextUser);
+          setActiveUser(nextUser);
           navigate(nextUser.experience === "central" ? "/central-admin" : "/");
         }}
       />
@@ -40,21 +45,23 @@ export default function Home() {
     return (
       <CentralAdminPortal
         user={user}
-        onLogout={() => setUser(null)}
-        onClientWorkspace={(client) => {
-          if (client === "Client 1") {
-            setUser({
-              ...user,
-              name: "PACCA Admin · Client 1",
-              tenant: "Client 1",
-              tenantCode: "CLIENT1",
-              experience: "client",
-            });
-            navigate("/");
-          } else {
-            setUser(null);
-            navigate("/");
-          }
+        onLogout={() => {
+          setAuthenticatedUser(null);
+          setActiveUser(null);
+        }}
+        onClientWorkspace={(client = "Client 1") => {
+          const clientAdmin: MockUser = {
+            ...authenticatedUser!,
+            name: "Suresh Kiran",
+            role: "PACCA Platform Admin",
+            initials: "SK",
+            tenant: client,
+            tenantCode: "CLIENT1",
+            experience: "client",
+          };
+          setAuthenticatedUser(clientAdmin);
+          setActiveUser(clientAdmin);
+          navigate("/");
         }}
       />
     );
@@ -67,18 +74,22 @@ export default function Home() {
   const hasAccess = allowedPaths.includes(basePath);
 
   const switchRole = (role: MockUser["role"]) => {
+    if (!canSwitchPerspective) {
+      toast.error("Role switching is restricted to Platform Administrators");
+      return;
+    }
     const next = demoPersonas[role] || {
       ...user,
       role,
       name: role,
       initials: role === "PACCA Platform Admin" ? "SK" : role === "PACCA Solution Developer" ? "MC" : "AR",
     };
-    setUser(next);
+    setActiveUser(next);
     const nextAllowed = demoAllowedPaths(role);
     if (!nextAllowed.includes(basePath)) {
       go(role === "Client Staff" ? "/documents" : "/solutions-v2");
     }
-    toast.success(`Switched persona to ${next.name} (${role})`);
+    toast.success(`Switched perspective to ${next.name} (${role})`);
   };
 
   const openDocument = (documentId: string) => go(`/documents/${encodeURIComponent(documentId)}`);
@@ -94,8 +105,12 @@ export default function Home() {
       subtitle={meta.subtitle}
       user={user}
       allowedPaths={allowedPaths}
+      canSwitchPerspective={canSwitchPerspective}
       onNavigate={go}
-      onLogout={() => setUser(null)}
+      onLogout={() => {
+        setAuthenticatedUser(null);
+        setActiveUser(null);
+      }}
       onRoleSwitch={switchRole}
     >
       {loading ? (

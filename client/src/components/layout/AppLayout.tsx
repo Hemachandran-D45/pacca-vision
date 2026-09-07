@@ -10,6 +10,7 @@ export function AppLayout({
   subtitle,
   user,
   allowedPaths,
+  canSwitchPerspective,
   onNavigate,
   onLogout,
   onRoleSwitch,
@@ -20,6 +21,7 @@ export function AppLayout({
   subtitle: string;
   user: MockUser;
   allowedPaths: string[];
+  canSwitchPerspective?: boolean;
   onNavigate: (path: string) => void;
   onLogout: () => void;
   onRoleSwitch: (role: MockUser["role"]) => void;
@@ -53,6 +55,7 @@ export function AppLayout({
           collapsed={collapsed}
           onCollapse={() => setCollapsed(!collapsed)}
           user={user}
+          canSwitchPerspective={canSwitchPerspective}
           onRoleSwitch={onRoleSwitch}
         />
         <main className="min-h-[calc(100vh-76px)]">{children}</main>
