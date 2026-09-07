@@ -282,10 +282,16 @@ export function DocumentDetailLive({
             </div>
           ) : (
             fieldEntries.map(([name, field]) => {
+              const gapEntry = (data.gaps?.gaps as Record<string, any> | undefined)?.[name];
+              const gapVal = gapEntry?.value;
               const correction = data.review?.corrections?.[name];
-              const effectiveValue = correction?.value ?? field.value;
+              const effectiveValue = correction?.value ?? (gapVal !== undefined && gapVal !== null ? gapVal : field.value);
               const formatted = formatFieldValue(effectiveValue);
-              const isCorrected = Boolean(correction);
+              const isCorrected = Boolean(
+                correction ||
+                (gapVal !== undefined && gapVal !== null && String(gapVal).trim() !== "") ||
+                (field.needs_review === false && field.class === "A" && data.summary.uiStatus === "Processed")
+              );
               const score = field.scores?.field_score ?? field.scores?.model_confidence;
               const req = isCorrected ? "Verified" : field.class === "A" ? "Required" : "Optional";
 

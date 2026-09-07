@@ -84,21 +84,23 @@ export function splitDocumentId(documentId: string): { runId: string; docId: str
  */
 export async function fetchRecords(c: Container) {
   const { resources } = await c.items
-    .query<OcrItem | ExtractItem | ReviewItem>({
+    .query<OcrItem | ExtractItem | ReviewItem | GapsItem>({
       query:
-        "SELECT * FROM c WHERE c.itemType = 'ocr' OR c.itemType = 'extract' OR c.itemType = 'review'",
+        "SELECT * FROM c WHERE c.itemType = 'ocr' OR c.itemType = 'extract' OR c.itemType = 'review' OR c.itemType = 'gaps'",
     })
     .fetchAll();
 
   const ocr = new Map<string, OcrItem>();
   const extract = new Map<string, ExtractItem>();
   const review = new Map<string, ReviewItem>();
+  const gaps = new Map<string, GapsItem>();
   for (const item of resources) {
     if (item.itemType === "ocr") ocr.set(item.documentId, item as OcrItem);
     else if (item.itemType === "extract") extract.set(item.documentId, item as ExtractItem);
     else if (item.itemType === "review") review.set(item.documentId, item as ReviewItem);
+    else if (item.itemType === "gaps") gaps.set(item.documentId, item as GapsItem);
   }
-  return { ocr, extract, review };
+  return { ocr, extract, review, gaps };
 }
 
 function numberOrNull(value: unknown): number | null {
@@ -108,19 +110,33 @@ function numberOrNull(value: unknown): number | null {
 /**
  * The one place a pipeline status becomes something a reviewer sees.
  *
- * An approved review outranks `needs_review`, because `needs_review` is the
- * pipeline's routing decision at extract time and does not change when a human
+ * An approved review or resolved gaps item outranks `needs_review`, because `needs_review` is the
+ * pipeline's routing decision at extract time and does not change when a human or IVR
  * resolves the document. Reading it as live state would leave every reviewed
  * document sitting in the queue forever.
  */
 export function deriveUiStatus(
   ocr: OcrItem | undefined,
   extract: ExtractItem | undefined,
-  review: ReviewItem | undefined
+  review: ReviewItem | undefined,
+  gaps?: GapsItem | undefined
 ): DocumentSummary["uiStatus"] {
-  if (review?.status === "routed_to_ivr") return "Routed to IVR";
   if (review?.status === "approved") return "Processed";
   if (review?.status === "rejected") return "Failed";
+
+  const isGapsResolved =
+    gaps?.gapStatus === "resolved" ||
+    (gaps && typeof gaps.openCount === "number" && gaps.openCount === 0 && gaps.gapStatus !== "open");
+
+  if (review?.status === "routed_to_ivr") {
+    if (isGapsResolved) return "Processed";
+    return "Routed to IVR";
+  }
+
+  if (isGapsResolved && extract?.status === "Succeeded") {
+    return "Processed";
+  }
+
   if (!extract) {
     if (!ocr) return "Queued";
     return ocr.status === "Succeeded" ? "Processing" : "Failed";
@@ -135,10 +151,17 @@ function toSummary(
   documentId: string,
   ocr: OcrItem | undefined,
   extract: ExtractItem | undefined,
-  review: ReviewItem | undefined
+  review: ReviewItem | undefined,
+  gaps?: GapsItem | undefined
 ): DocumentSummary {
   const { runId, docId } = splitDocumentId(documentId);
   const corrections = review?.corrections ?? {};
+  const isGapsResolved =
+    gaps?.gapStatus === "resolved" ||
+    (gaps && typeof gaps.openCount === "number" && gaps.openCount === 0 && gaps.gapStatus !== "open");
+  const isApproved = review?.status === "approved";
+  const isRejected = review?.status === "rejected";
+
   return {
     documentId,
     runId,
@@ -146,26 +169,26 @@ function toSummary(
     file: docId.endsWith(".pdf") ? docId : `${docId}.pdf`,
     docType: extract?.doc_type_predicted ?? null,
     pipelineStatus: extract?.status ?? ocr?.status ?? "Queued",
-    uiStatus: deriveUiStatus(ocr, extract, review),
+    uiStatus: deriveUiStatus(ocr, extract, review, gaps),
     confidence: numberOrNull(extract?.field_score_mean),
     classifyConfidence: numberOrNull(extract?.classify_confidence),
     pages: numberOrNull(extract?.page_count ?? ocr?.page_count),
     fileBytes: numberOrNull(ocr?.file_bytes),
     needsReview:
-      review?.status === "approved" || review?.status === "rejected"
+      isApproved || isRejected || isGapsResolved
         ? false
         : Boolean(extract?.needs_review),
     reviewReasons: extract?.review_reasons ?? [],
     reviewFields: extract?.review_fields ?? [],
     fieldCount: numberOrNull(extract?.field_count),
-    fieldsNeedingReview: numberOrNull(extract?.fields_needing_review),
+    fieldsNeedingReview: isApproved || isGapsResolved ? 0 : numberOrNull(extract?.fields_needing_review),
     costUsd: numberOrNull(extract?.total_cost_usd ?? ocr?.cost_cu_usd),
     latencyMs: numberOrNull(extract?.e2e_latency_ms ?? ocr?.e2e_latency_ms),
     minPageConfidence: numberOrNull(ocr?.min_page_confidence),
     receivedAt: extract?.recorded_at ?? ocr?.recorded_at ?? null,
     source: extract?.source ?? ocr?.source ?? null,
-    reviewStatus: review?.status ?? null,
-    reviewedBy: review?.reviewed_by ?? null,
+    reviewStatus: isGapsResolved && review?.status === "routed_to_ivr" ? "approved" : review?.status ?? null,
+    reviewedBy: review?.reviewed_by ?? (isGapsResolved ? "IVR Outreach" : null),
     claimedBy: review?.claimed_by ?? null,
     correctionCount: Object.keys(corrections).length,
   };
@@ -182,10 +205,10 @@ export async function listDocuments(
   c: Container,
   records?: FetchedRecords
 ): Promise<DocumentSummary[]> {
-  const { ocr, extract, review } = records ?? (await fetchRecords(c));
-  const ids = new Set([...ocr.keys(), ...extract.keys(), ...review.keys()]);
+  const { ocr, extract, review, gaps } = records ?? (await fetchRecords(c));
+  const ids = new Set([...ocr.keys(), ...extract.keys(), ...review.keys(), ...gaps.keys()]);
   return [...ids]
-    .map((id) => toSummary(id, ocr.get(id), extract.get(id), review.get(id)))
+    .map((id) => toSummary(id, ocr.get(id), extract.get(id), review.get(id), gaps.get(id)))
     .sort((a, b) => (b.receivedAt ?? "").localeCompare(a.receivedAt ?? ""));
 }
 
@@ -215,29 +238,75 @@ export async function readDocument(c: Container, documentId: string) {
   if (!ocr && !extract && !fields && !review && !gaps) return null;
 
   let mergedFields = fields ?? null;
-  if (fields?.fields && review?.corrections) {
-    const nextFields: Record<string, ExtractedField> = { ...fields.fields };
-    for (const [name, corr] of Object.entries(review.corrections)) {
-      const val = corr.value as string | number | boolean | null;
-      if (nextFields[name]) {
-        nextFields[name] = {
-          ...nextFields[name],
-          value: val,
-          needs_review: false,
-        };
-      } else {
-        nextFields[name] = {
-          value: val,
-          class: "A",
-          needs_review: false,
-        };
+  const nextFields: Record<string, ExtractedField> = { ...(fields?.fields ?? {}) };
+  let hasFieldUpdates = false;
+
+  // Merge values collected by IVR stored in gaps item
+  if (gaps?.gaps) {
+    for (const [name, gap] of Object.entries(gaps.gaps)) {
+      const g = gap as Record<string, unknown>;
+      const gapVal = g.value as string | number | boolean | null | undefined;
+      const statusLower = String(g.status || "").toLowerCase();
+      const isCollected =
+        statusLower === "collected" ||
+        statusLower === "settled" ||
+        (gapVal !== undefined && gapVal !== null && String(gapVal).trim() !== "" && statusLower !== "open");
+      if (isCollected && gapVal !== undefined && gapVal !== null) {
+        hasFieldUpdates = true;
+        if (nextFields[name]) {
+          nextFields[name] = {
+            ...nextFields[name],
+            value: gapVal,
+            needs_review: false,
+          };
+        } else {
+          nextFields[name] = {
+            value: gapVal,
+            class: "A",
+            needs_review: false,
+          };
+        }
       }
     }
-    mergedFields = { ...fields, fields: nextFields };
+  }
+
+  // Merge reviewer corrections
+  if (review?.corrections) {
+    for (const [name, corr] of Object.entries(review.corrections)) {
+      const val = corr.value as string | number | boolean | null;
+      if (val !== undefined && val !== null) {
+        hasFieldUpdates = true;
+        if (nextFields[name]) {
+          nextFields[name] = {
+            ...nextFields[name],
+            value: val,
+            needs_review: false,
+          };
+        } else {
+          nextFields[name] = {
+            value: val,
+            class: "A",
+            needs_review: false,
+          };
+        }
+      }
+    }
+  }
+
+  if (hasFieldUpdates || fields) {
+    mergedFields = {
+      id: "fields",
+      itemType: "fields",
+      documentId,
+      runId: fields?.runId ?? splitDocumentId(documentId).runId,
+      docId: fields?.docId ?? splitDocumentId(documentId).docId,
+      ...fields,
+      fields: nextFields,
+    };
   }
 
   return {
-    summary: toSummary(documentId, ocr, extract, review),
+    summary: toSummary(documentId, ocr, extract, review, gaps),
     ocr: ocr ?? null,
     extract: extract ?? null,
     fields: mergedFields,

@@ -92,6 +92,7 @@ export type DocumentDetail = {
   extract: Record<string, unknown> | null;
   fields: { docType?: string; fields?: Record<string, ExtractedField> } | null;
   review: ReviewItem | null;
+  gaps?: Record<string, unknown> | null;
   pdfUrl: string | null;
   outreach?: OutreachHint;
 };

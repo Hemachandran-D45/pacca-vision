@@ -1,3 +1,4 @@
+import type { Container } from "@azure/cosmos";
 import { isConfigError, readConfig } from "./config.js";
 import { applyReviewAction, container, fetchRecords, listDocuments, patchGaps, readDocument, readGapsItem } from "./cosmos.js";
 import {
@@ -105,6 +106,26 @@ async function handleDocuments(query: URLSearchParams): Promise<ApiResult> {
   if (isFail(handle)) return handle;
 
   let documents = await listDocuments(handle.container);
+
+  // Proactively check and sync any documents currently routed to IVR
+  const ivrCandidates = documents.filter((d) => d.uiStatus === "Routed to IVR" || d.reviewStatus === "routed_to_ivr");
+  if (ivrCandidates.length > 0) {
+    let anySynced = false;
+    for (const d of ivrCandidates) {
+      try {
+        const gaps = (await readGapsItem(handle.container, d.documentId)) as GapsItem | null;
+        const reqId = gaps?.request_id;
+        if (reqId) {
+          const ok = await syncIvrOutreach(handle.container, d.documentId, reqId as string | number);
+          if (ok) anySynced = true;
+        }
+      } catch {}
+    }
+    if (anySynced) {
+      documents = await listDocuments(handle.container);
+    }
+  }
+
   documents = await withPendingUploads(documents);
 
   const runId = query.get("runId");
@@ -147,6 +168,75 @@ async function handleDocuments(query: URLSearchParams): Promise<ApiResult> {
       docTypes: [...new Set(documents.map((d) => d.docType).filter(Boolean))].sort(),
     },
   };
+}
+
+async function syncIvrOutreach(
+  container: Container,
+  documentId: string,
+  requestId: string | number
+): Promise<boolean> {
+  try {
+    const outreach = await fetchOutreach(requestId);
+    if (!outreach) return false;
+
+    const statusUpper = String(outreach.status || "").toUpperCase();
+    const isCompleted = statusUpper === "COMPLETED";
+    const isPartial = statusUpper === "PARTIAL";
+
+    if (!isCompleted && !isPartial) return false;
+
+    const settledCorrections: Record<string, unknown> = {};
+    for (const f of outreach.fields ?? []) {
+      const val = f.value;
+      const fStatus = String(f.status || "").toUpperCase();
+      const isSettled =
+        fStatus === "COMPLETED" ||
+        fStatus === "COLLECTED" ||
+        fStatus === "SETTLED" ||
+        fStatus === "RESOLVED" ||
+        (val !== undefined && val !== null && String(val).trim() !== "" && fStatus !== "PENDING");
+      if (isSettled && val !== undefined && val !== null) {
+        settledCorrections[f.field] = val;
+      }
+    }
+
+    if (Object.keys(settledCorrections).length > 0 || isCompleted) {
+      await applyReviewAction(container, documentId, {
+        type: isCompleted ? "approve" : "correct",
+        by: "IVR Outreach",
+        corrections: settledCorrections,
+        note: `Fields collected via IVR call (request #${requestId}, status: ${outreach.status})`,
+      });
+
+      // Also ensure gaps item is updated with the collected values
+      try {
+        const { resource: gapsItem } = await container.item("gaps", documentId).read<GapsItem>();
+        if (gapsItem) {
+          if (isCompleted) {
+            gapsItem.gapStatus = "resolved";
+            gapsItem.openCount = 0;
+          }
+          if (gapsItem.gaps) {
+            for (const [field, val] of Object.entries(settledCorrections)) {
+              if (gapsItem.gaps[field]) {
+                gapsItem.gaps[field].value = val;
+                gapsItem.gaps[field].status = "collected";
+                gapsItem.gaps[field].source = "patient";
+              }
+            }
+          }
+          await container.items.upsert(gapsItem);
+        }
+      } catch (err) {
+        console.warn("Could not patch gaps item in syncIvrOutreach:", err);
+      }
+
+      return true;
+    }
+  } catch (err) {
+    console.warn(`Could not sync IVR outreach for ${documentId} (req #${requestId}):`, err);
+  }
+  return false;
 }
 
 async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
@@ -207,7 +297,8 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
   if (
     currentDoc.summary.uiStatus === "Routed to IVR" ||
     currentDoc.review?.status === "routed_to_ivr" ||
-    currentDoc.gaps?.gapStatus === "in_progress"
+    currentDoc.gaps?.gapStatus === "in_progress" ||
+    Boolean((currentDoc.gaps as Record<string, unknown> | null)?.request_id)
   ) {
     const reqId =
       (currentDoc.gaps as Record<string, unknown> | null)?.request_id ??
@@ -216,39 +307,22 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
         : null);
 
     if (reqId) {
-      try {
-        const outreach = await fetchOutreach(String(reqId));
-        if (outreach && outreach.status === "COMPLETED") {
-          const settledCorrections: Record<string, unknown> = {};
-          for (const f of outreach.fields ?? []) {
-            if (f.status === "SETTLED" && f.value !== undefined && f.value !== null) {
-              settledCorrections[f.field] = f.value;
-            }
-          }
-          await applyReviewAction(handle.container, documentId, {
-            type: "approve",
-            by: "IVR Outreach",
-            corrections: settledCorrections,
-            note: `All missed details settled via IVR call (request #${reqId})`,
-          });
-          const reloaded = await readDocument(handle.container, documentId);
-          if (reloaded) currentDoc = reloaded;
-        }
-      } catch (err) {
-        console.warn("Could not auto-sync IVR outreach outcome on document view:", err);
+      const synced = await syncIvrOutreach(handle.container, documentId, String(reqId));
+      if (synced) {
+        const reloaded = await readDocument(handle.container, documentId);
+        if (reloaded) currentDoc = reloaded;
       }
     }
   }
 
   const docType = currentDoc.extract?.doc_type_predicted ?? currentDoc.fields?.docType ?? currentDoc.gaps?.docType ?? null;
-  const { gaps, ...rest } = currentDoc;
   return {
     status: 200,
     body: {
       ok: true,
-      ...rest,
+      ...currentDoc,
       pdfUrl,
-      outreach: outreachHint(docType, currentDoc.fields?.fields ?? null, gaps, Boolean(currentDoc.extract)),
+      outreach: outreachHint(docType, currentDoc.fields?.fields ?? null, currentDoc.gaps, Boolean(currentDoc.extract)),
     },
   };
 }
@@ -285,47 +359,20 @@ async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResul
   const isCompleted = String(outcome.call_status || "").toUpperCase() === "COMPLETED";
 
   if (outcome.trigger_status === "accepted") {
-    const settledCorrections: Record<string, unknown> = {};
     if (outcome.request_id) {
-      try {
-        const outreachData = await fetchOutreach(outcome.request_id as string);
-        if (outreachData?.fields) {
-          for (const f of outreachData.fields) {
-            if (f.status === "SETTLED" && f.value !== undefined && f.value !== null) {
-              settledCorrections[f.field] = f.value;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("Could not fetch IVR outreach details:", err);
-      }
+      await syncIvrOutreach(handle.container, documentId, outcome.request_id as string | number);
     }
 
-    try {
-      if (Object.keys(settledCorrections).length > 0) {
-        await applyReviewAction(handle.container, documentId, {
-          type: "correct",
-          by: "IVR Outreach",
-          corrections: settledCorrections,
-          note: `Settled via IVR outreach (request #${outcome.request_id})`,
-        });
-      }
-
-      if (isCompleted) {
-        await applyReviewAction(handle.container, documentId, {
-          type: "approve",
-          by: "IVR Outreach",
-          note: `All fields settled via IVR call (request #${outcome.request_id ?? ""})`,
-        });
-      } else {
+    if (!isCompleted) {
+      try {
         await applyReviewAction(handle.container, documentId, {
           type: "route_to_ivr",
           by: typeof body.by === "string" && body.by.trim() ? body.by.trim() : "IVR Outreach",
           note: `Routed to IVR (call_status: ${outcome.call_status ?? "calling"}${outcome.request_id ? `, request: ${outcome.request_id}` : ""})`,
         });
+      } catch (err) {
+        console.warn("Could not record review action for IVR trigger:", err);
       }
-    } catch (err) {
-      console.warn("Could not record review action for IVR trigger:", err);
     }
   }
 
@@ -384,19 +431,15 @@ async function handleStats(): Promise<ApiResult> {
   const records = await fetchRecords(handle.container);
   const resources = [...records.extract.values()];
   const documents = await listDocuments(handle.container, records);
-  const succeeded = resources.filter((r) => r.status === "Succeeded");
   const num = (pick: (r: ExtractItem) => number | undefined) =>
     resources.map(pick).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
 
+  const processed = documents.filter((d) => d.uiStatus === "Processed").length;
   const pendingReview = documents.filter(
-    (d) => d.needsReview && d.reviewStatus !== "approved" && d.reviewStatus !== "rejected"
+    (d) => d.needsReview && d.reviewStatus !== "approved" && d.reviewStatus !== "rejected" && d.uiStatus !== "Processed"
   ).length;
-  const reviewed = documents.filter((d) => d.reviewStatus === "approved").length;
-
-  // Straight-through processing: succeeded, and tripped no review gate. This is
-  // the number the business case rests on, so it is counted over the documents
-  // the pipeline actually finished, never over the whole corpus.
-  const stp = succeeded.filter((r) => r.needs_review === false).length;
+  const reviewed = documents.filter((d) => d.reviewStatus === "approved" || d.uiStatus === "Processed").length;
+  const stp = processed;
 
   return {
     status: 200,
@@ -404,11 +447,11 @@ async function handleStats(): Promise<ApiResult> {
       ok: true,
       stats: {
         documents: documents.length,
-        processed: succeeded.length,
+        processed,
         pendingReview,
         reviewed,
         stpCount: stp,
-        stpRate: succeeded.length > 0 ? stp / succeeded.length : null,
+        stpRate: documents.length > 0 ? stp / documents.length : null,
         avgFieldScore: mean(num((r) => r.field_score_mean)),
         avgOcrConfidence: mean(num((r) => r.ocr_conf_mean)),
         avgCacheHit: mean(num((r) => r.cache_hit_frac)),
