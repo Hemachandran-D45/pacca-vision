@@ -2,6 +2,7 @@ import type { Container } from "@azure/cosmos";
 import { isConfigError, readConfig, type SenderraConfig } from "./config.js";
 import type {
   DocumentSummary,
+  ExtractedField,
   ExtractItem,
   FieldsItem,
   GapsItem,
@@ -150,7 +151,10 @@ function toSummary(
     classifyConfidence: numberOrNull(extract?.classify_confidence),
     pages: numberOrNull(extract?.page_count ?? ocr?.page_count),
     fileBytes: numberOrNull(ocr?.file_bytes),
-    needsReview: Boolean(extract?.needs_review),
+    needsReview:
+      review?.status === "approved" || review?.status === "rejected"
+        ? false
+        : Boolean(extract?.needs_review),
     reviewReasons: extract?.review_reasons ?? [],
     reviewFields: extract?.review_fields ?? [],
     fieldCount: numberOrNull(extract?.field_count),
@@ -210,11 +214,33 @@ export async function readDocument(c: Container, documentId: string) {
 
   if (!ocr && !extract && !fields && !review && !gaps) return null;
 
+  let mergedFields = fields ?? null;
+  if (fields?.fields && review?.corrections) {
+    const nextFields: Record<string, ExtractedField> = { ...fields.fields };
+    for (const [name, corr] of Object.entries(review.corrections)) {
+      const val = corr.value as string | number | boolean | null;
+      if (nextFields[name]) {
+        nextFields[name] = {
+          ...nextFields[name],
+          value: val,
+          needs_review: false,
+        };
+      } else {
+        nextFields[name] = {
+          value: val,
+          class: "A",
+          needs_review: false,
+        };
+      }
+    }
+    mergedFields = { ...fields, fields: nextFields };
+  }
+
   return {
     summary: toSummary(documentId, ocr, extract, review),
     ocr: ocr ?? null,
     extract: extract ?? null,
-    fields: fields ?? null,
+    fields: mergedFields,
     review: review ?? null,
     gaps: gaps ?? null,
   };
@@ -357,5 +383,59 @@ export async function applyReviewAction(
   }
 
   await c.items.upsert(item);
+
+  // Sync corrections to fields item so extraction schema permanently reflects reviewer/IVR answers
+  if (action.corrections && Object.keys(action.corrections).length > 0) {
+    try {
+      const { resource: fieldsItem } = await c.item("fields", documentId).read<FieldsItem>();
+      if (fieldsItem && fieldsItem.fields) {
+        for (const [field, value] of Object.entries(action.corrections)) {
+          const val = value as string | number | boolean | null;
+          if (fieldsItem.fields[field]) {
+            fieldsItem.fields[field].value = val;
+            fieldsItem.fields[field].needs_review = false;
+          } else {
+            fieldsItem.fields[field] = { value: val, class: "A", needs_review: false };
+          }
+        }
+        await c.items.upsert(fieldsItem);
+      }
+    } catch (err) {
+      console.warn("Could not sync corrections to fields item:", err);
+    }
+  }
+
+  // When approving: resolve gaps and clear extract needs_review
+  if (action.type === "approve") {
+    try {
+      const { resource: gapsItem } = await c.item("gaps", documentId).read<GapsItem>();
+      if (gapsItem) {
+        gapsItem.gapStatus = "resolved";
+        gapsItem.openCount = 0;
+        if (gapsItem.gaps) {
+          for (const g of Object.values(gapsItem.gaps)) {
+            if (g && g.status === "open") {
+              g.status = "settled";
+            }
+          }
+        }
+        await c.items.upsert(gapsItem);
+      }
+    } catch (err) {
+      console.warn("Could not resolve gaps item upon approval:", err);
+    }
+
+    try {
+      const { resource: extractItem } = await c.item("extract", documentId).read<ExtractItem>();
+      if (extractItem) {
+        extractItem.needs_review = false;
+        extractItem.status = "Succeeded";
+        await c.items.upsert(extractItem);
+      }
+    } catch (err) {
+      console.warn("Could not update extract item upon approval:", err);
+    }
+  }
+
   return item;
 }

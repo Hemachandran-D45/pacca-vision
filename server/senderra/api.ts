@@ -114,9 +114,14 @@ async function handleDocuments(query: URLSearchParams): Promise<ApiResult> {
   if (docType) documents = documents.filter((d) => d.docType === docType);
 
   if (query.get("needsReview") === "true") {
-    // The HIL queue: still routed for review and not yet resolved by a human.
+    // The HIL queue: still routed for review and not yet resolved by a human or IVR.
     documents = documents.filter(
-      (d) => d.needsReview && d.reviewStatus !== "approved" && d.reviewStatus !== "rejected"
+      (d) =>
+        d.needsReview &&
+        d.uiStatus !== "Processed" &&
+        d.reviewStatus !== "approved" &&
+        d.reviewStatus !== "rejected" &&
+        d.reviewStatus !== "routed_to_ivr"
     );
   }
 
@@ -198,15 +203,52 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
     pdfUrl = null;
   }
 
-  const docType = document.extract?.doc_type_predicted ?? document.fields?.docType ?? document.gaps?.docType ?? null;
-  const { gaps, ...rest } = document;
+  let currentDoc = document;
+  if (
+    currentDoc.summary.uiStatus === "Routed to IVR" ||
+    currentDoc.review?.status === "routed_to_ivr" ||
+    currentDoc.gaps?.gapStatus === "in_progress"
+  ) {
+    const reqId =
+      (currentDoc.gaps as Record<string, unknown> | null)?.request_id ??
+      (typeof currentDoc.review?.note === "string"
+        ? currentDoc.review.note.match(/request[:\s#]+(\w+)/i)?.[1]
+        : null);
+
+    if (reqId) {
+      try {
+        const outreach = await fetchOutreach(String(reqId));
+        if (outreach && outreach.status === "COMPLETED") {
+          const settledCorrections: Record<string, unknown> = {};
+          for (const f of outreach.fields ?? []) {
+            if (f.status === "SETTLED" && f.value !== undefined && f.value !== null) {
+              settledCorrections[f.field] = f.value;
+            }
+          }
+          await applyReviewAction(handle.container, documentId, {
+            type: "approve",
+            by: "IVR Outreach",
+            corrections: settledCorrections,
+            note: `All missed details settled via IVR call (request #${reqId})`,
+          });
+          const reloaded = await readDocument(handle.container, documentId);
+          if (reloaded) currentDoc = reloaded;
+        }
+      } catch (err) {
+        console.warn("Could not auto-sync IVR outreach outcome on document view:", err);
+      }
+    }
+  }
+
+  const docType = currentDoc.extract?.doc_type_predicted ?? currentDoc.fields?.docType ?? currentDoc.gaps?.docType ?? null;
+  const { gaps, ...rest } = currentDoc;
   return {
     status: 200,
     body: {
       ok: true,
       ...rest,
       pdfUrl,
-      outreach: outreachHint(docType, document.fields?.fields ?? null, gaps, Boolean(document.extract)),
+      outreach: outreachHint(docType, currentDoc.fields?.fields ?? null, gaps, Boolean(currentDoc.extract)),
     },
   };
 }
@@ -464,6 +506,54 @@ async function handleReview(body: Record<string, unknown>): Promise<ApiResult> {
   return { status: 200, body: { ok: true, review } };
 }
 
+async function handleIvrWriteback(body: Record<string, unknown>): Promise<ApiResult> {
+  const documentId =
+    typeof body.documentId === "string"
+      ? body.documentId.trim()
+      : typeof body.document_id === "string"
+      ? body.document_id.trim()
+      : "";
+  if (!documentId) return fail(400, "documentId is required.");
+
+  const handle = await requireContainer();
+  if (isFail(handle)) return handle;
+
+  const rawFields = body.fields;
+  const corrections: Record<string, unknown> = {};
+  if (Array.isArray(rawFields)) {
+    for (const f of rawFields) {
+      if (f && typeof f === "object" && typeof f.field === "string" && f.value !== undefined && f.value !== null) {
+        corrections[f.field] = f.value;
+      }
+    }
+  } else if (rawFields && typeof rawFields === "object") {
+    for (const [k, v] of Object.entries(rawFields)) {
+      if (v !== undefined && v !== null) {
+        const val = typeof v === "object" && v !== null && "value" in v ? (v as { value: unknown }).value : v;
+        corrections[k] = val;
+      }
+    }
+  }
+
+  const reqId = body.request_id ?? body.requestId;
+  await applyReviewAction(handle.container, documentId, {
+    type: "approve",
+    by: "IVR Outreach",
+    corrections,
+    note: `Settled via IVR writeback${reqId ? ` (request #${reqId})` : ""}`,
+  });
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      documentId,
+      uiStatus: "Processed",
+      settledCount: Object.keys(corrections).length,
+    },
+  };
+}
+
 async function handleHealth(): Promise<ApiResult> {
   const ivr = ivrHealthPublic();
   const config = readConfig();
@@ -518,6 +608,7 @@ export async function handleSenderra(
     if (method === "POST" && route === "/review") return await handleReview(body);
     if (method === "POST" && route === "/ivr-trigger") return await handleIvrTrigger(body);
     if (method === "GET" && route === "/ivr-outreach") return await handleIvrOutreach(query);
+    if (method === "POST" && (route === "/ivr-writeback" || route === "/ivr-webhook")) return await handleIvrWriteback(body);
     return fail(404, `No Senderra route ${method} ${route}.`);
   } catch (error) {
     return fail(500, String(error));

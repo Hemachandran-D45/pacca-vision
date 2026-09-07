@@ -122,7 +122,7 @@ export default function HilReviewPage({
     if (focusDocumentId) {
       setSelectedId(focusDocumentId);
     } else if (isLiveConnected && (!selectedId || !liveDocuments.some((d) => d.documentId === selectedId))) {
-      setSelectedId(liveDocuments[0].documentId);
+      setSelectedId(liveDocuments.length > 0 ? liveDocuments[0]?.documentId ?? null : null);
     }
   }, [focusDocumentId, isLiveConnected, liveDocuments, selectedId]);
 
@@ -136,7 +136,7 @@ export default function HilReviewPage({
     return 0;
   });
 
-  const isLiveDoc = isLiveConnected && selectedId !== null;
+  const isLiveDoc = isLiveConnected && selectedId !== null && liveDocuments.some((d) => d.documentId === selectedId);
 
   return (
     <div className="p-3 sm:p-5 lg:p-6 space-y-3.5">
@@ -172,7 +172,7 @@ export default function HilReviewPage({
               <button
                 onClick={() => {
                   const currIdx = liveDocuments.findIndex((d) => d.documentId === selectedId);
-                  if (currIdx > 0) setSelectedId(liveDocuments[currIdx - 1].documentId);
+                  if (currIdx > 0 && liveDocuments[currIdx - 1]) setSelectedId(liveDocuments[currIdx - 1].documentId);
                 }}
                 disabled={liveDocuments.findIndex((d) => d.documentId === selectedId) <= 0}
                 className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
@@ -194,7 +194,7 @@ export default function HilReviewPage({
               <button
                 onClick={() => {
                   const currIdx = liveDocuments.findIndex((d) => d.documentId === selectedId);
-                  if (currIdx >= 0 && currIdx < liveDocuments.length - 1) {
+                  if (currIdx >= 0 && currIdx < liveDocuments.length - 1 && liveDocuments[currIdx + 1]) {
                     setSelectedId(liveDocuments[currIdx + 1].documentId);
                   }
                 }}
@@ -265,9 +265,9 @@ export default function HilReviewPage({
             onResolved={() => {
               void queuePoller.refresh();
               const currIdx = liveDocuments.findIndex((d) => d.documentId === selectedId);
-              if (currIdx >= 0 && currIdx < liveDocuments.length - 1) {
+              if (currIdx >= 0 && currIdx < liveDocuments.length - 1 && liveDocuments[currIdx + 1]) {
                 setSelectedId(liveDocuments[currIdx + 1].documentId);
-              } else if (liveDocuments.length > 1) {
+              } else if (liveDocuments.length > 1 && liveDocuments[0]) {
                 setSelectedId(liveDocuments[0].documentId);
               } else {
                 setSelectedId(null);
@@ -283,8 +283,16 @@ export default function HilReviewPage({
             {queuePoller.error}
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-[12px] text-slate-500">
-            No live documents need review right now.
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <CheckCircle2 size={24} />
+            </div>
+            <div className="mt-3 font-display text-base font-bold text-[#0e0e0e]">
+              No documents awaiting review
+            </div>
+            <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+              All intake documents have been reviewed or processed through straight-through automation.
+            </p>
           </div>
         )}
       </div>

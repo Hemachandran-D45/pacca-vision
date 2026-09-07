@@ -282,38 +282,45 @@ export function DocumentDetailLive({
             </div>
           ) : (
             fieldEntries.map(([name, field]) => {
-            const formatted = formatFieldValue(field.value);
-            const score = field.scores?.field_score ?? field.scores?.model_confidence;
-            const req = field.class === "A" ? "Required" : "Optional";
+              const correction = data.review?.corrections?.[name];
+              const effectiveValue = correction?.value ?? field.value;
+              const formatted = formatFieldValue(effectiveValue);
+              const isCorrected = Boolean(correction);
+              const score = field.scores?.field_score ?? field.scores?.model_confidence;
+              const req = isCorrected ? "Verified" : field.class === "A" ? "Required" : "Optional";
 
-            return (
-              <div
-                key={name}
-                className="rounded-xl border border-slate-100 bg-white p-3 shadow-xs"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="text-[10px] font-bold text-[#0e0e0e]">{humanize(name)}</div>
-                  <span
-                    className={cn(
-                      "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
-                      req === "Required" ? "bg-[#ebf5f7] text-[#47a2b0]" : "bg-slate-100 text-slate-500"
-                    )}
-                  >
-                    {req}
-                  </span>
+              return (
+                <div
+                  key={name}
+                  className={cn(
+                    "rounded-xl border bg-white p-3 shadow-xs",
+                    isCorrected ? "border-emerald-200 bg-emerald-50/20" : "border-slate-100"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-[10px] font-bold text-[#0e0e0e]">{humanize(name)}</div>
+                    <span
+                      className={cn(
+                        "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
+                        isCorrected
+                          ? "bg-emerald-100 text-emerald-800"
+                          : req === "Required"
+                          ? "bg-[#ebf5f7] text-[#47a2b0]"
+                          : "bg-slate-100 text-slate-500"
+                      )}
+                    >
+                      {req}
+                    </span>
+                  </div>
+                  <div className="mt-2 truncate text-[12px] font-semibold text-[#0e0e0e]" title={formatted}>
+                    {formatted}
+                  </div>
+                  <div className="mt-3 flex items-center justify-end text-[9px]">
+                    <span className="font-bold text-[#45bd8d]">✓ Valid</span>
+                  </div>
                 </div>
-                <div className="mt-2 truncate text-[12px] font-semibold text-[#0e0e0e]" title={formatted}>
-                  {formatted}
-                </div>
-                <div className="mt-3 flex items-center justify-end text-[9px]">
-                  {/* <span className="font-semibold text-[#45bd8d]">
-                    {percent(score, 1)} confidence
-                  </span> */}
-                  <span className="font-bold text-[#45bd8d]">✓ Valid</span>
-                </div>
-              </div>
-            );
-          })
+              );
+            })
           )}
         </div>
       </section>
