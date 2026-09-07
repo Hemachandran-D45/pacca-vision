@@ -54,7 +54,7 @@ const MemoizedPdfViewer = memo(
       const clean = url.split("#")[0];
       frozenUrlRef.current = {
         id: documentId,
-        url: `${clean}#toolbar=0&navpanes=0&scrollbar=1&view=Fit`,
+        url: `${clean}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`,
       };
     }
 
@@ -137,9 +137,9 @@ export default function HilReviewPage({
   const isLiveDoc = isLiveConnected && selectedId !== null;
 
   return (
-    <div className="flex flex-col h-auto lg:h-[calc(100vh-80px)] p-3 sm:p-5 lg:p-6 gap-3 lg:overflow-hidden">
+    <div className="p-3 sm:p-5 lg:p-6 space-y-3.5">
       {/* Top Review Control Strip */}
-      <div className="shrink-0 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">
             <span
@@ -253,7 +253,7 @@ export default function HilReviewPage({
       </div>
 
       {/* Main Workbench Body: 75% PDF Left, 25% Sidebar Right */}
-      <div className="flex-1 min-h-0">
+      <div className="w-full">
         {isLiveDoc && selectedId ? (
           <LiveWorkbench
             key={selectedId}
@@ -385,9 +385,9 @@ function StandardWorkbench({
   const pdfUrl = currentDoc.pdfUrl || "/pdfs/invoice_001.pdf";
 
   return (
-    <div className="h-full grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px] min-h-0">
-      {/* Left Card: 70-75% PDF Viewer */}
-      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
+    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
+      {/* Left Card: 65-70% PDF Viewer */}
+      <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
         <div className="shrink-0 flex items-center justify-between border-b border-slate-100 p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
@@ -415,13 +415,13 @@ function StandardWorkbench({
         </div>
 
         {/* Stable Memoized PDF Iframe */}
-        <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-2 sm:p-3 min-h-[440px] lg:min-h-0">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-white p-2 min-h-0">
           <MemoizedPdfViewer documentId={currentDoc.id} url={pdfUrl} title={`Source document ${currentDoc.file}`} />
         </div>
       </section>
 
-      {/* Right Card: 25-30% Sleek Field Verification Sidebar */}
-      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
+      {/* Right Card: 30-35% Sleek Field Verification Sidebar */}
+      <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
         {/* Document Quick Metadata Strip */}
         <div className="shrink-0 border-b border-slate-100 pb-3">
           <div className="flex items-center justify-between">
@@ -756,9 +756,9 @@ function LiveWorkbench({
   );
 
   return (
-    <div className="h-full grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px] min-h-0">
-      {/* Left Card: 70-75% PDF Viewer with Stable Memoized Rendering */}
-      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
+    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
+      {/* Left Card: 65-70% PDF Viewer with Stable Memoized Rendering */}
+      <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
         <div className="shrink-0 flex items-center justify-between border-b border-slate-100 p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
@@ -784,13 +784,13 @@ function LiveWorkbench({
         </div>
 
         {/* Stable Memoized PDF Container */}
-        <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-2 sm:p-3 min-h-[440px] lg:min-h-0">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-white p-2 min-h-0">
           <MemoizedPdfViewer documentId={documentId} url={pdfUrl || ""} title={`Source PDF for ${summary.file}`} />
         </div>
       </section>
 
-      {/* Right Card: 25-30% Sleek Field Verification Sidebar */}
-      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
+      {/* Right Card: 30-35% Sleek Field Verification Sidebar */}
+      <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
         {/* Document Quick Metadata Strip */}
         <div className="shrink-0 border-b border-slate-100 pb-3">
           <div className="flex items-center justify-between">
