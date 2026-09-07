@@ -70,9 +70,10 @@ export const rolePermissions: Record<Role, string[]> = {
     "/deployment",
     "/infrastructure",
   ],
-  // PACCA Platform Admin: Full platform governance + Administration (Users & Settings)
+  // PACCA Platform Admin: Full platform governance + Administration (Users, Settings, Central Portal)
   "PACCA Platform Admin": [
     "/",
+    "/central-admin",
     "/documents",
     "/hil-review",
     "/monitor",
@@ -89,6 +90,16 @@ export const rolePermissions: Record<Role, string[]> = {
     "/settings",
   ],
 };
+
+export function getAvailablePerspectives(authenticatedRole: Role): Role[] {
+  if (authenticatedRole === "PACCA Platform Admin") {
+    return ["PACCA Platform Admin", "PACCA Solution Developer", "Client Staff"];
+  }
+  if (authenticatedRole === "PACCA Solution Developer") {
+    return ["PACCA Solution Developer", "Client Staff"];
+  }
+  return [];
+}
 
 type LoginProps = { onLogin: (user: MockUser) => void };
 

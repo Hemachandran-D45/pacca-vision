@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleHelp,
   Cloud,
+  Globe2,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -27,7 +28,8 @@ export function Topbar({
   collapsed,
   onCollapse,
   user,
-  canSwitchPerspective = false,
+  authenticatedRole,
+  availablePerspectives = [],
   onRoleSwitch,
 }: {
   title: string;
@@ -36,7 +38,8 @@ export function Topbar({
   collapsed: boolean;
   onCollapse: () => void;
   user: MockUser;
-  canSwitchPerspective?: boolean;
+  authenticatedRole?: MockUser["role"];
+  availablePerspectives?: MockUser["role"][];
   onRoleSwitch: (role: MockUser["role"]) => void;
 }) {
   const { notificationCount } = useQueueCount();
@@ -83,8 +86,8 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Perspective Switcher for Platform Admin; static Role badge for non-admin personas */}
-        {canSwitchPerspective ? (
+        {/* Perspective Switcher for personas with available perspectives */}
+        {availablePerspectives && availablePerspectives.length > 1 ? (
           <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm">
             <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Perspective</span>
             <select
@@ -93,9 +96,11 @@ export function Topbar({
               onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
               className="cursor-pointer bg-transparent font-semibold text-[#0e0e0e] outline-none hover:text-[#47a2b0] transition"
             >
-              <option value="PACCA Platform Admin">PACCA Platform Admin</option>
-              <option value="PACCA Solution Developer">PACCA Solution Developer</option>
-              <option value="Client Staff">Client Staff</option>
+              {availablePerspectives.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
           </div>
         ) : (
@@ -103,6 +108,17 @@ export function Topbar({
             <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Role</span>
             <span className="font-semibold text-[#0e0e0e]">{user.role}</span>
           </div>
+        )}
+
+        {/* Central Admin Portal quick link for Platform Admin */}
+        {authenticatedRole === "PACCA Platform Admin" && (
+          <button
+            onClick={() => navigate("/central-admin")}
+            className="hidden items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#47a2b0] hover:bg-stone-50 shadow-xs transition md:flex"
+            title="Open Central Admin Portal"
+          >
+            <Globe2 size={13} /> Central Admin
+          </button>
         )}
 
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex">

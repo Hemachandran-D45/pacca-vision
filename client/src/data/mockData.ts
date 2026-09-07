@@ -9,6 +9,7 @@ import {
   FileSearch,
   FileText,
   GitBranch,
+  Globe2,
   HardDrive,
   Inbox,
   Network,
@@ -71,6 +72,7 @@ export const navSections: NavSection[] = [
   {
     label: "Administration",
     items: [
+      { label: "Admin Portal", path: "/central-admin", icon: Globe2 },
       { label: "Users & Roles", path: "/users", icon: UsersRound },
       { label: "Settings", path: "/settings", icon: Settings2 },
     ],

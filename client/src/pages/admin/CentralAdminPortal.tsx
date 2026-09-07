@@ -18,10 +18,14 @@ export function CentralAdminPortal({
   user,
   onLogout,
   onClientWorkspace,
+  onRoleSwitch,
+  availablePerspectives = ["PACCA Platform Admin", "PACCA Solution Developer", "Client Staff"],
 }: {
   user: MockUser;
   onLogout: () => void;
   onClientWorkspace: (client?: string) => void;
+  onRoleSwitch?: (role: MockUser["role"]) => void;
+  availablePerspectives?: MockUser["role"][];
 }) {
   const clients = [
     ["Client 1", "Active", "Invoice Processing", "#1f9b72"],
@@ -53,13 +57,30 @@ export function CentralAdminPortal({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {onRoleSwitch && availablePerspectives && availablePerspectives.length > 1 && (
+              <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px]">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300">Perspective</span>
+                <select
+                  aria-label="Switch demo perspective"
+                  value={user.role}
+                  onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
+                  className="cursor-pointer bg-transparent font-semibold text-white outline-none hover:text-[#47a2b0] transition"
+                >
+                  {availablePerspectives.map((p) => (
+                    <option key={p} value={p} className="text-[#0e0e0e]">
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
-              onClick={() => onClientWorkspace()}
-              className="rounded-xl border border-white/15 px-3 py-2 text-[10px] font-bold text-slate-200 hover:bg-white/10"
+              onClick={() => onClientWorkspace("Client 1")}
+              className="rounded-xl border border-white/15 px-3 py-2 text-[10px] font-bold text-slate-200 hover:bg-white/10 transition"
             >
               Open Client Workspace
             </button>
-            <button onClick={onLogout} className="rounded-xl bg-white/10 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/15">
+            <button onClick={onLogout} title="Sign out" className="rounded-xl bg-white/10 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/15 transition">
               <LogOut size={14} />
             </button>
           </div>
