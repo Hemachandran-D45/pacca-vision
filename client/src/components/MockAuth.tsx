@@ -13,7 +13,37 @@ export const demoUsers: MockUser[] = [
   { name: "Maya Chen", initials: "MC", email: "maya@pacca.demo", role: "PACCA Solution Developer", tenant: "PACCA Platform", tenantCode: "PACCA" },
   { name: "Suresh Kiran", initials: "SK", email: "admin@pacca.demo", role: "PACCA Platform Admin", tenant: "PACCA Platform", tenantCode: "PACCA", experience: "central" },
 ];
-export const centralAdminUser: MockUser = { name: "PACCA Platform Admin", initials: "PA", email: "admin@pacca.demo", role: "PACCA Platform Admin", tenant: "PACCA Platform", tenantCode: "PACCA", experience: "central" };
+export const demoPersonas: Record<Role, MockUser> = {
+  "PACCA Platform Admin": {
+    name: "Suresh Kiran",
+    initials: "SK",
+    email: "suresh.kiran@pacca.demo",
+    role: "PACCA Platform Admin",
+    tenant: "PACCA Platform",
+    tenantCode: "PACCA",
+    experience: "central",
+  },
+  "PACCA Solution Developer": {
+    name: "Maya Chen",
+    initials: "MC",
+    email: "maya.chen@pacca.demo",
+    role: "PACCA Solution Developer",
+    tenant: "PACCA Platform",
+    tenantCode: "PACCA",
+    experience: "client",
+  },
+  "Client Staff": {
+    name: "Aisha Rahman",
+    initials: "AR",
+    email: "aisha.rahman@client1.demo",
+    role: "Client Staff",
+    tenant: "Client 1",
+    tenantCode: "CLIENT1",
+    experience: "client",
+  },
+};
+
+export const centralAdminUser: MockUser = demoPersonas["PACCA Platform Admin"];
 
 // TEMPORARY DEMO SCOPE — re-enable by removing paths from this set after the meeting.
 // Implementations and route components remain intact; this only hides them in demo mode.
@@ -22,12 +52,42 @@ export const DEMO_HIDDEN_PATHS = new Set(["/environment", "/users", "/audit", "/
 export const demoAllowedPaths = (role: Role): string[] => rolePermissions[role].filter((path) => !DEMO_HIDDEN_PATHS.has(path));
 
 export const rolePermissions: Record<Role, string[]> = {
-  // Client Staff: Operates the client's published workspace + HIL is standard capability
+  // Client Staff: Operates the client's published workspace only
   "Client Staff": ["/", "/documents", "/hil-review", "/monitor", "/analytics"],
-  // PACCA Solution Developer: Full solution/workspace visibility + development/configuration
-  "PACCA Solution Developer": ["/", "/documents", "/hil-review", "/monitor", "/analytics", "/solutions", "/solutions-v2", "/pipeline-studio", "/metadata-studio", "/rules", "/integrations", "/environment", "/deployment", "/infrastructure"],
-  // PACCA Platform Admin: Full platform governance + complete client workspace visibility
-  "PACCA Platform Admin": ["/", "/documents", "/hil-review", "/monitor", "/analytics", "/solutions", "/solutions-v2", "/pipeline-studio", "/metadata-studio", "/rules", "/integrations", "/environment", "/deployment", "/infrastructure", "/users", "/settings"],
+  // PACCA Solution Developer: Configure & Deploy solutions and pipelines (NO Administration / Settings / Users)
+  "PACCA Solution Developer": [
+    "/",
+    "/documents",
+    "/hil-review",
+    "/monitor",
+    "/analytics",
+    "/solutions",
+    "/solutions-v2",
+    "/pipeline-studio",
+    "/metadata-studio",
+    "/rules",
+    "/integrations",
+    "/deployment",
+    "/infrastructure",
+  ],
+  // PACCA Platform Admin: Full platform governance + Administration (Users & Settings)
+  "PACCA Platform Admin": [
+    "/",
+    "/documents",
+    "/hil-review",
+    "/monitor",
+    "/analytics",
+    "/solutions",
+    "/solutions-v2",
+    "/pipeline-studio",
+    "/metadata-studio",
+    "/rules",
+    "/integrations",
+    "/deployment",
+    "/infrastructure",
+    "/users",
+    "/settings",
+  ],
 };
 
 type LoginProps = { onLogin: (user: MockUser) => void };

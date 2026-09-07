@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { AccessDenied, demoAllowedPaths, LoginScreen, SkeletonPage } from "@/components/MockAuth";
+import { AccessDenied, demoAllowedPaths, demoPersonas, LoginScreen, SkeletonPage } from "@/components/MockAuth";
 import type { MockUser } from "@/components/MockAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CentralAdminPortal } from "@/pages/admin/CentralAdminPortal";
@@ -67,24 +67,18 @@ export default function Home() {
   const hasAccess = allowedPaths.includes(basePath);
 
   const switchRole = (role: MockUser["role"]) => {
-    const isClient = role === "Client Staff";
-    const next = {
+    const next = demoPersonas[role] || {
       ...user,
       role,
-      name:
-        role === "PACCA Platform Admin"
-          ? "PACCA Platform Admin"
-          : role === "PACCA Solution Developer"
-            ? "PACCA Solution Developer"
-            : "Client Staff · Client 1",
-      tenant: isClient ? "Client 1" : "PACCA Platform",
-      tenantCode: isClient ? "CLIENT1" : "PACCA",
-      experience: isClient ? ("client" as const) : ("central" as const),
+      name: role,
+      initials: role === "PACCA Platform Admin" ? "SK" : role === "PACCA Solution Developer" ? "MC" : "AR",
     };
     setUser(next);
     const nextAllowed = demoAllowedPaths(role);
-    if (!nextAllowed.includes(basePath)) go(isClient ? "/documents" : "/solutions-v2");
-    toast.success(`Role switched to ${role}`);
+    if (!nextAllowed.includes(basePath)) {
+      go(role === "Client Staff" ? "/documents" : "/solutions-v2");
+    }
+    toast.success(`Switched persona to ${next.name} (${role})`);
   };
 
   const openDocument = (documentId: string) => go(`/documents/${encodeURIComponent(documentId)}`);
