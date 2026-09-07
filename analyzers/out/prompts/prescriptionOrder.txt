@@ -1,0 +1,167 @@
+The document above is a **prescriptionOrder**.
+
+Standalone prescriptions and medication orders, whether faxed, handwritten, or printed from an e-prescribing system. Extracts patient and prescriber identity, the full drug order — name, strength, dose form, route, SIG, quantity, refills and days supply — plus the substitution selection and signature presence.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written, the date of service, or a coverage effective date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PatientGender
+*string · resolution*
+
+Patient gender or sex as recorded. Usually a checkbox pair labeled M/F or Male/Female, or a Sex field in a demographics header. Return Unknown if no box is marked or the marking is ambiguous.
+
+Allowed values: `Male`, `Female`, `Other`, `Unknown`. Use null if none of them apply.
+
+### PatientAddress
+*object · transcription*
+
+Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering Provider, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescribing provider National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing or ordering provider, not the facility, group or dispensing pharmacy.
+
+### ProviderDEA
+*string · transcription*
+
+Prescriber DEA registration number, printed near the signature line on prescriptions and enrolment forms. Two letters followed by seven digits, for example BJ1234563. Labeled DEA, DEA #, or DEA Number.
+
+### ProviderAddress
+*object · transcription*
+
+Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address and from the ship-to address.
+
+### ProviderPhone
+*string · transcription*
+
+Provider office telephone number, from the letterhead or prescriber block. Not the fax number, and not a payer or pharmacy help-desk number.
+
+### ProviderFax
+*string · transcription*
+
+Fax number for the provider office, as printed. Labeled Fax, Fax #, or Fax Number. On payer correspondence this is the fax the response is to be returned to; take the provider-side number when both appear.
+
+### PrimaryDiagnosisCode
+*string · transcription*
+
+Primary diagnosis code, normally ICD-10-CM — a letter, two digits, then an optional dot and up to four more characters, for example M05.79 or L40.50. Labeled ICD-10, ICD, Diagnosis Code, or Dx. Where several are listed take the one marked primary, or the first if none is marked.
+
+### PrimaryDiagnosisDescription
+*string · transcription*
+
+Text description of the primary diagnosis as printed next to or in place of the code, for example "Rheumatoid arthritis with rheumatoid factor of multiple sites" or "Plaque psoriasis". Do not expand a code you were not given a description for.
+
+### DrugName
+*string · resolution*
+
+Drug or therapy name as written, brand or generic, including any strength printed alongside it — for example "Humira (adalimumab) 40 mg/0.8 mL" or "Stelara 90 mg". Copy what is on the page; reference-data resolution happens downstream.
+
+### DrugStrength
+*string · resolution*
+
+Strength with units as printed, for example 40 mg/0.8 mL, 90 mg/mL, or 300 mg. May be a checkbox selection rather than free text. Return null when only a drug name appears.
+
+### DrugNDC
+*string · transcription*
+
+National Drug Code for the product, 10 or 11 digits usually printed with hyphens as 5-4-2 or 5-3-2, for example 00074-3799-02. Labeled NDC or NDC #. Copy the hyphenation exactly as printed.
+
+### Signature
+*string · detection*
+
+Whether a handwritten or electronic provider signature mark appears in the signature area. Detect the presence of a mark; do not transcribe a name. A printed name on the signature line with no mark over it is Absent. Text such as "Electronically signed by" is Present.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### DateWritten
+*date · transcription*
+
+Date the prescriber wrote or signed the prescription. Labeled Date, Date Written, or Date Signed. Not the patient date of birth and not the fax transmission date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### DoseForm
+*string · resolution*
+
+Dose form of the product ordered, from an explicit dose-form field, a checkbox group, or the form named in the drug line itself. Not documented if the order does not say.
+
+Allowed values: `Tablet`, `Capsule`, `Injection`, `Prefilled syringe`, `Autoinjector`, `Pen`, `Vial`, `Solution`, `Suspension`, `Cream or ointment`, `Inhaler`, `Other`, `Not documented`. Use null if none of them apply.
+
+### RouteOfAdministration
+*string · resolution*
+
+Route the drug is to be given by, from an explicit route field or stated plainly in the directions — "inject subcutaneously" is Subcutaneous. Do not infer the route from the drug's identity.
+
+Allowed values: `Oral`, `Subcutaneous`, `Intravenous`, `Intramuscular`, `Topical`, `Inhalation`, `Ophthalmic`, `Other`, `Not documented`. Use null if none of them apply.
+
+### DrugDirections
+*string · resolution*
+
+Dosing directions or SIG, verbatim and in full, including any loading or titration schedule. Capture the whole block rather than summarising it.
+
+### Quantity
+*string · transcription*
+
+Quantity dispensed, with units if printed — for example 2 syringes or 30 tablets.
+
+### Refills
+*string · transcription*
+
+Number of refills authorised, as printed. May be a numeral, a word, PRN, or NR. Null if not stated.
+
+### DaysSupply
+*string · transcription*
+
+Days supply for one fill, as printed. Labeled Days Supply or DS.
+
+### DispenseAsWritten
+*string · detection*
+
+Which substitution instruction the prescriber selected. Prescriptions often print two signature lines or two boxes — one meaning substitution is allowed, one meaning brand medically necessary or dispense as written. Read which is marked or signed. Not indicated when neither is.
+
+Allowed values: `Substitution permitted`, `Dispense as written`, `Not indicated`. Use null if none of them apply.
+
+### SupervisingPhysicianNPI
+*string · transcription*
+
+Supervising or collaborating physician NPI, printed when a nurse practitioner or physician assistant is the prescriber. Exactly 10 digits and distinct from ProviderNPI. Null when only one NPI appears.
+
+### PrescriptionOrigin
+*string · detection*
+
+How the order was produced, judged from the page itself: an e-prescribing footer or "Electronically signed by" means electronic; handwritten field entries mean handwritten; a filled typed form means typed or printed. Not determinable when the scan is too poor to tell.
+
+Allowed values: `Electronic prescription printout`, `Handwritten`, `Typed or printed form`, `Not determinable`. Use null if none of them apply.

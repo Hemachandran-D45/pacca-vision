@@ -27,6 +27,7 @@ import {
   usePolled,
   type ExtractedField,
 } from "@/senderra/api";
+import { IvrOutreachButton } from "@/senderra/IvrOutreachButton";
 import { hilQueue, type HilItem } from "@/data/mockData";
 
 /**
@@ -110,7 +111,7 @@ export default function HilReviewPage({
   // Live polling for real pipeline documents awaiting human review (relaxed to 30s)
   const queuePoller = usePolled(() => fetchDocuments({ needsReview: "true" }), 30000);
   const liveDocuments = queuePoller.data?.documents ?? [];
-  const isLiveConnected = liveDocuments.length > 0;
+  const isLiveConnected = Boolean(queuePoller.data);
 
   // Selected document ID
   const [selectedId, setSelectedId] = useState<string | null>(focusDocumentId ?? null);
@@ -272,18 +273,18 @@ export default function HilReviewPage({
               }
             }}
           />
+        ) : queuePoller.loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-[12px] font-semibold text-slate-500">
+            Loading live review queue from Azure…
+          </div>
+        ) : queuePoller.error ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-[12px] text-rose-700">
+            {queuePoller.error}
+          </div>
         ) : (
-          <StandardWorkbench
-            currentDoc={mockList[mockIndex] ?? mockList[0]}
-            userName={userName}
-            onSaveDoc={(updated) => {
-              setMockList((prev) => prev.map((d, i) => (i === mockIndex ? updated : d)));
-            }}
-            onAdvance={() => {
-              const nextIdx = mockList.findIndex((d, i) => i !== mockIndex && d.status !== "Approved");
-              if (nextIdx >= 0) setMockIndex(nextIdx);
-            }}
-          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-[12px] text-slate-500">
+            No live documents need review right now.
+          </div>
         )}
       </div>
     </div>
@@ -962,6 +963,12 @@ function LiveWorkbench({
 
         {/* Pinned Action Controls */}
         <div className="shrink-0 mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+          <IvrOutreachButton
+            documentId={documentId}
+            outreach={data.outreach}
+            onDone={() => void refresh()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          />
           <button
             type="button"
             onClick={() => void act("approve")}

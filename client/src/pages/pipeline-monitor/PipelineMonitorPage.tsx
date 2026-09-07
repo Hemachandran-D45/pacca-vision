@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { MetricCard } from "@/components/common/MetricCard";
 import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
-import { analyticsData, documents as mockDocuments, stageData } from "@/data/mockData";
+import { analyticsData, stageData } from "@/data/mockData";
 import { fetchDocuments, fetchStats, relativeTime, usePolled } from "@/senderra/api";
 
 export default function PipelineMonitorPage() {
@@ -28,35 +28,24 @@ export default function PipelineMonitorPage() {
       if (saved) list = JSON.parse(saved);
     } catch {}
 
-    if (docData?.documents && docData.documents.length > 0) {
-      const live = docData.documents.map((d, i) => ({
-        id: d.documentId,
-        file: d.file || d.documentId,
-        type: d.docType || "Document",
-        status: d.uiStatus,
-        pages: d.pages || 1,
-        latency: d.latencyMs ? `${(d.latencyMs / 1000).toFixed(1)}s` : `${(2.2 + (i % 5) * 1.1).toFixed(1)}s`,
-        time: d.receivedAt ? relativeTime(d.receivedAt) : `${(i + 1) * 2}m ago`,
-        stage:
-          d.uiStatus === "In HIL Review" || d.uiStatus === "Needs Review"
-            ? "HIL Review"
-            : d.uiStatus === "Processed"
-              ? "Delivered"
-              : d.uiStatus === "Failed"
-                ? "Rules Validation"
-                : "Azure Extraction",
-      }));
-      return [...list, ...live];
-    }
-    return [
-      ...list,
-      ...mockDocuments.map((d: any, i) => ({
-        ...d,
-        latency: `${(2.4 + (i % 4) * 1.2).toFixed(1)}s`,
-        time: d.time || `${(i + 1) * 3}m ago`,
-        stage: d.status === "Needs Review" ? "HIL Review" : "Azure Extraction",
-      })),
-    ];
+    const live = (docData?.documents ?? []).map((d, i) => ({
+      id: d.documentId,
+      file: d.file || d.documentId,
+      type: d.docType || "Document",
+      status: d.uiStatus,
+      pages: d.pages || 1,
+      latency: d.latencyMs ? `${(d.latencyMs / 1000).toFixed(1)}s` : `${(2.2 + (i % 5) * 1.1).toFixed(1)}s`,
+      time: d.receivedAt ? relativeTime(d.receivedAt) : `${(i + 1) * 2}m ago`,
+      stage:
+        d.uiStatus === "In HIL Review" || d.uiStatus === "Needs Review"
+          ? "HIL Review"
+          : d.uiStatus === "Processed"
+            ? "Delivered"
+            : d.uiStatus === "Failed"
+              ? "Rules Validation"
+              : "Azure Extraction",
+    }));
+    return [...list, ...live];
   }, [docData]);
 
   const stats = statsData?.stats;

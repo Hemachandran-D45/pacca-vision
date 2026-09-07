@@ -31,7 +31,6 @@ import { StatusPill } from "@/components/common/StatusPill";
 import {
   DOCUMENT_TYPES,
   costData,
-  documents as mockDocuments,
   hilQueue as mockHilQueue,
   stageData as mockStageData,
   trendData,
@@ -45,7 +44,32 @@ import {
   usePolled,
   type DocumentSummary,
 } from "@/senderra/api";
-import { UploadDocumentModal } from "@/components/documents/UploadDocumentModal";
+import { UploadDocumentModal, type UploadedDocInfo } from "@/components/documents/UploadDocumentModal";
+
+function listStatus(uiStatus: string) {
+  if (uiStatus === "Processed") return "Processed" as const;
+  if (uiStatus === "In HIL Review") return "HIL Review" as const;
+  if (uiStatus === "Processing") return "Processing" as const;
+  if (uiStatus === "Queued") return "Queued" as const;
+  if (uiStatus === "Failed") return "Validation failed" as const;
+  return "Needs Review" as const;
+}
+
+function toOptimisticRow(item: UploadedDocInfo) {
+  return {
+    id: item.documentId,
+    file: item.file,
+    type: item.docType,
+    source: `Upload · ${item.department}`,
+    status: "Queued" as const,
+    confidence: "—",
+    pages: "—" as const,
+    received: "Just now",
+    color: "#8496ad",
+    pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(item.documentId)}`,
+    previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(item.documentId)}`,
+  };
+}
 
 function TrendCard() {
   return (
@@ -343,9 +367,11 @@ function HILQueueCard({
 
 function RecentDocuments({
   onNavigate,
+  onOpenDocument,
   documentsList,
 }: {
   onNavigate: (path: string) => void;
+  onOpenDocument: (id: string) => void;
   documentsList: any[];
 }) {
   return (
@@ -380,7 +406,7 @@ function RecentDocuments({
                 if (needsReview) {
                   onNavigate("/hil-review");
                 } else {
-                  onNavigate(`/documents/${doc.id}`);
+                  onOpenDocument(doc.id);
                 }
               };
 
@@ -431,43 +457,36 @@ export default function DashboardPage({
   onOpenDocument: (id: string) => void;
 }) {
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
-  const [uploadedLocalDocs, setUploadedLocalDocs] = useState<any[]>([]);
+  const [uploadedLocalDocs, setUploadedLocalDocs] = useState<ReturnType<typeof toOptimisticRow>[]>([]);
 
   // Live polling for backend documents & stats
   const docsPoller = usePolled(() => fetchDocuments(), 8000);
   const statsPoller = usePolled(() => fetchStats(), 8000);
 
   const liveDocs = docsPoller.data?.documents ?? [];
-  const isLive = liveDocs.length > 0;
   const backendStats = statsPoller.data?.stats;
 
   const allDocuments = useMemo(() => {
-    const baseDocs = isLive
-      ? liveDocs.map((d) => ({
-          id: d.documentId,
-          file: d.file,
-          type: d.docType
-            ? (d.docType.toLowerCase() === "clinicalnotes" ? "Clinical Note" : humanize(d.docType))
-            : "Prior Authorization",
-          source: d.source || "Auto-intake",
-          status: (d.uiStatus === "Processed"
-            ? "Processed"
-            : d.uiStatus === "In HIL Review"
-            ? "HIL Review"
-            : d.uiStatus === "Processing" || d.uiStatus === "Queued"
-            ? "Processing"
-            : "Needs Review") as "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing",
-          confidence: percent(d.confidence, 1),
-          pages: d.pages ?? 1,
-          received: relativeTime(d.receivedAt),
-          color: d.uiStatus === "Processed" ? "#45bd8d" : "#f2c94c",
-          pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
-          previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
-        }))
-      : mockDocuments;
+    const baseDocs = liveDocs.map((d) => ({
+      id: d.documentId,
+      file: d.file,
+      type: d.docType
+        ? (d.docType.toLowerCase() === "clinicalnotes" ? "Clinical Note" : humanize(d.docType))
+        : "Prior Authorization",
+      source: d.source || "Auto-intake",
+      status: listStatus(d.uiStatus),
+      confidence: percent(d.confidence, 1),
+      pages: d.pages ?? "—",
+      received: relativeTime(d.receivedAt),
+      color: d.uiStatus === "Processed" ? "#45bd8d" : d.uiStatus === "Queued" || d.uiStatus === "Processing" ? "#8496ad" : "#f2c94c",
+      pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+      previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+    }));
 
-    return [...uploadedLocalDocs, ...baseDocs];
-  }, [isLive, liveDocs, uploadedLocalDocs]);
+    const liveIds = new Set(baseDocs.map((row) => row.id));
+    const locals = uploadedLocalDocs.filter((row) => row.id && !liveIds.has(row.id));
+    return [...locals, ...baseDocs];
+  }, [liveDocs, uploadedLocalDocs]);
 
   const processedCount = useMemo(() => {
     if (backendStats?.processed) return backendStats.processed;
@@ -597,7 +616,7 @@ export default function DashboardPage({
       </div>
 
       {/* Recent Documents Table */}
-      <RecentDocuments onNavigate={onNavigate} documentsList={allDocuments} />
+      <RecentDocuments onNavigate={onNavigate} onOpenDocument={onOpenDocument} documentsList={allDocuments} />
 
       {/* Upload Document Modal */}
       <UploadDocumentModal
@@ -606,19 +625,7 @@ export default function DashboardPage({
         onUploaded={(result) => {
           if (result) {
             const list = Array.isArray(result) ? result : [result];
-            const newDocs = list.map((item, idx) => ({
-              id: `doc_${Date.now().toString(36)}_${idx}`,
-              file: item.file,
-              type: item.docType,
-              source: `Upload · ${item.department}`,
-              status: "Needs Review" as const,
-              confidence: "95%",
-              pages: 1,
-              received: "Just now",
-              color: "#f2c94c",
-              pdfUrl: "/assets/sample_invoice_001.pdf",
-              previewUrl: "/assets/sample_invoice_001.pdf",
-            }));
+            const newDocs = list.filter((item) => item.documentId).map(toOptimisticRow);
             setUploadedLocalDocs((prev) => [...newDocs, ...prev]);
           }
           void docsPoller.refresh();

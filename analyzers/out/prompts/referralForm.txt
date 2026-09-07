@@ -1,0 +1,226 @@
+The document above is a **referralForm**.
+
+Specialty pharmacy referral and enrolment forms — the intake packet a prescriber's office faxes to open a case. Extracts patient demographics and contact details, medical and pharmacy benefit identifiers, prescriber identity, the clinical block, the prescription block, and the shipping and consent sections. This is the highest-volume document in the queue and the one whose missing fields drive downstream outreach, so an honest null on a blank field matters more here than anywhere else.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written, the date of service, or a coverage effective date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PatientGender
+*string · resolution*
+
+Patient gender or sex as recorded. Usually a checkbox pair labeled M/F or Male/Female, or a Sex field in a demographics header. Return Unknown if no box is marked or the marking is ambiguous.
+
+Allowed values: `Male`, `Female`, `Other`, `Unknown`. Use null if none of them apply.
+
+### PatientAddress
+*object · transcription*
+
+Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
+
+### PayerName
+*string · resolution*
+
+Insurance company, health plan, or pharmacy benefit manager name that issued or administers this document. Usually in the letterhead or the card face — for example Aetna, UnitedHealthcare, Blue Cross Blue Shield of Texas, Express Scripts, CVS Caremark, OptumRx.
+
+### MemberID
+*string · transcription*
+
+Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, Identification Number, or ID. Copy the alphanumerics exactly as printed, including any leading letters.
+
+### GroupNumber
+*string · transcription*
+
+Employer or plan group number. Labeled Group, Group #, Group Number, or Grp. Distinct from the member ID and from RxGroup.
+
+### RxBIN
+*string · transcription*
+
+Pharmacy benefit BIN, the six-digit bank identification number that routes a pharmacy claim. Labeled RxBIN, BIN, or Rx BIN. Six digits.
+
+### RxPCN
+*string · transcription*
+
+Pharmacy benefit processor control number. Labeled RxPCN, PCN, or Rx PCN. Alphanumeric. Frequently absent even when RxBIN is present — return null rather than reusing the BIN.
+
+### RxGroup
+*string · transcription*
+
+Pharmacy benefit group identifier. Labeled RxGRP, RxGroup, or Rx Group. Distinct from the medical GroupNumber, though the two sometimes match.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering Provider, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescribing provider National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing or ordering provider, not the facility, group or dispensing pharmacy.
+
+### ProviderDEA
+*string · transcription*
+
+Prescriber DEA registration number, printed near the signature line on prescriptions and enrolment forms. Two letters followed by seven digits, for example BJ1234563. Labeled DEA, DEA #, or DEA Number.
+
+### ProviderAddress
+*object · transcription*
+
+Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address and from the ship-to address.
+
+### ProviderPhone
+*string · transcription*
+
+Provider office telephone number, from the letterhead or prescriber block. Not the fax number, and not a payer or pharmacy help-desk number.
+
+### ProviderFax
+*string · transcription*
+
+Fax number for the provider office, as printed. Labeled Fax, Fax #, or Fax Number. On payer correspondence this is the fax the response is to be returned to; take the provider-side number when both appear.
+
+### PrimaryDiagnosisCode
+*string · transcription*
+
+Primary diagnosis code, normally ICD-10-CM — a letter, two digits, then an optional dot and up to four more characters, for example M05.79 or L40.50. Labeled ICD-10, ICD, Diagnosis Code, or Dx. Where several are listed take the one marked primary, or the first if none is marked.
+
+### PrimaryDiagnosisDescription
+*string · transcription*
+
+Text description of the primary diagnosis as printed next to or in place of the code, for example "Rheumatoid arthritis with rheumatoid factor of multiple sites" or "Plaque psoriasis". Do not expand a code you were not given a description for.
+
+### DrugName
+*string · resolution*
+
+Drug or therapy name as written, brand or generic, including any strength printed alongside it — for example "Humira (adalimumab) 40 mg/0.8 mL" or "Stelara 90 mg". Copy what is on the page; reference-data resolution happens downstream.
+
+### DrugStrength
+*string · resolution*
+
+Strength with units as printed, for example 40 mg/0.8 mL, 90 mg/mL, or 300 mg. May be a checkbox selection rather than free text. Return null when only a drug name appears.
+
+### Signature
+*string · detection*
+
+Whether a handwritten or electronic provider signature mark appears in the signature area. Detect the presence of a mark; do not transcribe a name. A printed name on the signature line with no mark over it is Absent. Text such as "Electronically signed by" is Present.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### ReferralDate
+*date · transcription*
+
+Date the referral was completed or submitted. Labeled Date, Referral Date, or Date Submitted, usually beside the prescriber signature. Not a fax transmission timestamp printed in the page banner.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ReferralSource
+*string · resolution*
+
+Who sent this referral, from a "Referral Source" or "Referred By" field or from the letterhead of the sending organisation. Not documented when nothing on the page identifies the sender.
+
+Allowed values: `Prescriber office`, `Health system or clinic`, `Hub or manufacturer program`, `Payer`, `Patient self-referral`, `Another pharmacy`, `Not documented`. Use null if none of them apply.
+
+### PatientEmail
+*string · transcription*
+
+Patient email address, where the form collects one. Copy exactly, including the domain.
+
+### PreferredLanguage
+*string · transcription*
+
+Patient's preferred spoken or written language, from a Preferred Language field or an interpreter-needed checkbox group.
+
+### SecondaryPayerName
+*string · transcription*
+
+Name of a secondary or supplemental plan, where the insurance section collects one. Null when only one plan is listed.
+
+### PatientAllergies
+*string · transcription*
+
+Known drug allergies as written, verbatim. NKDA and "No known drug allergies" are real values, not absences — record them as printed. Null only when the field itself is blank.
+
+### PatientWeight
+*string · transcription*
+
+Patient weight with units as recorded, for example 168 lb or 76.2 kg. Collected because many specialty drugs are weight-banded.
+
+### DrugDirections
+*string · resolution*
+
+Dosing directions or SIG, verbatim and in full. May describe loading, induction and maintenance dosing in one block. Capture the whole text rather than summarising — it is mapped to a structured SIG code downstream and the mapping needs the original wording.
+
+### Quantity
+*string · transcription*
+
+Quantity to dispense, with units if printed — for example 2 syringes, 4 pens, or 30 tablets.
+
+### Refills
+*string · transcription*
+
+Number of refills authorised, as printed. May be a numeral, a word, PRN, or NR. Null if the field is blank.
+
+### DaysSupply
+*string · transcription*
+
+Days supply for one fill, as printed. Labeled Days Supply or DS.
+
+### RequestedStartDate
+*date · transcription*
+
+Date therapy is requested to begin, or the requested delivery date. Labeled Start Date, Requested Start, or Needed By.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ShipToLocation
+*string · resolution*
+
+Where the medication is to be shipped, from the shipping or delivery section's checkbox group. Not documented if no box is marked.
+
+Allowed values: `Patient home`, `Prescriber office`, `Clinic or infusion site`, `Alternate address`, `Not documented`. Use null if none of them apply.
+
+### PriorAuthorizationRequired
+*string · detection*
+
+Whether a prior-authorization-required box on the form is marked, or the form states that a PA has already been initiated. Read the checkbox; do not reason about whether the drug would need one.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### PatientConsentSignature
+*string · detection*
+
+Whether a patient or authorised-representative signature mark appears in the consent, HIPAA authorisation or assignment-of-benefits block. Distinct from the prescriber Signature field. Detect a mark, do not transcribe a name.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### InsuranceCardAttached
+*string · detection*
+
+Whether the packet indicates insurance card copies are attached — either a ticked "cards attached" box or a reproduced card image on the page. No when the box is present and unticked.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.

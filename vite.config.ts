@@ -351,7 +351,9 @@ function vitePluginSenderraApi(): Plugin {
         if (
           (key.startsWith("COSMOS_") ||
             key.startsWith("AZURE_STORAGE_") ||
-            key.startsWith("SENDERRA_")) &&
+            key.startsWith("SENDERRA_") ||
+            key.startsWith("IVR_") ||
+            key === "PACCA_IVR_TRIGGER_ENABLED") &&
           process.env[key] === undefined
         ) {
           process.env[key] = value;

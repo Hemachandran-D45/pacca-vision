@@ -1,0 +1,183 @@
+The document above is a **explanationOfBenefits**.
+
+Explanation of benefits statements and pharmacy claim remittances for claims already adjudicated. Extracts patient, payer, provider and drug identity, the claim identifiers and status, the full money breakdown from billed through to patient responsibility, and the adjustment and remark codes that explain any reduction or refusal.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written, the date of service, or a coverage effective date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### MemberID
+*string · transcription*
+
+Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, Identification Number, or ID. Copy the alphanumerics exactly as printed, including any leading letters.
+
+### GroupNumber
+*string · transcription*
+
+Employer or plan group number. Labeled Group, Group #, Group Number, or Grp. Distinct from the member ID and from RxGroup.
+
+### PayerName
+*string · resolution*
+
+Insurance company, health plan, or pharmacy benefit manager name that issued or administers this document. Usually in the letterhead or the card face — for example Aetna, UnitedHealthcare, Blue Cross Blue Shield of Texas, Express Scripts, CVS Caremark, OptumRx.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering Provider, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescribing provider National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing or ordering provider, not the facility, group or dispensing pharmacy.
+
+### DrugName
+*string · resolution*
+
+Drug or therapy name as written, brand or generic, including any strength printed alongside it — for example "Humira (adalimumab) 40 mg/0.8 mL" or "Stelara 90 mg". Copy what is on the page; reference-data resolution happens downstream.
+
+### DrugNDC
+*string · transcription*
+
+National Drug Code for the product, 10 or 11 digits usually printed with hyphens as 5-4-2 or 5-3-2, for example 00074-3799-02. Labeled NDC or NDC #. Copy the hyphenation exactly as printed.
+
+### DateOfService
+*date · transcription*
+
+Date the care described in this document was delivered. Labeled Date of Service, DOS, Visit Date, Service Date, or Encounter Date. Not the date the document was printed, signed or mailed.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### AppealDeadlineDate
+*date · transcription*
+
+The calendar date by which an appeal must be filed, where the document prints one. Copy the printed date. If the document only states a window such as "within 60 days of this notice" and prints no date, this is null — do not calculate it.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ClaimNumber
+*string · transcription*
+
+Claim identifier assigned by the payer. Labeled Claim #, Claim Number, ICN, or Document Control Number.
+
+### StatementDate
+*date · transcription*
+
+Date the statement was issued, from the header. Not the date of service.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ClaimStatus
+*string · resolution*
+
+How the claim was adjudicated, from the status column or the summary line. Read the status the statement prints rather than inferring it from the amounts.
+
+Allowed values: `Paid`, `Denied`, `Partially paid`, `Pending`, `Reversed`, `Adjusted`, `Applied to deductible`, `Not documented`. Use null if none of them apply.
+
+### PharmacyName
+*string · transcription*
+
+Dispensing pharmacy or servicing provider named on the claim line. Distinct from the prescriber.
+
+### PharmacyNPI
+*string · transcription*
+
+NPI of the dispensing pharmacy, ten digits. Distinct from ProviderNPI, which is the prescriber's.
+
+### QuantityDispensed
+*string · transcription*
+
+Quantity dispensed on this claim line, as printed.
+
+### DaysSupply
+*string · transcription*
+
+Days supply billed on this claim line, as printed.
+
+### BilledAmount
+*string · transcription*
+
+Amount billed or submitted, copied exactly as printed including the currency symbol and any thousands separator — for example $12,480.00. Do not reformat it into a bare number.
+
+### AllowedAmount
+*string · transcription*
+
+Plan-allowed or contracted amount, as printed. Labeled Allowed, Eligible, or Plan Allowance.
+
+### PlanPaidAmount
+*string · transcription*
+
+Amount the plan paid, as printed. Labeled Plan Paid, Payment, or Amount Paid.
+
+### PatientResponsibility
+*string · transcription*
+
+Total the patient owes for this claim, as printed. Labeled Patient Responsibility, You May Owe, or Member Liability. Read the printed total — never add the copay, coinsurance and deductible figures together yourself.
+
+### CopayAmount
+*string · transcription*
+
+Copay applied, as printed. Null when no copay line appears.
+
+### CoinsuranceAmount
+*string · transcription*
+
+Coinsurance applied, as printed.
+
+### DeductibleApplied
+*string · transcription*
+
+Amount applied to the deductible on this claim, as printed. Not the year-to-date deductible accumulator.
+
+### AdjustmentReasonCodes
+*array · transcription*
+
+Claim adjustment reason codes explaining any difference between billed and paid — CARC codes such as CO-50, CO-197, PR-1 or PR-3, usually printed in a code column or a legend at the foot of the page. Copy each code exactly, with its group prefix if one is printed. Empty array when the statement shows none.
+
+### RemarkCodes
+*array · transcription*
+
+Remittance advice remark codes, typically N-prefixed such as N130 or N362, giving supplementary explanation. Empty array when none appear.
+
+### ClaimDenialReason
+*string · inference*
+
+Why this claim was refused or reduced, summarised in one or two sentences from the codes, the legend and any narrative on the statement. Null when the claim was paid in full. Say what the statement says — do not diagnose the cause yourself.
+
+### PriorAuthorizationOnFile
+*string · detection*
+
+Whether the statement indicates an authorization was on file for this claim — an authorization number printed on the line, or a code stating precertification was absent, which is No. Not documented when the statement is silent on authorization.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### YearToDateDeductible
+*string · transcription*
+
+Year-to-date deductible accumulator, as printed in the summary or accumulator block. Null when the statement shows no accumulator.
+
+### YearToDateOutOfPocket
+*string · transcription*
+
+Year-to-date out-of-pocket accumulator, as printed. Null when absent.

@@ -1,0 +1,149 @@
+The document above is a **letterOfMedicalNecessity**.
+
+Letters of medical necessity written by a prescriber to a payer. Extracts patient, prescriber and payer identity, the requested therapy and regimen, the clinical rationale, the prior therapies tried and their outcomes, the evidence cited, and the urgency requested.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written, the date of service, or a coverage effective date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
+
+### PayerName
+*string · resolution*
+
+Insurance company, health plan, or pharmacy benefit manager name that issued or administers this document. Usually in the letterhead or the card face — for example Aetna, UnitedHealthcare, Blue Cross Blue Shield of Texas, Express Scripts, CVS Caremark, OptumRx.
+
+### MemberID
+*string · transcription*
+
+Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, Identification Number, or ID. Copy the alphanumerics exactly as printed, including any leading letters.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering Provider, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescribing provider National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing or ordering provider, not the facility, group or dispensing pharmacy.
+
+### ProviderAddress
+*object · transcription*
+
+Provider or practice address, usually in the letterhead or prescriber block. Distinct from the patient address and from the ship-to address.
+
+### ProviderPhone
+*string · transcription*
+
+Provider office telephone number, from the letterhead or prescriber block. Not the fax number, and not a payer or pharmacy help-desk number.
+
+### ProviderFax
+*string · transcription*
+
+Fax number for the provider office, as printed. Labeled Fax, Fax #, or Fax Number. On payer correspondence this is the fax the response is to be returned to; take the provider-side number when both appear.
+
+### PrimaryDiagnosisCode
+*string · transcription*
+
+Primary diagnosis code, normally ICD-10-CM — a letter, two digits, then an optional dot and up to four more characters, for example M05.79 or L40.50. Labeled ICD-10, ICD, Diagnosis Code, or Dx. Where several are listed take the one marked primary, or the first if none is marked.
+
+### PrimaryDiagnosisDescription
+*string · transcription*
+
+Text description of the primary diagnosis as printed next to or in place of the code, for example "Rheumatoid arthritis with rheumatoid factor of multiple sites" or "Plaque psoriasis". Do not expand a code you were not given a description for.
+
+### DrugName
+*string · resolution*
+
+Drug or therapy name as written, brand or generic, including any strength printed alongside it — for example "Humira (adalimumab) 40 mg/0.8 mL" or "Stelara 90 mg". Copy what is on the page; reference-data resolution happens downstream.
+
+### DrugStrength
+*string · resolution*
+
+Strength with units as printed, for example 40 mg/0.8 mL, 90 mg/mL, or 300 mg. May be a checkbox selection rather than free text. Return null when only a drug name appears.
+
+### Signature
+*string · detection*
+
+Whether a handwritten or electronic provider signature mark appears in the signature area. Detect the presence of a mark; do not transcribe a name. A printed name on the signature line with no mark over it is Absent. Text such as "Electronically signed by" is Present.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### LetterDate
+*date · transcription*
+
+Date the letter was written, from the dateline above the salutation. Not the date of service described inside it.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### AddresseeName
+*string · transcription*
+
+Who the letter is addressed to — a named medical director, a review department, or a plan. Copy the addressee block's first line. "To Whom It May Concern" is a real value here.
+
+### RequestedRegimen
+*string · resolution*
+
+The dosing regimen being requested, verbatim — dose, route, frequency and any loading schedule, for example "40 mg subcutaneously every other week following an 80 mg loading dose".
+
+### RequestedDuration
+*string · transcription*
+
+How long coverage is requested for, as stated — for example 12 months or 6 months. Null when the letter does not ask for a period.
+
+### ClinicalRationale
+*string · inference*
+
+The prescriber's argument for why this therapy is medically necessary for this patient, summarised in three or four sentences from the body of the letter. Keep the prescriber's stated grounds — disease severity, functional impact, failure of alternatives — rather than generalising to "clinically indicated". Use only what the letter says.
+
+### PriorTherapiesTried
+*array · inference*
+
+Therapies the letter states the patient has already tried, with what happened. This is what step-therapy review is decided on. Empty array if the letter names none.
+
+### ContraindicationsStated
+*string · inference*
+
+Reasons the letter gives that formulary alternatives cannot be used for this patient — contraindications, comorbidities, prior adverse reactions. Null when the letter argues only on efficacy and names no barrier to alternatives.
+
+### EvidenceCited
+*array · inference*
+
+Published guidance, labelling or literature the letter cites in support — for example an ACR treatment guideline, an NCCN compendium listing, or FDA prescribing information. One entry per citation, as the letter names it. Empty array when nothing is cited.
+
+### AttachmentsReferenced
+*array · inference*
+
+Documents the letter says are enclosed or attached — chart notes, lab results, imaging, a pharmacy claims history. One entry each, as named. Empty array when the letter references no enclosures. This list is checked against what actually arrived, so record only what the letter itself claims.
+
+### UrgencyRequested
+*string · resolution*
+
+Whether the letter asks for expedited review, using language such as urgent, expedited, or a stated risk of harm from delay. Not stated when the letter makes no request about timing.
+
+Allowed values: `Standard`, `Expedited or urgent`, `Not stated`. Use null if none of them apply.

@@ -1,0 +1,150 @@
+The document above is a **clinicalNote**.
+
+Clinical, progress and consultation notes. Extracts patient and provider identity, the encounter metadata, and the clinical evidence a prior authorization actually turns on: the diagnosis codes, the prior therapy history with outcomes, the lab values quoted in the note, and the screening results required before a biologic can start.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written, the date of service, or a coverage effective date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PatientGender
+*string · resolution*
+
+Patient gender or sex as recorded. Usually a checkbox pair labeled M/F or Male/Female, or a Sex field in a demographics header. Return Unknown if no box is marked or the marking is ambiguous.
+
+Allowed values: `Male`, `Female`, `Other`, `Unknown`. Use null if none of them apply.
+
+### PatientAddress
+*object · transcription*
+
+Patient mailing or shipping address. Often spans two lines; the second line may hold an apartment, suite, or unit number.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering Provider, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescribing provider National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing or ordering provider, not the facility, group or dispensing pharmacy.
+
+### DateOfService
+*date · transcription*
+
+Date the care described in this document was delivered. Labeled Date of Service, DOS, Visit Date, Service Date, or Encounter Date. Not the date the document was printed, signed or mailed.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### PrimaryDiagnosisCode
+*string · transcription*
+
+Primary diagnosis code, normally ICD-10-CM — a letter, two digits, then an optional dot and up to four more characters, for example M05.79 or L40.50. Labeled ICD-10, ICD, Diagnosis Code, or Dx. Where several are listed take the one marked primary, or the first if none is marked.
+
+### PrimaryDiagnosisDescription
+*string · transcription*
+
+Text description of the primary diagnosis as printed next to or in place of the code, for example "Rheumatoid arthritis with rheumatoid factor of multiple sites" or "Plaque psoriasis". Do not expand a code you were not given a description for.
+
+### Signature
+*string · detection*
+
+Whether a handwritten or electronic provider signature mark appears in the signature area. Detect the presence of a mark; do not transcribe a name. A printed name on the signature line with no mark over it is Absent. Text such as "Electronically signed by" is Present.
+
+Allowed values: `Present`, `Absent`. Use null if none of them apply.
+
+### NoteType
+*string · resolution*
+
+What kind of encounter this note documents, from its title or header block. Not documented when the note is untitled.
+
+Allowed values: `Office visit`, `Progress note`, `Consultation`, `Hospital discharge summary`, `Telehealth visit`, `Procedure note`, `Other`, `Not documented`. Use null if none of them apply.
+
+### FacilityName
+*string · transcription*
+
+Practice, clinic or health system the note was written at, usually in the header or the EHR footer. Not the provider's personal name.
+
+### ChiefComplaint
+*string · transcription*
+
+The chief complaint or reason for visit, verbatim from that labeled line. Do not substitute the diagnosis.
+
+### PatientWeight
+*string · transcription*
+
+Patient weight with units from the vitals block, for example 168 lb or 76.2 kg.
+
+### PatientHeight
+*string · transcription*
+
+Patient height as recorded, for example 5 ft 9 in or 175 cm.
+
+### SecondaryDiagnoses
+*array · transcription*
+
+Every diagnosis listed in the note other than the primary one, from the assessment, problem list or diagnosis block. Empty array when the note lists only one.
+
+### Allergies
+*string · transcription*
+
+Allergies as recorded, verbatim. NKDA and "No known drug allergies" are real values — record them as printed rather than as null.
+
+### CurrentMedications
+*array · transcription*
+
+The current medication list as printed, one entry per line of the list, each with its strength and directions if given. Medication lists routinely straddle page breaks, so read the whole document before deciding the list has ended.
+
+### PriorTherapies
+*array · inference*
+
+Therapies the patient has ALREADY tried for the condition under treatment, and what happened. This is the single most important field on this document — step-therapy criteria are decided on it. Gather from wherever the note records it: a past-medications section, the HPI narrative, or the assessment. Include only drugs described as previously tried, stopped, failed or not tolerated — not the current medication list. Empty array when the note records no prior therapy.
+
+### StepTherapyDocumented
+*string · inference*
+
+Whether this note documents a trial of, and failure or intolerance to, at least one prior therapy for the condition being treated. Yes requires both the trial and its unsatisfactory outcome to be stated. A note listing prior drugs with no outcome is Not documented.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### RelevantLabValues
+*array · inference*
+
+Laboratory values quoted anywhere in this note — in the objective section, an embedded results table, or the narrative. Take only values actually printed in the document. Empty array when the note quotes none.
+
+### TBScreeningResult
+*string · inference*
+
+Result of tuberculosis screening, which payers require before most biologics start. Infer from a QuantiFERON-TB Gold or T-SPOT result, a PPD or tuberculin skin test reading, or a chest X-ray finding, read together with the assessment. Not documented when the note is silent — that absence is itself the finding, so do not guess.
+
+Allowed values: `Negative`, `Positive`, `Indeterminate`, `Not documented`. Use null if none of them apply.
+
+### TreatmentPlan
+*string · inference*
+
+The plan for this patient going forward, summarised from the plan or assessment-and-plan section — what is being started, changed, continued or ordered. Two or three sentences. Base it only on what the note states.

@@ -74,6 +74,18 @@ export type ReviewItem = {
   note?: string | null;
 };
 
+export type OutreachHint = {
+  visible: boolean;
+  enabled: boolean;
+  skipReason: string | null;
+  openCount: number;
+  patientAskableOpen: number;
+  blankRequiredCount: number;
+  gapStatus: string | null;
+  callDirection: string | null;
+  hasGapsItem: boolean;
+};
+
 export type DocumentDetail = {
   summary: DocumentSummary;
   ocr: Record<string, unknown> | null;
@@ -81,6 +93,7 @@ export type DocumentDetail = {
   fields: { docType?: string; fields?: Record<string, ExtractedField> } | null;
   review: ReviewItem | null;
   pdfUrl: string | null;
+  outreach?: OutreachHint;
 };
 
 export type SenderraStats = {
@@ -169,9 +182,14 @@ export function fetchAnalytics() {
 }
 
 export function fetchHealth() {
-  return request<{ configured: boolean; cosmos?: string; storage?: string; uploadRunId?: string }>(
-    "/health"
-  );
+  return request<{
+    configured: boolean;
+    cosmos?: string;
+    storage?: string;
+    uploadRunId?: string;
+    ivrTriggerEnabled?: boolean;
+    ivrUrlSet?: boolean;
+  }>("/health");
 }
 
 export type UploadGrant = {
@@ -220,6 +238,28 @@ export function postReview(payload: {
   return request<{ review: ReviewItem }>("/review", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export type IvrTriggerResult = {
+  trigger_status: string;
+  triggered_at?: string;
+  skipReason?: string | null;
+  call_id?: string | null;
+  call_status?: string | null;
+  request_id?: string | null;
+  trigger_error?: string;
+  trigger_http_status?: number;
+  will_ask?: unknown;
+  skipped?: unknown;
+  test_mode?: unknown;
+  patched?: boolean;
+};
+
+export function triggerIvr(documentId: string) {
+  return request<IvrTriggerResult>("/ivr-trigger", {
+    method: "POST",
+    body: JSON.stringify({ documentId }),
   });
 }
 

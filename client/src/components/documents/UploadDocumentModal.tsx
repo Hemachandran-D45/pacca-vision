@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { mintUploadGrants, uploadToBlob, bytes } from "@/senderra/api";
+import { mintUploadGrants, uploadToBlob, bytes, type UploadGrant } from "@/senderra/api";
 
 export const UPLOAD_DEPARTMENTS = [
   "Prior Authorization",
@@ -47,7 +47,13 @@ export const UPLOAD_DOC_TYPES = [
   "Patient Demographics / Intake",
 ] as const;
 
-export type UploadedDocInfo = { file: string; department: string; docType: string };
+export type UploadedDocInfo = {
+  file: string;
+  department: string;
+  docType: string;
+  documentId: string;
+  blobName: string;
+};
 
 export function UploadDocumentModal({
   open,
@@ -136,14 +142,10 @@ export function UploadDocumentModal({
     const uploadedList: UploadedDocInfo[] = [];
 
     try {
-      let grantsList: any[] = [];
-      try {
-        const res = await mintUploadGrants(selectedFiles.map((f) => ({ name: f.name })));
-        if (res && res.grants) {
-          grantsList = res.grants;
-        }
-      } catch (grantErr) {
-        console.warn("Bulk grant minting notice:", grantErr);
+      const res = await mintUploadGrants(selectedFiles.map((f) => ({ name: f.name })));
+      const grantsList: UploadGrant[] = res?.grants ?? [];
+      if (grantsList.length !== selectedFiles.length) {
+        throw new Error("Upload grant count did not match the selected files.");
       }
 
       for (let i = 0; i < selectedFiles.length; i++) {
@@ -151,18 +153,17 @@ export function UploadDocumentModal({
         setUploadProgress({ current: i + 1, total: selectedFiles.length });
 
         const grant = grantsList[i];
-        if (grant) {
-          try {
-            await uploadToBlob(grant, file);
-          } catch (uploadErr) {
-            console.warn(`Direct blob upload failed for ${file.name}:`, uploadErr);
-          }
+        if (!grant?.documentId) {
+          throw new Error(`No upload grant for ${file.name}.`);
         }
+        await uploadToBlob(grant, file);
 
         uploadedList.push({
           file: file.name,
           department,
           docType: docType.startsWith("Auto-detect") ? "Prior Authorization" : docType,
+          documentId: grant.documentId,
+          blobName: grant.blobName,
         });
       }
 

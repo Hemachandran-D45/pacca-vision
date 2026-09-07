@@ -1,6 +1,6 @@
 The document above is a **insuranceCard**.
 
-Insurance and pharmacy benefit card images. Extracts member, group and pharmacy routing identifiers. Near-pure transcription.
+Scans and photographs of medical and pharmacy benefit cards, usually front and back on one page. Extracts the member, group and plan identifiers, the pharmacy claim routing numbers, the printed copay information and the plan's service phone numbers. Short documents with almost no prose — most fields are a single line each.
 
 Extract the fields listed below from that document, into the required JSON object.
 
@@ -18,34 +18,90 @@ Extract the fields listed below from that document, into the required JSON objec
 ### PatientName
 *string · transcription*
 
-Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First.
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientPhone
+*string · transcription*
+
+Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or Contact Number. Capture digits as printed, including area code.
 
 ### MemberID
 *string · transcription*
 
-Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, or ID. Copy alphanumerics exactly as printed.
-
-### PayerName
-*string · resolution*
-
-Insurance company, health plan, or pharmacy benefit manager name that issued this document. Usually in the letterhead.
+Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, Identification Number, or ID. Copy the alphanumerics exactly as printed, including any leading letters.
 
 ### GroupNumber
 *string · transcription*
 
-Group number. Labeled Group, Group #, Grp, or Group No. Copy exactly as printed.
+Employer or plan group number. Labeled Group, Group #, Group Number, or Grp. Distinct from the member ID and from RxGroup.
 
-### BIN
+### PayerName
+*string · resolution*
+
+Insurance company, health plan, or pharmacy benefit manager name that issued or administers this document. Usually in the letterhead or the card face — for example Aetna, UnitedHealthcare, Blue Cross Blue Shield of Texas, Express Scripts, CVS Caremark, OptumRx.
+
+### RxBIN
 *string · transcription*
 
-Pharmacy BIN, the six-digit bank identification number used for claim routing. Labeled RxBIN or BIN.
+Pharmacy benefit BIN, the six-digit bank identification number that routes a pharmacy claim. Labeled RxBIN, BIN, or Rx BIN. Six digits.
 
-### PCN
+### RxPCN
 *string · transcription*
 
-Pharmacy processor control number. Labeled RxPCN or PCN. Alphanumeric.
+Pharmacy benefit processor control number. Labeled RxPCN, PCN, or Rx PCN. Alphanumeric. Frequently absent even when RxBIN is present — return null rather than reusing the BIN.
 
-### NCPDP
+### RxGroup
 *string · transcription*
 
-NCPDP or pharmacy identifier if printed on the card. Empty if absent.
+Pharmacy benefit group identifier. Labeled RxGRP, RxGroup, or Rx Group. Distinct from the medical GroupNumber, though the two sometimes match.
+
+### PlanName
+*string · transcription*
+
+Product or plan name printed on the card, for example "Choice Plus PPO" or "Blue Advantage HMO". Distinct from the payer name, though the two sometimes appear on the same line.
+
+### SubscriberName
+*string · transcription*
+
+Name of the policy subscriber where the card names one separately from the member. Null when only one name is printed.
+
+### PlanType
+*string · resolution*
+
+Plan type as printed on the card. Read the plan or product label, and any Medicare or Medicaid branding. Not documented when the card gives no indication.
+
+Allowed values: `Commercial PPO`, `Commercial HMO`, `Commercial EPO or POS`, `Medicare Advantage`, `Medicare Part D`, `Medicaid`, `Medicaid managed care`, `TRICARE`, `Other`, `Not documented`. Use null if none of them apply.
+
+### PayerID
+*string · transcription*
+
+Electronic payer identifier for medical claims, printed on the back of many cards. Labeled Payer ID, Payor ID, or EDI Payer ID. Distinct from RxBIN, which routes pharmacy claims.
+
+### EffectiveDate
+*date · transcription*
+
+Date coverage takes effect, where the card prints one. Labeled Effective Date or Coverage Effective.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### CopayInformation
+*string · transcription*
+
+The copay grid as printed, verbatim, including the labels — for example "PCP $25 / Specialist $50 / ER $250 / Rx Tier 1 $10". Capture the whole block on one line rather than picking one figure.
+
+### MemberServicesPhone
+*string · transcription*
+
+Member or customer services telephone number, usually on the reverse. Not the pharmacy help desk number.
+
+### PharmacyHelpDeskPhone
+*string · transcription*
+
+Pharmacy or provider help desk telephone number, printed beside the Rx routing numbers on the reverse. Null when only one number appears and it is labeled for members.
+
+### CardSide
+*string · detection*
+
+Which faces of the card this scan reproduces. Front and back when two card rectangles appear on the page. Judge from the layout, not from which fields you managed to read.
+
+Allowed values: `Front only`, `Back only`, `Front and back`, `Not determinable`. Use null if none of them apply.

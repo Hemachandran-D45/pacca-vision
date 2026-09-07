@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "call_flows": {
+    "referralForm": {
+      "use_case": 1,
+      "use_case_name": "Rx & Referral Intake",
+      "direction": "outbound",
+      "called_party": [
+        "patient",
+        "prescriber"
+      ],
+      "note": "Highest-volume intake point. The gap list from this document is the primary outbound-call trigger, and it splits: demographics and benefit identifiers go to the patient, clinical and prescribing detail to the prescriber's office."
+    },
+    "prescriptionOrder": {
+      "use_case": 1,
+      "use_case_name": "Rx & Referral Intake",
+      "direction": "outbound",
+      "called_party": [
+        "prescriber",
+        "patient"
+      ],
+      "note": "Mostly prescriber outreach \u2014 an unreadable NPI or a missing days supply is a call to the office, not to the patient."
+    },
+    "insuranceCard": {
+      "use_case": 1,
+      "use_case_name": "Rx & Referral Intake",
+      "direction": "outbound",
+      "called_party": [
+        "patient"
+      ],
+      "note": "Everything on a benefit card is something the patient can read back off the card in their hand, so every gap here is patient outreach."
+    },
+    "clinicalNote": {
+      "use_case": 2,
+      "use_case_name": "Prior Authorization Supporting Documentation",
+      "direction": "outbound",
+      "called_party": [
+        "prescriber"
+      ],
+      "note": "Prescriber outreach only. usecases.txt is explicit that a missing clinical data point is a call to the prescriber's office and not to the patient \u2014 the patient cannot supply a T-score or a TB screening result."
+    },
+    "labReport": {
+      "use_case": 2,
+      "use_case_name": "Prior Authorization Supporting Documentation",
+      "direction": "outbound",
+      "called_party": [
+        "prescriber"
+      ],
+      "note": "Prescriber or ordering-office outreach only."
+    },
+    "letterOfMedicalNecessity": {
+      "use_case": 2,
+      "use_case_name": "Prior Authorization Supporting Documentation",
+      "direction": "outbound",
+      "called_party": [
+        "prescriber"
+      ],
+      "note": "Prescriber outreach only. A weak or incomplete LMN is the single most common cause of an avoidable PA denial."
+    },
+    "paDeterminationLetter": {
+      "use_case": 3,
+      "use_case_name": "Payer Correspondence \u2014 Determination & Denial Letters",
+      "direction": "inbound",
+      "called_party": [],
+      "note": "INBOUND. The patient calls to ask why they were denied; the IVR reads this record out rather than collecting anything. Nothing here is collectable on a call, so the corpus renders these complete and gap_analysis is normally empty. If a field IS missing in production \u2014 a fax that lost the denial code \u2014 it is an escalation, because the IVR then cannot answer the question it was called about."
+    },
+    "paResponseFax": {
+      "use_case": 3,
+      "use_case_name": "Payer Correspondence \u2014 Determination & Denial Letters",
+      "direction": "inbound",
+      "called_party": [],
+      "note": "INBOUND, as above. Note that InformationRequested on a pending response is itself a list of things to obtain \u2014 but it drives a prescriber outreach task, not a question about this document's own fields."
+    },
+    "explanationOfBenefits": {
+      "use_case": 3,
+      "use_case_name": "Payer Correspondence \u2014 Determination & Denial Letters",
+      "direction": "inbound",
+      "called_party": [],
+      "note": "INBOUND, as above. Answers \"what do I owe and why\"."
+    },
+    "other": {
+      "use_case": 0,
+      "use_case_name": "Exception queue",
+      "direction": "none",
+      "called_party": [],
+      "note": "Not extracted, so there are no fields and no gaps. Goes to the exception queue for a human to identify."
+    }
+  },
+  "askable_by": {
+    "PatientName": "patient",
+    "PatientDOB": "patient",
+    "PatientGender": "patient",
+    "PatientAddress": "patient",
+    "PatientPhone": "patient",
+    "PatientEmail": "patient",
+    "PreferredLanguage": "patient",
+    "PatientAllergies": "patient",
+    "PatientWeight": "patient",
+    "PatientHeight": "patient",
+    "MemberID": "patient",
+    "GroupNumber": "patient",
+    "RxBIN": "patient",
+    "RxPCN": "patient",
+    "RxGroup": "patient",
+    "PayerName": "patient",
+    "PayerID": "patient",
+    "PlanName": "patient",
+    "PlanType": "patient",
+    "SubscriberName": "patient",
+    "EffectiveDate": "patient",
+    "CopayInformation": "patient",
+    "MemberServicesPhone": "patient",
+    "PharmacyHelpDeskPhone": "patient",
+    "SecondaryPayerName": "patient",
+    "ShipToLocation": "patient",
+    "InsuranceCardAttached": "patient",
+    "PatientConsentSignature": "patient",
+    "ProviderName": "prescriber",
+    "ProviderNPI": "prescriber",
+    "ProviderDEA": "prescriber",
+    "ProviderAddress": "prescriber",
+    "ProviderPhone": "prescriber",
+    "ProviderFax": "prescriber",
+    "FacilityName": "prescriber",
+    "PrimaryDiagnosisCode": "prescriber",
+    "PrimaryDiagnosisDescription": "prescriber",
+    "SecondaryDiagnoses": "prescriber",
+    "DrugName": "prescriber",
+    "DrugStrength": "prescriber",
+    "DrugNDC": "prescriber",
+    "DrugDirections": "prescriber",
+    "DoseForm": "prescriber",
+    "RouteOfAdministration": "prescriber",
+    "Quantity": "prescriber",
+    "Refills": "prescriber",
+    "DaysSupply": "prescriber",
+    "DateWritten": "prescriber",
+    "DispenseAsWritten": "prescriber",
+    "RequestedStartDate": "prescriber",
+    "ReferralDate": "prescriber",
+    "ReferralSource": "prescriber",
+    "PriorAuthorizationRequired": "prescriber",
+    "Signature": "prescriber",
+    "NoteType": "prescriber",
+    "ChiefComplaint": "prescriber",
+    "DateOfService": "prescriber",
+    "Allergies": "prescriber",
+    "CurrentMedications": "prescriber",
+    "PriorTherapies": "prescriber",
+    "StepTherapyDocumented": "prescriber",
+    "RelevantLabValues": "prescriber",
+    "TBScreeningResult": "prescriber",
+    "TreatmentPlan": "prescriber",
+    "PerformingLabName": "prescriber",
+    "PerformingLabCLIA": "prescriber",
+    "LabDirector": "prescriber",
+    "AccessionNumber": "prescriber",
+    "SpecimenType": "prescriber",
+    "SpecimenCollectedDate": "prescriber",
+    "SpecimenReceivedDate": "prescriber",
+    "ReportDate": "prescriber",
+    "ReportStatus": "prescriber",
+    "Results": "prescriber",
+    "AbnormalResultsPresent": "prescriber",
+    "CriticalResultsPresent": "prescriber",
+    "LetterDate": "prescriber",
+    "AddresseeName": "prescriber",
+    "RequestedRegimen": "prescriber",
+    "RequestedDuration": "prescriber",
+    "ClinicalRationale": "prescriber",
+    "PriorTherapiesTried": "prescriber",
+    "ContraindicationsStated": "prescriber",
+    "EvidenceCited": "prescriber",
+    "AttachmentsReferenced": "prescriber",
+    "UrgencyRequested": "prescriber",
+    "CaseNumber": null,
+    "AuthorizationNumber": null,
+    "PAOutcome": null,
+    "DeterminationDate": null,
+    "ReviewType": null,
+    "ApprovalEffectiveDate": null,
+    "ApprovalExpiryDate": null,
+    "ApprovedQuantity": null,
+    "ApprovedDaysSupply": null,
+    "DenialReasonCode": null,
+    "DenialReasonCategory": null,
+    "DenialReasonNarrative": null,
+    "CriteriaNotMet": null,
+    "SuggestedAlternatives": null,
+    "MedicalPolicyReference": null,
+    "AppealDeadlineDate": null,
+    "AppealWindowDays": null,
+    "AppealLevel": null,
+    "AppealRightsSummary": null,
+    "AppealSubmissionFax": null,
+    "AppealSubmissionPhone": null,
+    "PeerToPeerOffered": null,
+    "ExternalReviewRightsStated": null,
+    "ReviewerName": null,
+    "ResponseDate": null,
+    "RequestReceivedDate": null,
+    "FormOrPortalName": null,
+    "ApprovedThroughDate": null,
+    "PendingReason": null,
+    "InformationRequested": null,
+    "ResponseDueDate": null,
+    "ContinuationOfTherapy": null,
+    "CallbackPhone": null,
+    "ReturnFaxNumber": null,
+    "ClaimNumber": null,
+    "StatementDate": null,
+    "ClaimStatus": null,
+    "PharmacyName": null,
+    "PharmacyNPI": null,
+    "QuantityDispensed": null,
+    "BilledAmount": null,
+    "AllowedAmount": null,
+    "PlanPaidAmount": null,
+    "PatientResponsibility": null,
+    "CopayAmount": null,
+    "CoinsuranceAmount": null,
+    "DeductibleApplied": null,
+    "AdjustmentReasonCodes": null,
+    "RemarkCodes": null,
+    "ClaimDenialReason": null,
+    "PriorAuthorizationOnFile": null,
+    "YearToDateDeductible": null,
+    "YearToDateOutOfPocket": null,
+    "SupervisingPhysicianNPI": null,
+    "CardSide": null,
+    "PrescriptionOrigin": null
+  },
+  "protected_fields": [
+    "PatientGender",
+    "PatientName",
+    "PatientPhone",
+    "PayerName",
+    "ProviderNPI",
+    "ProviderName",
+    "ProviderPhone"
+  ],
+  "corpus_blank_fields": {
+    "referralForm": [
+      "MemberID",
+      "RxPCN",
+      "PatientAllergies",
+      "PatientEmail",
+      "PreferredLanguage"
+    ],
+    "prescriptionOrder": [
+      "PatientAddress",
+      "PatientDOB"
+    ],
+    "insuranceCard": [
+      "RxPCN",
+      "GroupNumber",
+      "CopayInformation"
+    ],
+    "clinicalNote": [
+      "PatientWeight",
+      "PatientHeight",
+      "PatientAddress",
+      "PatientDOB"
+    ],
+    "labReport": [
+      "PatientDOB"
+    ],
+    "letterOfMedicalNecessity": [
+      "MemberID",
+      "PatientDOB"
+    ],
+    "paDeterminationLetter": [],
+    "paResponseFax": [],
+    "explanationOfBenefits": [],
+    "other": []
+  }
+}

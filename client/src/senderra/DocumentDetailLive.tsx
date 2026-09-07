@@ -13,6 +13,7 @@ import {
   usePolled,
 } from "./api";
 import { ErrorBlock, LoadingBlock, StatusPill } from "./parts";
+import { IvrOutreachButton } from "./IvrOutreachButton";
 
 export function DocumentDetailLive({
   documentId,
@@ -81,15 +82,26 @@ export function DocumentDetailLive({
     }
   };
 
-  const timeline = [
-    ["Ingest", "Completed", "14:01:02", "green"],
-    ["Preprocess", "Completed", "14:01:03", "green"],
-    ["Understand / Classify", "Completed", "14:01:04", "green"],
-    ["Extract", "Completed", "14:01:06", "green"],
-    ["Validate", "Completed", "14:01:07", "green"],
-    ["HIL Review", "Not required (STP)", "—", "gray"],
-    ["Deliver", "Completed", "14:02:18", "green"],
-  ];
+  const isQueued = summary.uiStatus === "Queued" || summary.uiStatus === "Processing";
+  const timeline = isQueued
+    ? [
+        ["Ingest", summary.uiStatus === "Queued" ? "Queued" : "Completed", relativeTime(summary.receivedAt), summary.uiStatus === "Queued" ? "blue" : "green"],
+        ["Preprocess", "Waiting", "—", "gray"],
+        ["Understand / Classify", "Waiting", "—", "gray"],
+        ["Extract", "Waiting", "—", "gray"],
+        ["Validate", "Waiting", "—", "gray"],
+        ["HIL Review", "Not yet", "—", "gray"],
+        ["Deliver", "Waiting", "—", "gray"],
+      ]
+    : [
+        ["Ingest", "Completed", "14:01:02", "green"],
+        ["Preprocess", "Completed", "14:01:03", "green"],
+        ["Understand / Classify", "Completed", "14:01:04", "green"],
+        ["Extract", "Completed", "14:01:06", "green"],
+        ["Validate", "Completed", "14:01:07", "green"],
+        ["HIL Review", "Not required (STP)", "—", "gray"],
+        ["Deliver", "Completed", "14:02:18", "green"],
+      ];
 
   return (
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
@@ -118,6 +130,11 @@ export function DocumentDetailLive({
           </div>
         </div>
         <div className="flex gap-2">
+          <IvrOutreachButton
+            documentId={documentId}
+            outreach={data.outreach}
+            onDone={() => void refresh()}
+          />
           <button
             onClick={handleDownload}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
@@ -139,7 +156,7 @@ export function DocumentDetailLive({
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <SectionHeading
             title="Document preview"
-            eyebrow={`Page 1 of ${summary.pages ?? 1} · source rendition`}
+            eyebrow={summary.pages != null ? `Page 1 of ${summary.pages} · source rendition` : "Queued · awaiting pipeline"}
           />
           <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-[#edf1f5] p-3">
             <div className="mb-2 flex items-center justify-between">
@@ -181,8 +198,8 @@ export function DocumentDetailLive({
               {[
                 ["Solution", humanize(summary.docType)],
                 ["Source", summary.source || "MOS Auto-Intake"],
-                ["Pages", String(summary.pages ?? 1)],
-                ["Processing time", duration(summary.latencyMs) || "7.8s"],
+                ["Pages", summary.pages != null ? String(summary.pages) : "—"],
+                ["Processing time", duration(summary.latencyMs)],
                 ["Confidence", percent(summary.confidence, 1)],
                 ["Correlation ID", summary.runId || "cor_7f42a9"],
               ].map(([label, value]) => (
@@ -235,12 +252,18 @@ export function DocumentDetailLive({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionHeading
             title="Extracted Fields"
-            eyebrow={`${humanize(summary.docType)} Metadata Schema · Processed Output`}
+            eyebrow={`${humanize(summary.docType)} Metadata Schema · ${isQueued ? "Pipeline in progress" : "Processed Output"}`}
           />
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#45bd8d]/25 bg-[#45bd8d]/10 px-3 py-2 text-[10px] font-bold text-[#1f845d]">
-              ✓ Validated · Straight-Through Processing (STP)
-            </span>
+            {isQueued ? (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-600">
+                Queued · waiting for OCR / extract
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#45bd8d]/25 bg-[#45bd8d]/10 px-3 py-2 text-[10px] font-bold text-[#1f845d]">
+                ✓ Validated · Straight-Through Processing (STP)
+              </span>
+            )}
             <button
               onClick={() => toast("Metadata schema configuration")}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
@@ -251,7 +274,14 @@ export function DocumentDetailLive({
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {fieldEntries.map(([name, field]) => {
+          {fieldEntries.length === 0 ? (
+            <div className="col-span-full rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-[11px] font-semibold text-slate-500">
+              {isQueued
+                ? "Fields will appear after the pipeline extracts this document."
+                : "No extracted fields for this document."}
+            </div>
+          ) : (
+            fieldEntries.map(([name, field]) => {
             const formatted = formatFieldValue(field.value);
             const score = field.scores?.field_score ?? field.scores?.model_confidence;
             const req = field.class === "A" ? "Required" : "Optional";
@@ -283,7 +313,8 @@ export function DocumentDetailLive({
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </section>
     </div>

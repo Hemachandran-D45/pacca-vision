@@ -4,6 +4,7 @@ import type {
   DocumentSummary,
   ExtractItem,
   FieldsItem,
+  GapsItem,
   OcrItem,
   ReviewAudit,
   ReviewItem,
@@ -191,7 +192,7 @@ export async function listDocuments(
  */
 export async function readDocument(c: Container, documentId: string) {
   const { resources } = await c.items
-    .query<OcrItem | ExtractItem | FieldsItem | ReviewItem>(
+    .query<OcrItem | ExtractItem | FieldsItem | ReviewItem | GapsItem>(
       {
         query: "SELECT * FROM c WHERE c.documentId = @k",
         parameters: [{ name: "@k", value: documentId }],
@@ -204,8 +205,9 @@ export async function readDocument(c: Container, documentId: string) {
   const extract = resources.find((r) => r.itemType === "extract") as ExtractItem | undefined;
   const fields = resources.find((r) => r.itemType === "fields") as FieldsItem | undefined;
   const review = resources.find((r) => r.itemType === "review") as ReviewItem | undefined;
+  const gaps = resources.find((r) => r.itemType === "gaps") as GapsItem | undefined;
 
-  if (!ocr && !extract && !fields && !review) return null;
+  if (!ocr && !extract && !fields && !review && !gaps) return null;
 
   return {
     summary: toSummary(documentId, ocr, extract, review),
@@ -213,7 +215,38 @@ export async function readDocument(c: Container, documentId: string) {
     extract: extract ?? null,
     fields: fields ?? null,
     review: review ?? null,
+    gaps: gaps ?? null,
   };
+}
+
+/** Point-read the gaps work item. Returns the stored document as-is, or null. */
+export async function readGapsItem(c: Container, documentId: string): Promise<GapsItem | null> {
+  try {
+    const { resource } = await c.item("gaps", documentId).read<GapsItem>();
+    return resource ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Patch the gaps item the same way IDP `cosmos.patch_gaps` does. Never throws.
+ * A lost annotation is not a lost document.
+ */
+export async function patchGaps(
+  c: Container,
+  documentId: string,
+  operations: { op: "set"; path: string; value: unknown }[],
+  etag?: string
+): Promise<boolean> {
+  if (operations.length === 0) return false;
+  try {
+    const options = etag ? { accessCondition: { type: "IfMatch" as const, condition: etag } } : undefined;
+    await c.item("gaps", documentId).patch(operations, options);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

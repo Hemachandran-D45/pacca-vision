@@ -18,16 +18,15 @@
       "doc_type": {
         "type": "string",
         "enum": [
-          "prescription",
-          "clinicalNotes",
-          "approvalLetter",
-          "denialLetter",
-          "paResponse",
-          "appealChecklist",
-          "letterOfMedNecessity",
+          "referralForm",
+          "prescriptionOrder",
           "insuranceCard",
-          "patientDemographics",
-          "pbmLetter",
+          "clinicalNote",
+          "labReport",
+          "letterOfMedicalNecessity",
+          "paDeterminationLetter",
+          "paResponseFax",
+          "explanationOfBenefits",
           "other"
         ]
       },

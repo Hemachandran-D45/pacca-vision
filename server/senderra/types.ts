@@ -7,7 +7,7 @@
  * constants work as ids.
  */
 
-export type ItemType = "ocr" | "extract" | "fields" | "review";
+export type ItemType = "ocr" | "extract" | "fields" | "review" | "gaps";
 
 /** Written by fn_ocr. Legibility signals live here, not on the extract record. */
 export type OcrItem = {
@@ -123,6 +123,28 @@ export type FieldsItem = {
   classification?: Record<string, unknown>;
   review?: { needs_review?: boolean; review_reasons?: string[]; review_fields?: string[] };
   fields?: Record<string, ExtractedField>;
+};
+
+/** Written by fn_extract. The IVR work item — the only item IVR mutates. */
+export type GapsItem = {
+  id: "gaps";
+  itemType: "gaps";
+  documentId: string;
+  runId: string;
+  docId: string;
+  docType?: string | null;
+  useCase?: string | null;
+  callDirection?: string | null;
+  calledParty?: string[];
+  gapStatus?: string | null;
+  gapCount?: number;
+  openCount?: number;
+  escalateCount?: number;
+  contact?: Record<string, unknown>;
+  gaps?: Record<string, Record<string, unknown>>;
+  trigger_status?: string;
+  call_id?: string | null;
+  _etag?: string;
 };
 
 export type ReviewAudit = {

@@ -1,5 +1,14 @@
 import { isConfigError, readConfig } from "./config.js";
-import { applyReviewAction, container, fetchRecords, listDocuments, readDocument } from "./cosmos.js";
+import { applyReviewAction, container, fetchRecords, listDocuments, patchGaps, readDocument, readGapsItem } from "./cosmos.js";
+import {
+  gapsPayloadFromExtract,
+  ivrHealthPublic,
+  outreachHint,
+  patchOps,
+  SKIP_NO_GAPS,
+  trigger,
+  type GapsItem,
+} from "./ivr.js";
 import { listRecentUploads, mintReadSas, mintUploadSas } from "./blob.js";
 import { computeAnalytics } from "./analytics.js";
 import type { DocumentSummary, ExtractItem } from "./types.js";
@@ -27,6 +36,43 @@ function mean(values: number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function pendingToSummary(p: {
+  documentId: string;
+  size: number;
+  uploadedAt: string | null;
+}): DocumentSummary {
+  const cut = p.documentId.indexOf("/");
+  const runId = cut < 0 ? "prod" : p.documentId.slice(0, cut);
+  const docId = cut < 0 ? p.documentId : p.documentId.slice(cut + 1);
+  return {
+    documentId: p.documentId,
+    runId,
+    docId,
+    file: `${docId}.pdf`,
+    docType: null,
+    pipelineStatus: "Queued",
+    uiStatus: "Queued",
+    confidence: null,
+    classifyConfidence: null,
+    pages: null,
+    fileBytes: p.size,
+    needsReview: false,
+    reviewReasons: [],
+    reviewFields: [],
+    fieldCount: null,
+    fieldsNeedingReview: null,
+    costUsd: null,
+    latencyMs: null,
+    minPageConfidence: null,
+    receivedAt: p.uploadedAt,
+    source: "upload",
+    reviewStatus: null,
+    reviewedBy: null,
+    claimedBy: null,
+    correctionCount: 0,
+  };
+}
+
 /**
  * Documents that exist as a blob but have no Cosmos record yet, folded into the
  * list as Queued. Without this an upload disappears for the 20-40 seconds
@@ -38,7 +84,7 @@ async function withPendingUploads(documents: DocumentSummary[]): Promise<Documen
 
   let pending: Awaited<ReturnType<typeof listRecentUploads>>;
   try {
-    pending = await listRecentUploads(config);
+    pending = await listRecentUploads(config, config.uploadRunId);
   } catch {
     // A storage hiccup must not empty the Documents table — Cosmos already
     // answered, and this is only the leading edge of the list.
@@ -46,40 +92,7 @@ async function withPendingUploads(documents: DocumentSummary[]): Promise<Documen
   }
 
   const known = new Set(documents.map((d) => d.documentId));
-  const extra: DocumentSummary[] = pending
-    .filter((p) => !known.has(p.documentId))
-    .map((p) => {
-      const cut = p.documentId.indexOf("/");
-      const runId = cut < 0 ? "prod" : p.documentId.slice(0, cut);
-      const docId = cut < 0 ? p.documentId : p.documentId.slice(cut + 1);
-      return {
-        documentId: p.documentId,
-        runId,
-        docId,
-        file: `${docId}.pdf`,
-        docType: null,
-        pipelineStatus: "Queued",
-        uiStatus: "Queued",
-        confidence: null,
-        classifyConfidence: null,
-        pages: null,
-        fileBytes: p.size,
-        needsReview: false,
-        reviewReasons: [],
-        reviewFields: [],
-        fieldCount: null,
-        fieldsNeedingReview: null,
-        costUsd: null,
-        latencyMs: null,
-        minPageConfidence: null,
-        receivedAt: p.uploadedAt,
-        source: "upload",
-        reviewStatus: null,
-        reviewedBy: null,
-        claimedBy: null,
-        correctionCount: 0,
-      } satisfies DocumentSummary;
-    });
+  const extra = pending.filter((p) => !known.has(p.documentId)).map(pendingToSummary);
 
   return [...extra, ...documents].sort((a, b) =>
     (b.receivedAt ?? "").localeCompare(a.receivedAt ?? "")
@@ -138,7 +151,41 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
   if (isFail(handle)) return handle;
 
   const document = await readDocument(handle.container, documentId);
-  if (!document) return fail(404, `No document ${documentId}.`);
+
+  // Cosmos is empty until OCR writes the first item. A blob in docs-in is
+  // still a real document — return Queued detail instead of 404 so View
+  // never opens HIL against a fake or missing id.
+  if (!document) {
+    let pending: Awaited<ReturnType<typeof listRecentUploads>> = [];
+    try {
+      pending = await listRecentUploads(handle.config, documentId);
+    } catch {
+      pending = [];
+    }
+    const match = pending.find((p) => p.documentId === documentId);
+    if (!match) return fail(404, `No document ${documentId}.`);
+
+    let pdfUrl: string | null = null;
+    try {
+      pdfUrl = await mintReadSas(handle.config, match.blobPath);
+    } catch {
+      pdfUrl = null;
+    }
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        summary: pendingToSummary(match),
+        ocr: null,
+        extract: null,
+        fields: null,
+        review: null,
+        pdfUrl,
+        outreach: outreachHint(null, null, null, false),
+      },
+    };
+  }
 
   // The source PDF path is only recorded on the ocr item. Before stage 1
   // finishes there is none, so fall back to the convention the uploader used.
@@ -150,7 +197,63 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
     pdfUrl = null;
   }
 
-  return { status: 200, body: { ok: true, ...document, pdfUrl } };
+  const docType = document.extract?.doc_type_predicted ?? document.fields?.docType ?? document.gaps?.docType ?? null;
+  const { gaps, ...rest } = document;
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      ...rest,
+      pdfUrl,
+      outreach: outreachHint(docType, document.fields?.fields ?? null, gaps, Boolean(document.extract)),
+    },
+  };
+}
+
+async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResult> {
+  const documentId = typeof body.documentId === "string" ? body.documentId.trim() : "";
+  if (!documentId) return fail(400, "documentId is required.");
+
+  const handle = await requireContainer();
+  if (isFail(handle)) return handle;
+
+  const stored = (await readGapsItem(handle.container, documentId)) as GapsItem | null;
+  let payload: GapsItem | null = stored;
+  if (!payload) {
+    const document = await readDocument(handle.container, documentId);
+    payload = gapsPayloadFromExtract(documentId, document?.extract ?? null, document?.fields ?? null);
+  }
+  if (!payload) {
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        trigger_status: SKIP_NO_GAPS,
+        skipReason: SKIP_NO_GAPS,
+        patched: false,
+      },
+    };
+  }
+
+  const outcome = await trigger(payload);
+  const ops = patchOps(outcome);
+  const patched = stored ? await patchGaps(handle.container, documentId, ops, stored._etag) : false;
+  const skipReason =
+    outcome.trigger_status === "accepted" ||
+    outcome.trigger_status === "rejected" ||
+    outcome.trigger_status === "failed"
+      ? null
+      : outcome.trigger_status;
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      ...outcome,
+      skipReason,
+      patched,
+    },
+  };
 }
 
 async function handleStats(): Promise<ApiResult> {
@@ -285,12 +388,15 @@ async function handleReview(body: Record<string, unknown>): Promise<ApiResult> {
 }
 
 async function handleHealth(): Promise<ApiResult> {
+  const ivr = ivrHealthPublic();
   const config = readConfig();
   if (isConfigError(config)) {
-    return { status: 200, body: { ok: false, configured: false, missing: config.missing } };
+    return { status: 200, body: { ok: false, configured: false, missing: config.missing, ...ivr } };
   }
   const handle = await requireContainer();
-  if (isFail(handle)) return handle;
+  if (isFail(handle)) {
+    return { status: handle.status, body: { ...(handle.body as object), ...ivr } };
+  }
   try {
     const { resources } = await handle.container.items
       .query<number>({ query: "SELECT VALUE COUNT(1) FROM c" })
@@ -304,6 +410,7 @@ async function handleHealth(): Promise<ApiResult> {
         storage: `${config.storageAccount}/${config.docsContainer}`,
         uploadRunId: config.uploadRunId,
         items: resources[0] ?? 0,
+        ...ivr,
       },
     };
   } catch (error) {
@@ -332,6 +439,7 @@ export async function handleSenderra(
     if (method === "GET" && route === "/analytics") return await handleAnalytics();
     if (method === "POST" && route === "/upload-sas") return await handleUploadSas(body);
     if (method === "POST" && route === "/review") return await handleReview(body);
+    if (method === "POST" && route === "/ivr-trigger") return await handleIvrTrigger(body);
     return fail(404, `No Senderra route ${method} ${route}.`);
   } catch (error) {
     return fail(500, String(error));

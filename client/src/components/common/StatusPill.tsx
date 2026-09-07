@@ -19,6 +19,7 @@ export function StatusPill({ status }: { status: DocumentRow["status"] | string 
 
     // Sterile Blue (#00B0F0)
     Processing: "bg-[#00b0f0]/15 text-[#027ea9] ring-[#00b0f0]/30",
+    Queued: "bg-slate-200/70 text-slate-600 ring-slate-300",
 
     // Emids Teal (#47A2B0)
     Live: "bg-[#47a2b0]/15 text-[#256c77] ring-[#47a2b0]/30",

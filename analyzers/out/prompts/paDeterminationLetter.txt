@@ -1,0 +1,216 @@
+The document above is a **paDeterminationLetter**.
+
+Payer letters communicating a prior-authorization decision — approved, denied, or approved in part. Extracts patient, payer and case identity, the outcome, the approved period and quantity when granted, the denial reason code and the criteria not met when refused, the suggested formulary alternatives, and the appeal rights and deadline.
+One type covers all outcomes deliberately. The decision lives in PAOutcome, so a misread decision surfaces as a wrong value routed to review rather than as a wrong document type routed to the wrong schema. Approval-only fields are null on a denial and denial-only fields are null on an approval; that is expected, not a miss.
+
+Extract the fields listed below from that document, into the required JSON object.
+
+## Rules
+
+1. **Read values off the page. Do not calculate, infer or complete them.** If a field asks for a total and no total is printed, the value is null even when you could add the numbers yourself.
+2. **A field that is not in the document gets `value: null`.** Never guess, never carry a value over from a similar field, and never substitute a plausible default. An honest null is worth more than a likely-looking value, because a null is routed to review and a wrong value is not.
+3. **Copy text exactly as printed** — same spelling, same punctuation, same capitalisation, including anything that looks like an OCR error. Do not tidy, expand abbreviations, or reformat dates. Normalisation happens downstream and needs the original.
+4. **Where the same fact appears more than once, prefer the copy in the field's own labelled block.** Header and footer repeats are often stale.
+5. **`quote` must be a verbatim substring of the document above** — copy it, do not retype it from memory. It is checked automatically against the document text, and a quote that is not found there marks the value as ungrounded. Keep it short: the few words around the value are enough. Set it to null when `value` is null.
+6. **`confidence` must reflect what you actually saw.** Above 0.9 means you read it clearly and there was no other candidate. Below 0.7 means the text was unclear, or you had to choose. A field you are unsure about with an honest 0.5 is useful; the same field at 0.95 is actively harmful, because it will skip human review.
+
+## Fields
+
+### PatientName
+*string · transcription*
+
+Patient first and last name, usually at the top of the page or in a demographics block. May be labeled Patient, Patient Name, Member, or appear as Last, First. On an insurance card this is the member name.
+
+### PatientDOB
+*date · transcription*
+
+Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date. Typically MM/DD/YYYY. Do not confuse with the date the form was written, the date of service, or a coverage effective date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### MemberID
+*string · transcription*
+
+Insurance member or subscriber identifier. Labeled Member ID, Member #, Subscriber ID, Policy ID, Identification Number, or ID. Copy the alphanumerics exactly as printed, including any leading letters.
+
+### GroupNumber
+*string · transcription*
+
+Employer or plan group number. Labeled Group, Group #, Group Number, or Grp. Distinct from the member ID and from RxGroup.
+
+### PayerName
+*string · resolution*
+
+Insurance company, health plan, or pharmacy benefit manager name that issued or administers this document. Usually in the letterhead or the card face — for example Aetna, UnitedHealthcare, Blue Cross Blue Shield of Texas, Express Scripts, CVS Caremark, OptumRx.
+
+### CaseNumber
+*string · transcription*
+
+Payer case, reference or tracking number for this request. Labeled Case #, Reference #, Ref #, Request ID, or Determination ID. This identifies the REQUEST; AuthorizationNumber identifies a granted authorization.
+
+### AuthorizationNumber
+*string · transcription*
+
+Authorization or certification number granted by the payer. Labeled Auth #, Authorization Number, Certification Number, or PA Number. Return null when nothing was authorized, even if a case number is present.
+
+### PAOutcome
+*string · resolution*
+
+The determination this document communicates. Read the decision sentence or the status field in the body, never the letterhead or the subject line. Partially approved covers an approval granted at a reduced quantity, duration or strength. Pending covers a request still in review or held for more information.
+
+Allowed values: `Approved`, `Denied`, `Partially approved`, `Pending`, `Cancelled`, `Not stated`. Use null if none of them apply.
+
+### ProviderName
+*string · transcription*
+
+Prescribing or treating provider name, sometimes with a credential such as MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering Provider, or Doctor. Not the practice or facility name.
+
+### ProviderNPI
+*string · transcription*
+
+Prescribing provider National Provider Identifier. Always exactly 10 digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one NPI appears, take the one belonging to the prescribing or ordering provider, not the facility, group or dispensing pharmacy.
+
+### ProviderFax
+*string · transcription*
+
+Fax number for the provider office, as printed. Labeled Fax, Fax #, or Fax Number. On payer correspondence this is the fax the response is to be returned to; take the provider-side number when both appear.
+
+### DrugName
+*string · resolution*
+
+Drug or therapy name as written, brand or generic, including any strength printed alongside it — for example "Humira (adalimumab) 40 mg/0.8 mL" or "Stelara 90 mg". Copy what is on the page; reference-data resolution happens downstream.
+
+### PrimaryDiagnosisCode
+*string · transcription*
+
+Primary diagnosis code, normally ICD-10-CM — a letter, two digits, then an optional dot and up to four more characters, for example M05.79 or L40.50. Labeled ICD-10, ICD, Diagnosis Code, or Dx. Where several are listed take the one marked primary, or the first if none is marked.
+
+### AppealDeadlineDate
+*date · transcription*
+
+The calendar date by which an appeal must be filed, where the document prints one. Copy the printed date. If the document only states a window such as "within 60 days of this notice" and prints no date, this is null — do not calculate it.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### LetterDate
+*date · transcription*
+
+Date printed on the letter itself, in the dateline. Appeal windows are usually counted from this date.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### DeterminationDate
+*date · transcription*
+
+Date the decision was made, where the letter states one separately from the letter date. Labeled Determination Date, Decision Date, or Date of Determination. Null when only one date appears.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ReviewType
+*string · resolution*
+
+What kind of review produced this decision, as the letter describes it. Appeal decision when the letter is deciding an appeal of an earlier denial rather than an initial request.
+
+Allowed values: `Standard`, `Expedited`, `Concurrent`, `Retrospective`, `Appeal decision`, `Not stated`. Use null if none of them apply.
+
+### ApprovalEffectiveDate
+*date · transcription*
+
+First date the authorization is valid. Labeled Effective Date, Valid From, or Start Date. Null on a denial.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ApprovalExpiryDate
+*date · transcription*
+
+Last date the authorization is valid. Labeled Valid Through, Expiry Date, End Date, or Approved Through. Null on a denial.
+
+Copy the date exactly as printed. Do not convert the format.
+
+### ApprovedQuantity
+*string · transcription*
+
+Quantity, units, visits or doses authorised, as printed — for example "2 syringes per 28 days". Copy the whole phrase including any period it is expressed over. Null on a denial.
+
+### ApprovedDaysSupply
+*string · transcription*
+
+Days supply authorised per fill, where the letter states one.
+
+### DenialReasonCode
+*string · transcription*
+
+The reason code the payer prints beside its denial. May be a claim adjustment reason code such as CO-50, CO-197 or PR-1, or a plan-specific code such as PA-014. Copy it exactly as printed, including any prefix and hyphen. Null when the letter gives a reason in words with no code.
+
+### DenialReasonCategory
+*string · resolution*
+
+The payer's stated grounds, mapped to the closest category. Read the rationale paragraph, not the code. Not applicable when the outcome is an approval. Use Other when the letter states a reason that fits none of these, rather than forcing the nearest one.
+
+Allowed values: `Not medically necessary`, `Step therapy not met`, `Non-formulary`, `Quantity limit exceeded`, `Missing clinical documentation`, `Benefit exclusion`, `Not covered under this plan`, `Prescriber or pharmacy out of network`, `Duplicate or concurrent therapy`, `Member not eligible`, `Experimental or investigational`, `Other`, `Not applicable`. Use null if none of them apply.
+
+### DenialReasonNarrative
+*string · inference*
+
+Why the request was refused, summarised from the rationale section in two or three sentences. Preserve what the payer actually said — which criterion was unmet, which document was missing, which alternative had not been tried — rather than paraphrasing into a generic reason. This text is read by staff and by patients asking why they were denied, so accuracy matters more than brevity. Null on an approval.
+
+### CriteriaNotMet
+*array · inference*
+
+The specific coverage criteria the letter says were not satisfied, one entry each, as the letter words them. Denial letters commonly list these as bullets under the rationale. Empty array on an approval or when the letter gives no itemised criteria.
+
+### SuggestedAlternatives
+*array · transcription*
+
+Formulary or preferred alternatives the letter suggests instead of the requested drug, from a "covered alternatives" or "preferred agents" section. Empty array when the letter suggests none.
+
+### MedicalPolicyReference
+*string · transcription*
+
+The coverage policy, criteria document or guideline the decision cites, as identified — for example "Pharmacy Policy PH-0142" or a named clinical policy bulletin. Null when the letter cites none.
+
+### AppealWindowDays
+*string · transcription*
+
+The number of days allowed to file an appeal, as printed — for example 60 or 180. Read the number the letter states; do not derive it from AppealDeadlineDate, and do not supply a typical value.
+
+### AppealLevel
+*string · resolution*
+
+The next appeal step this letter offers. Where several are described, take the first one available to the requester.
+
+Allowed values: `First level internal`, `Second level internal`, `External or independent review`, `Peer-to-peer`, `Not stated`. Use null if none of them apply.
+
+### AppealRightsSummary
+*string · inference*
+
+How to appeal, summarised from the appeal-rights section — who may file, by when, where to send it, and what to include. Two or three sentences. Null when the letter describes no appeal rights, which is itself notable on a denial.
+
+### AppealSubmissionFax
+*string · transcription*
+
+Fax number appeals are to be sent to, from the appeal-rights section. Distinct from the provider fax in the letterhead.
+
+### AppealSubmissionPhone
+*string · transcription*
+
+Telephone number given for appeals or for questions about the decision.
+
+### PeerToPeerOffered
+*string · detection*
+
+Whether the letter offers a peer-to-peer or physician-to-physician discussion with the plan's reviewer, and usually a number or window to arrange it. Not documented when the letter does not mention one.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### ExternalReviewRightsStated
+*string · detection*
+
+Whether the letter describes the right to an external or independent review after internal appeals are exhausted, typically naming an independent review organisation or a state insurance department.
+
+Allowed values: `Yes`, `No`, `Not documented`. Use null if none of them apply.
+
+### ReviewerName
+*string · transcription*
+
+Name and credential of the clinical reviewer or medical director who signed the determination, where the letter names one.
