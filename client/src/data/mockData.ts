@@ -30,7 +30,7 @@ export type DocumentRow = {
   file: string;
   type: string;
   source: string;
-  status: "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing";
+  status: "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing" | "Queued" | "Routed to IVR";
   confidence: string;
   pages: number;
   received: string;

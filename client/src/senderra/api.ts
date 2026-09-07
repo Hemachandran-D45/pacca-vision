@@ -9,7 +9,7 @@ export type DocumentSummary = {
   file: string;
   docType: string | null;
   pipelineStatus: string;
-  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed";
+  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR";
   confidence: number | null;
   classifyConfidence: number | null;
   pages: number | null;
@@ -254,6 +254,7 @@ export type IvrTriggerResult = {
   skipped?: unknown;
   test_mode?: unknown;
   patched?: boolean;
+  uiStatus?: string;
 };
 
 export function triggerIvr(documentId: string) {
@@ -335,6 +336,7 @@ export const STATUS_COLOR: Record<DocumentSummary["uiStatus"], string> = {
   Processed: "#1f9b72",
   "Needs Review": "#ed9a25",
   "In HIL Review": "#7c5cd6",
+  "Routed to IVR": "#6366f1",
   Processing: "#4779de",
   Queued: "#8496ad",
   Triage: "#c2761c",
@@ -345,6 +347,7 @@ export const STATUS_INK: Record<DocumentSummary["uiStatus"], string> = {
   Processed: "#0e6b4d",
   "Needs Review": "#8a5606",
   "In HIL Review": "#5733a6",
+  "Routed to IVR": "#4338ca",
   Processing: "#2a52a0",
   Queued: "#495a70",
   Triage: "#8a5209",

@@ -47,6 +47,32 @@ export const UPLOAD_DOC_TYPES = [
   "Patient Demographics / Intake",
 ] as const;
 
+export const DEPARTMENT_DEFAULT_DOC_TYPE: Record<string, string> = {
+  "Prior Authorization": "Prior Authorization Request",
+  "Billing & Claims": "CMS-1500 Claim Form",
+  "Clinical Operations": "Clinical Note",
+  "Pharmacy Operations": "Specialty Prescription",
+  "Appeals & Compliance": "Appeal Checklist",
+  "Patient Intake": "Referral Form",
+};
+
+export function resolveUploadDocType(docTypeInput: string, departmentInput: string, fileName?: string): string {
+  if (docTypeInput && !docTypeInput.startsWith("Auto-detect")) {
+    return docTypeInput;
+  }
+  if (fileName) {
+    const fn = fileName.toLowerCase();
+    if (fn.includes("prescription") || fn.includes("rx")) return "Specialty Prescription";
+    if (fn.includes("clinical") || fn.includes("note")) return "Clinical Note";
+    if (fn.includes("referral")) return "Referral Form";
+    if (fn.includes("eob") || fn.includes("explanation")) return "Explanation of Benefits";
+    if (fn.includes("invoice") || fn.includes("bill") || fn.includes("claim")) return "CMS-1500 Claim Form";
+    if (fn.includes("appeal")) return "Appeal Checklist";
+    if (fn.includes("prior_auth") || fn.includes("pa_") || fn.includes("determination")) return "Prior Authorization";
+  }
+  return DEPARTMENT_DEFAULT_DOC_TYPE[departmentInput] || "Specialty Prescription";
+}
+
 export type UploadedDocInfo = {
   file: string;
   department: string;
@@ -158,16 +184,18 @@ export function UploadDocumentModal({
         }
         await uploadToBlob(grant, file);
 
+        const resolvedType = resolveUploadDocType(docType, department, file.name);
         uploadedList.push({
           file: file.name,
           department,
-          docType: docType.startsWith("Auto-detect") ? "Prior Authorization" : docType,
+          docType: resolvedType,
           documentId: grant.documentId,
           blobName: grant.blobName,
         });
       }
 
       const isBulk = selectedFiles.length > 1;
+      const firstType = resolveUploadDocType(docType, department, selectedFiles[0]?.name);
       toast.success(
         isBulk
           ? `Bulk upload complete: ${selectedFiles.length} documents uploaded`
@@ -175,7 +203,7 @@ export function UploadDocumentModal({
         {
           description: `${
             isBulk ? `${selectedFiles.length} files` : selectedFiles[0].name
-          } routed to ${department} (${docType.startsWith("Auto-detect") ? "Auto-detect type" : docType}).`,
+          } routed to ${department} (${firstType}).`,
         }
       );
 

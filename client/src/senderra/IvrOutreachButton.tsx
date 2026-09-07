@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phone } from "lucide-react";
+import { Loader2, Phone, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { triggerIvr, type OutreachHint } from "@/senderra/api";
@@ -24,12 +24,16 @@ export function IvrOutreachButton({
   className?: string;
 }) {
   const [busy, setBusy] = useState(false);
+  const [called, setCalled] = useState(false);
 
   if (!outreach?.visible) return null;
 
+  const isCalling = called || outreach.gapStatus === "in_progress";
   const skipText = outreach.skipReason ? SKIP_LABEL[outreach.skipReason] ?? outreach.skipReason : null;
-  const title = outreach.enabled
-    ? "Fire the same IVR outreach POST as extract"
+  const title = isCalling
+    ? "IVR call active · Status routed to IVR"
+    : outreach.enabled
+    ? "Place call to patient via IVR outreach and update status to Routed to IVR"
     : skipText ?? "Outreach is not eligible";
 
   const run = async () => {
@@ -38,13 +42,18 @@ export function IvrOutreachButton({
     try {
       const result = await triggerIvr(documentId);
       const status = result.trigger_status;
-      if (status === "accepted") {
+      const errorText = (result.trigger_error || "").toLowerCase();
+
+      if (status === "accepted" || errorText.includes("already calling") || errorText.includes("already in progress")) {
+        setCalled(true);
         const bits = [
           result.call_id ? `call_id ${result.call_id}` : null,
           result.call_status ? String(result.call_status) : null,
+          result.request_id ? `request #${result.request_id}` : null,
         ].filter(Boolean);
-        toast.success("Outreach accepted", {
-          description: bits.length ? bits.join(" · ") : "IVR queued the call",
+
+        toast.success("Routed to IVR", {
+          description: bits.length ? `Call active · ${bits.join(" · ")}` : "Outreach call in progress · Status updated to Routed to IVR",
         });
       } else if (status === "failed" || status === "rejected") {
         toast.error(`Outreach ${status}`, {
@@ -73,11 +82,29 @@ export function IvrOutreachButton({
       title={title}
       className={
         className ??
-        "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        `inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          isCalling
+            ? "border-indigo-200 bg-indigo-50/80 text-indigo-700 shadow-sm"
+            : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 hover:bg-indigo-50/30"
+        }`
       }
     >
-      <Phone size={14} />
-      {busy ? "Triggering…" : "Trigger outreach"}
+      {busy ? (
+        <>
+          <Loader2 size={14} className="animate-spin text-[#47a2b0]" />
+          <span>Calling…</span>
+        </>
+      ) : isCalling ? (
+        <>
+          <PhoneCall size={14} className="animate-pulse text-indigo-600" />
+          <span>Routed to IVR</span>
+        </>
+      ) : (
+        <>
+          <Phone size={14} className="text-indigo-600" />
+          <span>Call (Route to IVR)</span>
+        </>
+      )}
     </button>
   );
 

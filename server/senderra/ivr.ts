@@ -321,6 +321,25 @@ export async function trigger(item: GapsItem, config = readIvrConfig()): Promise
 
   const text = await resp.text();
   if (resp.status >= 300) {
+    let bodyJson: Record<string, unknown> | null = null;
+    try {
+      bodyJson = JSON.parse(text) as Record<string, unknown>;
+    } catch {}
+
+    const detail = typeof bodyJson?.detail === "string" ? bodyJson.detail : text;
+    if (detail.toLowerCase().includes("already calling") || detail.toLowerCase().includes("already in progress")) {
+      const reqMatch = detail.match(/request\s+(\w+)/i);
+      const callMatch = detail.match(/call\s+(\w+)/i);
+      return {
+        trigger_status: ACCEPTED,
+        triggered_at: t0,
+        trigger_http_status: resp.status,
+        call_status: "CALLING",
+        request_id: reqMatch ? reqMatch[1] : undefined,
+        call_id: callMatch ? callMatch[1] : undefined,
+      };
+    }
+
     return {
       trigger_status: REJECTED,
       triggered_at: t0,

@@ -150,7 +150,7 @@ export type GapsItem = {
 export type ReviewAudit = {
   at: string;
   by: string;
-  action: "claimed" | "released" | "corrected" | "approved" | "rejected";
+  action: "claimed" | "released" | "corrected" | "approved" | "rejected" | "routed_to_ivr";
   field?: string;
   old_value?: unknown;
   new_value?: unknown;
@@ -170,7 +170,7 @@ export type ReviewItem = {
   documentId: string;
   runId: string;
   docId: string;
-  status?: "pending" | "claimed" | "approved" | "rejected";
+  status?: "pending" | "claimed" | "approved" | "rejected" | "routed_to_ivr";
   corrections?: Record<string, { value: unknown; by: string; at: string }>;
   audit?: ReviewAudit[];
   claimed_by?: string | null;
@@ -189,7 +189,7 @@ export type DocumentSummary = {
   file: string;
   docType: string | null;
   pipelineStatus: string;
-  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed";
+  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR";
   confidence: number | null;
   classifyConfidence: number | null;
   pages: number | null;

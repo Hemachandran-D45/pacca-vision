@@ -238,6 +238,19 @@ async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResul
   const outcome = await trigger(payload);
   const ops = patchOps(outcome);
   const patched = stored ? await patchGaps(handle.container, documentId, ops, stored._etag) : false;
+
+  if (outcome.trigger_status === "accepted") {
+    try {
+      await applyReviewAction(handle.container, documentId, {
+        type: "route_to_ivr",
+        by: typeof body.by === "string" && body.by.trim() ? body.by.trim() : "IVR Outreach",
+        note: `Routed to IVR (call_status: ${outcome.call_status ?? "calling"}${outcome.request_id ? `, request: ${outcome.request_id}` : ""})`,
+      });
+    } catch (err) {
+      console.warn("Could not record review action for IVR trigger:", err);
+    }
+  }
+
   const skipReason =
     outcome.trigger_status === "accepted" ||
     outcome.trigger_status === "rejected" ||
@@ -252,6 +265,7 @@ async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResul
       ...outcome,
       skipReason,
       patched,
+      uiStatus: "Routed to IVR",
     },
   };
 }

@@ -28,6 +28,7 @@ import {
   type ExtractedField,
 } from "@/senderra/api";
 import { IvrOutreachButton } from "@/senderra/IvrOutreachButton";
+import { StatusPill } from "@/components/common/StatusPill";
 import { hilQueue, type HilItem } from "@/data/mockData";
 
 /**
@@ -186,7 +187,7 @@ export default function HilReviewPage({
               >
                 {liveDocuments.map((doc, idx) => (
                   <option key={doc.documentId} value={doc.documentId}>
-                    {idx + 1}. {formatDocumentLabel(doc.file, doc.docType)}
+                    {idx + 1}. {formatDocumentLabel(doc.file, doc.docType)} {doc.uiStatus === "Routed to IVR" ? "📞 (IVR Active)" : ""}
                   </option>
                 ))}
               </select>
@@ -795,7 +796,18 @@ function LiveWorkbench({
         {/* Document Quick Metadata Strip */}
         <div className="shrink-0 border-b border-slate-100 pb-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Document Review</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Review</span>
+              <StatusPill
+                status={
+                  data.outreach?.gapStatus === "in_progress" ||
+                  summary.uiStatus === "Routed to IVR" ||
+                  summary.reviewStatus === "routed_to_ivr"
+                    ? "Routed to IVR"
+                    : summary.uiStatus
+                }
+              />
+            </div>
             <span
               className={cn(
                 "rounded-md px-2 py-0.5 text-[10px] font-bold",

@@ -117,6 +117,7 @@ export function deriveUiStatus(
   extract: ExtractItem | undefined,
   review: ReviewItem | undefined
 ): DocumentSummary["uiStatus"] {
+  if (review?.status === "routed_to_ivr") return "Routed to IVR";
   if (review?.status === "approved") return "Processed";
   if (review?.status === "rejected") return "Failed";
   if (!extract) {
@@ -261,7 +262,7 @@ export async function applyReviewAction(
   c: Container,
   documentId: string,
   action: {
-    type: "claim" | "release" | "correct" | "approve" | "reject";
+    type: "claim" | "release" | "correct" | "approve" | "reject" | "route_to_ivr";
     by: string;
     note?: string | null;
     corrections?: Record<string, unknown>;
@@ -327,6 +328,19 @@ export async function applyReviewAction(
         new_value: value,
       });
     }
+  }
+
+  if (action.type === "route_to_ivr") {
+    item.status = "routed_to_ivr";
+    item.reviewed_by = action.by;
+    item.reviewed_at = now;
+    if (action.note) item.note = action.note;
+    audit.push({
+      at: now,
+      by: action.by,
+      action: "routed_to_ivr",
+      note: action.note ?? null,
+    });
   }
 
   if (action.type === "approve" || action.type === "reject") {

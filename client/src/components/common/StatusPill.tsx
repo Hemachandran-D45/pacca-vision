@@ -21,6 +21,10 @@ export function StatusPill({ status }: { status: DocumentRow["status"] | string 
     Processing: "bg-[#00b0f0]/15 text-[#027ea9] ring-[#00b0f0]/30",
     Queued: "bg-slate-200/70 text-slate-600 ring-slate-300",
 
+    // Indigo - Routed to IVR
+    "Routed to IVR": "bg-indigo-50 text-indigo-700 ring-indigo-200",
+    "Route to IVR": "bg-indigo-50 text-indigo-700 ring-indigo-200",
+
     // Emids Teal (#47A2B0)
     Live: "bg-[#47a2b0]/15 text-[#256c77] ring-[#47a2b0]/30",
 

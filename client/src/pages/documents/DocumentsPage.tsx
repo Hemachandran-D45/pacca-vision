@@ -7,10 +7,20 @@ import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
 import { fetchDocuments, humanize, relativeTime, percent, usePolled } from "@/senderra/api";
 import { ErrorBlock } from "@/senderra/parts";
-import { UploadDocumentModal } from "@/components/documents/UploadDocumentModal";
+import {
+  UploadDocumentModal,
+  DEPARTMENT_DEFAULT_DOC_TYPE,
+  resolveUploadDocType,
+} from "@/components/documents/UploadDocumentModal";
+import {
+  getStoredUploadedDocs,
+  saveStoredUploadedDocs,
+  pruneStoredUploadedDocs,
+} from "@/senderra/localDocs";
 
 function listStatus(uiStatus: string) {
   if (uiStatus === "Processed") return "Processed" as const;
+  if (uiStatus === "Routed to IVR") return "Routed to IVR" as const;
   if (uiStatus === "In HIL Review") return "HIL Review" as const;
   if (uiStatus === "Processing") return "Processing" as const;
   if (uiStatus === "Queued") return "Queued" as const;
@@ -18,11 +28,32 @@ function listStatus(uiStatus: string) {
   return "Needs Review" as const;
 }
 
+function inferDocType(docType: string | null | undefined, file: string, source?: string | null): string {
+  if (docType && docType.trim()) {
+    const lower = docType.toLowerCase();
+    if (lower === "clinicalnotes") return "Clinical Note";
+    return humanize(docType);
+  }
+  const fn = (file || "").toLowerCase();
+  if (fn.includes("prescription") || fn.includes("rx")) return "Specialty Prescription";
+  if (fn.includes("clinical") || fn.includes("note")) return "Clinical Note";
+  if (fn.includes("referral")) return "Referral Form";
+  if (fn.includes("eob") || fn.includes("explanation")) return "Explanation of Benefits";
+  if (fn.includes("invoice") || fn.includes("bill") || fn.includes("claim")) return "CMS-1500 Claim Form";
+  if (fn.includes("appeal")) return "Appeal Checklist";
+  if (fn.includes("prior_auth") || fn.includes("pa_") || fn.includes("determination")) return "Prior Authorization";
+  if (source && source.includes("·")) {
+    const dept = source.split("·")[1]?.trim();
+    if (dept && DEPARTMENT_DEFAULT_DOC_TYPE[dept]) return DEPARTMENT_DEFAULT_DOC_TYPE[dept];
+  }
+  return "Specialty Prescription";
+}
+
 function toOptimisticRow(item: UploadedDocInfo) {
   return {
     id: item.documentId,
     file: item.file,
-    type: item.docType,
+    type: item.docType || resolveUploadDocType("", item.department, item.file),
     source: `Upload · ${item.department}`,
     status: "Queued" as const,
     confidence: "—",
@@ -47,7 +78,9 @@ export default function DocumentsPage({
   const [status, setStatus] = useState("All statuses");
   const [docType, setDocType] = useState<string>("All Document Types");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadedLocalDocs, setUploadedLocalDocs] = useState<ReturnType<typeof toOptimisticRow>[]>([]);
+  const [uploadedLocalDocs, setUploadedLocalDocs] = useState<ReturnType<typeof toOptimisticRow>[]>(() =>
+    getStoredUploadedDocs().map(toOptimisticRow)
+  );
 
   // Live polling for backend documents
   const poller = usePolled(() => fetchDocuments(), 6000);
@@ -58,20 +91,28 @@ export default function DocumentsPage({
     const baseDocs = liveDocs.map((d) => ({
       id: d.documentId,
       file: d.file,
-      type: d.docType
-        ? (d.docType.toLowerCase() === "clinicalnotes" ? "Clinical Note" : humanize(d.docType))
-        : "Prior Authorization",
+      type: inferDocType(d.docType, d.file, d.source),
       source: d.source || "Auto-intake",
       status: listStatus(d.uiStatus),
       confidence: percent(d.confidence, 1),
       pages: d.pages ?? "—",
       received: relativeTime(d.receivedAt),
-      color: d.uiStatus === "Processed" ? "#45bd8d" : d.uiStatus === "Queued" || d.uiStatus === "Processing" ? "#8496ad" : "#f2c94c",
+      color:
+        d.uiStatus === "Processed"
+          ? "#45bd8d"
+          : d.uiStatus === "Routed to IVR"
+          ? "#6366f1"
+          : d.uiStatus === "Queued" || d.uiStatus === "Processing"
+          ? "#8496ad"
+          : "#f2c94c",
       pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
       previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
     }));
 
     const liveIds = new Set(baseDocs.map((row) => row.id));
+    if (liveIds.size > 0) {
+      pruneStoredUploadedDocs(Array.from(liveIds));
+    }
     const locals = uploadedLocalDocs.filter((row) => row.id && !liveIds.has(row.id));
     return [...locals, ...baseDocs];
   }, [liveDocs, uploadedLocalDocs]);
@@ -153,6 +194,7 @@ export default function DocumentsPage({
             <option>All statuses</option>
             <option>Processed</option>
             <option>Needs Review</option>
+            <option>Routed to IVR</option>
             <option>Validation failed</option>
             <option>Processing</option>
             <option>Queued</option>
@@ -287,8 +329,12 @@ export default function DocumentsPage({
         onUploaded={(result) => {
           if (result) {
             const list = Array.isArray(result) ? result : [result];
+            saveStoredUploadedDocs(list);
             const newDocs = list.filter((item) => item.documentId).map(toOptimisticRow);
-            setUploadedLocalDocs((prev) => [...newDocs, ...prev]);
+            setUploadedLocalDocs((prev) => {
+              const ids = new Set(newDocs.map((n) => n.id));
+              return [...newDocs, ...prev.filter((p) => !ids.has(p.id))];
+            });
           }
           void poller.refresh();
         }}
