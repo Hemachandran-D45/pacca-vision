@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Building2,
   Check,
+  ChevronDown,
   FileCog,
   FileText,
+  Filter,
   Layers,
   Loader2,
   Lock,
@@ -29,9 +32,19 @@ type CatalogField = { name: string; type: FieldType; required: boolean; class?: 
 type CatalogType = {
   key: string;
   name: string;
+  department?: string;
   guidance: string;
   fields: CatalogField[];
 };
+
+export const DEFAULT_DEPARTMENTS = [
+  "Prior Authorization",
+  "Billing & Claims",
+  "Clinical Operations",
+  "Pharmacy Operations",
+  "Appeals & Compliance",
+  "Patient Intake",
+];
 
 type CatalogResponse = {
   ok?: boolean;
@@ -80,8 +93,12 @@ export function SolutionsV2() {
   // Create dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newDepartment, setNewDepartment] = useState("Prior Authorization");
   const [newGuidance, setNewGuidance] = useState("");
   const [nameError, setNameError] = useState("");
+
+  // Department filter
+  const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
 
   // Quick add field draft state
   const [draftField, setDraftField] = useState("");
@@ -93,6 +110,7 @@ export function SolutionsV2() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [step, setStep] = useState("");
   const [localName, setLocalName] = useState("");
+  const [localDepartment, setLocalDepartment] = useState("Prior Authorization");
   const [localGuidance, setLocalGuidance] = useState("");
 
   const applyTypes = (next: CatalogType[]) =>
@@ -112,6 +130,7 @@ export function SolutionsV2() {
       if (!selectedKey && incoming.length > 0) {
         setSelectedKey(incoming[0].key);
         setLocalName(incoming[0].name);
+        setLocalDepartment(incoming[0].department || "Prior Authorization");
         setLocalGuidance(incoming[0].guidance ?? "");
       } else if (selectedKey && !incoming.find((t) => t.key === selectedKey)) {
         setSelectedKey(incoming[0]?.key ?? null);
@@ -131,6 +150,7 @@ export function SolutionsV2() {
     const selected = types.find((t) => t.key === selectedKey);
     if (selected) {
       setLocalName(selected.name);
+      setLocalDepartment(selected.department || "Prior Authorization");
       setLocalGuidance(selected.guidance ?? "");
     }
   }, [selectedKey]);
@@ -157,6 +177,7 @@ export function SolutionsV2() {
     const found = types.find((t) => t.key === key);
     if (found) {
       setLocalName(found.name);
+      setLocalDepartment(found.department || "Prior Authorization");
       setLocalGuidance(found.guidance ?? "");
     }
   };
@@ -184,7 +205,16 @@ export function SolutionsV2() {
       setNameError("That document type already exists.");
       return;
     }
-    const next = [...types, { key, name, guidance: newGuidance.trim(), fields: [] }];
+    const next = [
+      ...types,
+      {
+        key,
+        name,
+        department: newDepartment.trim() || "Prior Authorization",
+        guidance: newGuidance.trim(),
+        fields: [],
+      },
+    ];
     const ok = await persist(next);
     if (!ok) return;
     setCreateOpen(false);
@@ -193,6 +223,7 @@ export function SolutionsV2() {
     setNameError("");
     setSelectedKey(key);
     setLocalName(name);
+    setLocalDepartment(newDepartment.trim() || "Prior Authorization");
     setLocalGuidance(newGuidance.trim());
     toast.success("Document type added", { description: "Configure fields, then Save to generate analyzer files." });
   };
@@ -261,7 +292,12 @@ export function SolutionsV2() {
     await persist(
       types.map((item) =>
         item.key === selectedKey
-          ? { ...item, name: localName.trim() || item.name, guidance: localGuidance.trim() }
+          ? {
+              ...item,
+              name: localName.trim() || item.name,
+              department: localDepartment.trim() || item.department || "Prior Authorization",
+              guidance: localGuidance.trim(),
+            }
           : item
       )
     );
@@ -298,6 +334,7 @@ export function SolutionsV2() {
         setSelectedKey(remaining[0]?.key ?? null);
         if (remaining[0]) {
           setLocalName(remaining[0].name);
+          setLocalDepartment(remaining[0].department || "Prior Authorization");
           setLocalGuidance(remaining[0].guidance ?? "");
         }
       }
@@ -348,13 +385,40 @@ export function SolutionsV2() {
 
   const selected = types.find((t) => t.key === selectedKey);
 
+  const availableDepartments = useMemo(() => {
+    const set = new Set<string>();
+    DEFAULT_DEPARTMENTS.forEach((d) => set.add(d));
+    types.forEach((t) => {
+      if (t.department) set.add(t.department);
+    });
+    return Array.from(set);
+  }, [types]);
+
   const filteredTypes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return types;
-    return types.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.key.toLowerCase().includes(q)
-    );
-  }, [types, searchQuery]);
+    return types.filter((t) => {
+      const matchesSearch =
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        t.key.toLowerCase().includes(q) ||
+        (t.department && t.department.toLowerCase().includes(q)) ||
+        t.fields.some((f) => f.name.toLowerCase().includes(q));
+      const matchesDept =
+        selectedDepartment === "All Departments" ||
+        (t.department || "Prior Authorization") === selectedDepartment;
+      return matchesSearch && matchesDept;
+    });
+  }, [types, searchQuery, selectedDepartment]);
+
+  const groupedByDepartment = useMemo(() => {
+    const groups: Record<string, CatalogType[]> = {};
+    filteredTypes.forEach((t) => {
+      const dept = t.department || "Prior Authorization";
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(t);
+    });
+    return groups;
+  }, [filteredTypes]);
 
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row gap-6 p-4 sm:p-7 lg:p-9">
@@ -379,8 +443,28 @@ export function SolutionsV2() {
           />
         </div>
 
-        {/* Document type list */}
-        <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+        {/* Department Filter Selector */}
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-xs">
+          <Building2 size={13} className="text-[#47a2b0] shrink-0" />
+          <select
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+            className="w-full bg-transparent text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+          >
+            <option value="All Departments">All Departments ({types.length})</option>
+            {availableDepartments.map((dept) => {
+              const count = types.filter((t) => (t.department || "Prior Authorization") === dept).length;
+              return (
+                <option key={dept} value={dept}>
+                  {dept} ({count})
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Document type list grouped by Department */}
+        <div className="space-y-4 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
           {loading ? (
             <div className="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-400 flex items-center justify-center gap-2">
               <Loader2 size={15} className="animate-spin text-[#47a2b0]" /> Loading schemas...
@@ -390,55 +474,70 @@ export function SolutionsV2() {
               No matching document types.
             </div>
           ) : (
-            filteredTypes.map((item) => {
-              const isSelected = selectedKey === item.key;
-              const reqCount = item.fields.filter((f) => f.required).length;
+            Object.entries(groupedByDepartment).map(([dept, deptTypes]) => (
+              <div key={dept} className="space-y-1.5">
+                <div className="flex items-center justify-between px-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Building2 size={11} className="text-[#47a2b0]" /> {dept}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
+                    {deptTypes.length}
+                  </span>
+                </div>
 
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => selectType(item.key)}
-                  className={cn(
-                    "w-full rounded-2xl border p-4 text-left transition",
-                    isSelected
-                      ? "border-[#47a2b0]/40 bg-[#ebf5f7]/50 shadow-xs ring-1 ring-[#47a2b0]/30"
-                      : "border-slate-200/80 bg-white hover:border-slate-300"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                        isSelected ? "bg-[#47a2b0] text-white" : "bg-slate-100 text-slate-500"
-                      )}
-                    >
-                      <FileCog size={17} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12px] font-bold text-[#0e0e0e]">{item.name}</div>
-                      <div className="mt-0.5 font-mono text-[9px] text-slate-400">{item.key}</div>
-                    </div>
-                  </div>
+                <div className="space-y-1.5">
+                  {deptTypes.map((item) => {
+                    const isSelected = selectedKey === item.key;
+                    const reqCount = item.fields.filter((f) => f.required).length;
 
-                  <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
-                    <span className="font-semibold text-slate-600">
-                      {item.fields.length} {item.fields.length === 1 ? "field" : "fields"}
-                      {reqCount > 0 && (
-                        <span className="ml-1 text-amber-700 font-bold">· {reqCount} req</span>
-                      )}
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
-                        isSelected ? "bg-[#47a2b0] text-white" : "bg-slate-100 text-slate-600"
-                      )}
-                    >
-                      {isSelected ? "Editing" : "Configured"}
-                    </span>
-                  </div>
-                </button>
-              );
-            })
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => selectType(item.key)}
+                        className={cn(
+                          "w-full rounded-2xl border p-3.5 text-left transition",
+                          isSelected
+                            ? "border-[#47a2b0]/40 bg-[#ebf5f7]/50 shadow-xs ring-1 ring-[#47a2b0]/30"
+                            : "border-slate-200/80 bg-white hover:border-slate-300"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
+                              isSelected ? "bg-[#47a2b0] text-white" : "bg-slate-100 text-slate-500"
+                            )}
+                          >
+                            <FileCog size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[12px] font-bold text-[#0e0e0e]">{item.name}</div>
+                            <div className="mt-0.5 font-mono text-[9px] text-slate-400">{item.key}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-2.5 flex items-center justify-between text-[10px] text-slate-500">
+                          <span className="font-semibold text-slate-600">
+                            {item.fields.length} {item.fields.length === 1 ? "field" : "fields"}
+                            {reqCount > 0 && (
+                              <span className="ml-1 text-amber-700 font-bold">· {reqCount} req</span>
+                            )}
+                          </span>
+                          <span
+                            className={cn(
+                              "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
+                              isSelected ? "bg-[#47a2b0] text-white" : "bg-slate-100 text-slate-600"
+                            )}
+                          >
+                            {isSelected ? "Editing" : "Configured"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
           )}
         </div>
 
@@ -493,9 +592,9 @@ export function SolutionsV2() {
             </div>
           </div>
 
-          {/* Document Type Name & Schema Key */}
+          {/* Document Type Name, Department & Schema Key */}
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <label className="block">
                 <span className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-400">
                   Document type name
@@ -506,6 +605,26 @@ export function SolutionsV2() {
                   onBlur={updateLocalEdits}
                   className="h-9 w-full rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-[#0e0e0e] outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
                 />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  Department
+                </span>
+                <select
+                  value={localDepartment}
+                  onChange={(e) => {
+                    setLocalDepartment(e.target.value);
+                    setTimeout(() => void updateLocalEdits(), 50);
+                  }}
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-[#0e0e0e] outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
+                >
+                  {availableDepartments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="block">
@@ -811,21 +930,42 @@ export function SolutionsV2() {
             </DialogDescription>
           </DialogHeader>
 
-          <label className="block">
-            <span className="mb-2 block text-[10px] font-bold text-slate-500">Document Type Name</span>
-            <input
-              value={newName}
-              onChange={(e) => {
-                setNewName(e.target.value);
-                if (nameError) setNameError("");
-              }}
-              placeholder="e.g. Prior Auth Packet"
-              className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
-            />
-            {nameError ? (
-              <p className="mt-2 text-[10px] font-semibold text-rose-600">{nameError}</p>
-            ) : null}
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-bold text-slate-500">
+                Department <span className="text-rose-500 font-bold">*</span>
+              </span>
+              <select
+                value={newDepartment}
+                onChange={(e) => setNewDepartment(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 outline-none focus:border-[#47a2b0]"
+              >
+                {availableDepartments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-bold text-slate-500">
+                Document Type Name <span className="text-rose-500 font-bold">*</span>
+              </span>
+              <input
+                value={newName}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  if (nameError) setNameError("");
+                }}
+                placeholder="e.g. Prior Auth Packet"
+                className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
+              />
+              {nameError ? (
+                <p className="mt-2 text-[10px] font-semibold text-rose-600">{nameError}</p>
+              ) : null}
+            </label>
+          </div>
 
           <label className="mt-4 block">
             <span className="mb-2 block text-[10px] font-bold text-slate-500">

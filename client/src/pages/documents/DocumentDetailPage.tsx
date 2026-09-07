@@ -161,7 +161,7 @@ function MockDocumentDetail({
                 ["Source", doc.source],
                 ["Pages", String(doc.pages)],
                 ["Processing time", "7.8s"],
-                ["Confidence", doc.confidence],
+                // ["Confidence", doc.confidence], // Confidence display commented out per request
                 ["Correlation ID", "cor_7f42a9"],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 p-3">
@@ -254,10 +254,12 @@ function MockDocumentDetail({
               </div>
               <div className="mt-2 text-[12px] font-semibold text-[#0e0e0e]">{value}</div>
               <div className="mt-3 flex items-center justify-between text-[9px]">
+                {/* Confidence display commented out per request
                 <span className={cn("font-semibold", validation === "Needs Review" ? "text-amber-700" : "text-[#45bd8d]")}>
                   {confidence} confidence
                 </span>
-                <span className={cn("font-bold", validation === "Needs Review" ? "text-amber-700" : "text-[#45bd8d]")}>
+                */}
+                <span className={cn("font-bold ml-auto", validation === "Needs Review" ? "text-amber-700" : "text-[#45bd8d]")}>
                   {validation === "Needs Review" ? "⚠ Needs Review" : "✓ Valid"}
                 </span>
               </div>

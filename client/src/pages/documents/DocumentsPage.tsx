@@ -6,6 +6,7 @@ import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
 import { documents as mockDocuments, DOCUMENT_TYPES } from "@/data/mockData";
 import { fetchDocuments, humanize, relativeTime, percent, usePolled, type DocumentSummary } from "@/senderra/api";
+import { UploadDocumentModal } from "@/components/documents/UploadDocumentModal";
 
 export default function DocumentsPage({
   onNavigate,
@@ -19,37 +20,40 @@ export default function DocumentsPage({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
   const [docType, setDocType] = useState<string>("All Document Types");
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadedLocalDocs, setUploadedLocalDocs] = useState<any[]>([]);
 
   // Live polling for backend documents
   const poller = usePolled(() => fetchDocuments(), 6000);
   const liveDocs = poller.data?.documents ?? [];
   const isLive = liveDocs.length > 0;
 
-  // Unify live pipeline documents with fallback fixtures
+  // Unify live pipeline documents with uploaded local documents and fallback fixtures
   const allDocuments = useMemo(() => {
-    if (isLive) {
-      return liveDocs.map((d) => ({
-        id: d.documentId,
-        file: d.file,
-        type: d.docType ? humanize(d.docType) : "Prior Authorization",
-        source: d.source || "Auto-intake",
-        status: (d.uiStatus === "Processed"
-          ? "Processed"
-          : d.uiStatus === "In HIL Review"
-          ? "HIL Review"
-          : d.uiStatus === "Processing" || d.uiStatus === "Queued"
-          ? "Processing"
-          : "Needs Review") as "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing",
-        confidence: percent(d.confidence, 1),
-        pages: d.pages ?? 1,
-        received: relativeTime(d.receivedAt),
-        color: d.uiStatus === "Processed" ? "#45bd8d" : "#f2c94c",
-        pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
-        previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
-      }));
-    }
-    return mockDocuments;
-  }, [isLive, liveDocs]);
+    const baseDocs = isLive
+      ? liveDocs.map((d) => ({
+          id: d.documentId,
+          file: d.file,
+          type: d.docType ? humanize(d.docType) : "Prior Authorization",
+          source: d.source || "Auto-intake",
+          status: (d.uiStatus === "Processed"
+            ? "Processed"
+            : d.uiStatus === "In HIL Review"
+            ? "HIL Review"
+            : d.uiStatus === "Processing" || d.uiStatus === "Queued"
+            ? "Processing"
+            : "Needs Review") as "Processed" | "Needs Review" | "HIL Review" | "Validation failed" | "Processing",
+          confidence: percent(d.confidence, 1),
+          pages: d.pages ?? 1,
+          received: relativeTime(d.receivedAt),
+          color: d.uiStatus === "Processed" ? "#45bd8d" : "#f2c94c",
+          pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+          previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+        }))
+      : mockDocuments;
+
+    return [...uploadedLocalDocs, ...baseDocs];
+  }, [isLive, liveDocs, uploadedLocalDocs]);
 
   const filtered = useMemo(
     () =>
@@ -74,7 +78,7 @@ export default function DocumentsPage({
           </div>
         </div>
         <button
-          onClick={() => toast.success("Upload dialog opened", { description: "Dropzone ready for Prior Auth, Invoices, or Clinical Notes." })}
+          onClick={() => setUploadModalOpen(true)}
           className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.18)] transition hover:bg-[#37828e] active:scale-[.98]"
         >
           <Upload size={15} /> Upload document
@@ -118,11 +122,16 @@ export default function DocumentsPage({
           </select>
 
           <button
-            onClick={() => toast("Advanced filters", { description: "Additional fields and date ranges will appear here." })}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            onClick={() => {
+              setQuery("");
+              setStatus("All statuses");
+              setDocType("All Document Types");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
           >
-            <Filter size={14} /> Filters <span className="rounded bg-[#ebf5f7] px-1.5 py-0.5 text-[9px] font-bold text-[#47a2b0]">2</span>
+            <Filter size={13} /> Reset
           </button>
+
           <button
             onClick={() => toast("Export queued", { description: `${filtered.length} documents will be included.` })}
             className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
@@ -152,7 +161,9 @@ export default function DocumentsPage({
                   <th className="px-3 py-3 font-bold">Document Type</th>
                   <th className="px-3 py-3 font-bold">Source</th>
                   <th className="px-3 py-3 font-bold">Status</th>
+                  {/* Confidence column commented out per request
                   <th className="px-3 py-3 font-bold">Confidence</th>
+                  */}
                   <th className="px-3 py-3 font-bold">Pages</th>
                   <th className="px-3 py-3 font-bold">Received</th>
                   <th className="px-5 py-3 font-bold">Action</th>
@@ -197,7 +208,9 @@ export default function DocumentsPage({
                       <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.source}</td>
                       <td className="px-3 py-4"><StatusPill status={doc.status} /></td>
+                      {/* Confidence column commented out per request
                       <td className="px-3 py-4 text-[10px] text-slate-600">{doc.confidence}</td>
+                      */}
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
                       <td className="px-5 py-4">
@@ -220,10 +233,39 @@ export default function DocumentsPage({
           </div>
         ) : (
           <div className="p-6">
-            <EmptyState title="No documents found" copy="Try a different search or clear the filters." icon={FileSearch} />
+            <EmptyState
+              icon={FileSearch}
+              title="No documents found"
+              copy="No documents matched your filters. Try changing your search keywords or resetting filters."
+            />
           </div>
         )}
       </section>
+
+      {/* Upload Document Modal */}
+      <UploadDocumentModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        onUploaded={(newDoc) => {
+          if (newDoc) {
+            const tempDoc = {
+              id: `doc_${Date.now().toString(36)}`,
+              file: newDoc.file,
+              type: newDoc.docType,
+              source: `Upload · ${newDoc.department}`,
+              status: "Needs Review" as const,
+              confidence: "94%",
+              pages: 1,
+              received: "Just now",
+              color: "#f2c94c",
+              pdfUrl: "/assets/sample_invoice_001.pdf",
+              previewUrl: "/assets/sample_invoice_001.pdf",
+            };
+            setUploadedLocalDocs((prev) => [tempDoc, ...prev]);
+          }
+          void poller.refresh();
+        }}
+      />
     </div>
   );
 }

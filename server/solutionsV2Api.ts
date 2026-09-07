@@ -22,6 +22,7 @@ export type CatalogField = {
 export type CatalogType = {
   key: string;
   name: string;
+  department?: string;
   guidance: string;
   fields: CatalogField[];
 };
@@ -117,10 +118,34 @@ function isCatalogType(value: unknown): value is CatalogType {
   );
 }
 
+function defaultDepartmentForType(key: string): string {
+  const k = key.toLowerCase();
+  if (k.includes("prescription") || k.includes("rx") || k.includes("pharmacy") || k.includes("pbm")) {
+    return "Pharmacy Operations";
+  }
+  if (k.includes("auth") || k.includes("pa") || k.includes("approval")) {
+    return "Prior Authorization";
+  }
+  if (k.includes("appeal") || k.includes("denial")) {
+    return "Appeals & Compliance";
+  }
+  if (k.includes("invoice") || k.includes("claim") || k.includes("insurance") || k.includes("bill") || k.includes("cms") || k.includes("ub04")) {
+    return "Billing & Claims";
+  }
+  if (k.includes("demographic") || k.includes("intake") || k.includes("enroll")) {
+    return "Patient Intake";
+  }
+  if (k.includes("chart") || k.includes("necessity") || k.includes("clinical") || k.includes("encounter") || k.includes("note")) {
+    return "Clinical Operations";
+  }
+  return "General Operations";
+}
+
 function normalizeType(item: CatalogType): CatalogType {
   return {
     key: item.key,
     name: item.name.trim(),
+    department: item.department ? item.department.trim() : defaultDepartmentForType(item.key),
     guidance: typeof item.guidance === "string" ? item.guidance : "",
     fields: item.fields.map((field) => ({
       name: field.name.trim(),
@@ -158,15 +183,28 @@ function deleteLocal(relative: string): void {
   }
 }
 
-function readGuidanceMap(): Record<string, string> {
+type MetadataEntry = { guidance: string; department?: string };
+
+function readGuidanceMap(): Record<string, MetadataEntry> {
   const raw = readLocal(GUIDANCE_FILE);
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const map: Record<string, string> = {};
+    const map: Record<string, MetadataEntry> = {};
     for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof value === "string") map[key] = value;
+      if (typeof value === "string") {
+        map[key] = { guidance: value, department: defaultDepartmentForType(key) };
+      } else if (value && typeof value === "object" && !Array.isArray(value)) {
+        const obj = value as { guidance?: unknown; department?: unknown };
+        map[key] = {
+          guidance: typeof obj.guidance === "string" ? obj.guidance : "",
+          department:
+            typeof obj.department === "string" && obj.department.trim()
+              ? obj.department.trim()
+              : defaultDepartmentForType(key),
+        };
+      }
     }
     return map;
   } catch {
@@ -175,7 +213,15 @@ function readGuidanceMap(): Record<string, string> {
 }
 
 function writeGuidanceMap(types: CatalogType[]): void {
-  const map = Object.fromEntries(types.map((item) => [item.key, item.guidance ?? ""]));
+  const map = Object.fromEntries(
+    types.map((item) => [
+      item.key,
+      {
+        guidance: item.guidance ?? "",
+        department: item.department || defaultDepartmentForType(item.key),
+      },
+    ])
+  );
   writeLocal(GUIDANCE_FILE, JSON.stringify(map, null, 2));
 }
 
@@ -261,7 +307,11 @@ function catalogFromFieldMeta(raw: string): Catalog | ApiResult {
   if (Array.isArray(root.types) && root.types.every(isCatalogType)) {
     return {
       types: (root.types as CatalogType[]).map((item) =>
-        normalizeType({ ...item, guidance: item.guidance || guidance[item.key] || "" })
+        normalizeType({
+          ...item,
+          department: item.department || guidance[item.key]?.department || defaultDepartmentForType(item.key),
+          guidance: item.guidance || guidance[item.key]?.guidance || "",
+        })
       ),
     };
   }
@@ -273,7 +323,8 @@ function catalogFromFieldMeta(raw: string): Catalog | ApiResult {
       normalizeType({
         key,
         name: humanizeKey(key),
-        guidance: guidance[key] || "",
+        department: guidance[key]?.department || defaultDepartmentForType(key),
+        guidance: guidance[key]?.guidance || "",
         fields: fieldsFromClassMap(key, value),
       })
     );
