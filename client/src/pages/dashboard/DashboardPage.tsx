@@ -1,13 +1,11 @@
 import {
   ArrowDownRight,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   Eye,
   FileArchive,
   FileCheck2,
   FileText,
-  Filter,
   MoreHorizontal,
   Sparkles,
   Upload,
@@ -345,24 +343,17 @@ function HILQueueCard({
 
 function RecentDocuments({
   onNavigate,
-  selectedDocType,
   documentsList,
 }: {
   onNavigate: (path: string) => void;
-  selectedDocType: string;
   documentsList: any[];
 }) {
-  const filtered = useMemo(() => {
-    if (selectedDocType === "All Document Types") return documentsList;
-    return documentsList.filter((d) => d.type === selectedDocType);
-  }, [selectedDocType, documentsList]);
-
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(20,43,75,.025)]">
       <div className="p-5 sm:p-6">
         <SectionHeading
           title="Recent Documents"
-          eyebrow={selectedDocType !== "All Document Types" ? `Filtered by ${selectedDocType}` : "Unified operational document queue"}
+          eyebrow="Unified operational document queue"
           action="View all"
           onAction={() => onNavigate("/documents")}
         />
@@ -383,7 +374,7 @@ function RecentDocuments({
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 6).map((doc) => {
+            {documentsList.slice(0, 6).map((doc) => {
               const needsReview = doc.status === "Needs Review" || doc.status === "HIL Review";
               const handleOpen = () => {
                 if (needsReview) {
@@ -439,7 +430,6 @@ export default function DashboardPage({
   onNavigate: (path: string) => void;
   onOpenDocument: (id: string) => void;
 }) {
-  const [selectedDocType, setSelectedDocType] = useState<string>("All Document Types");
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [uploadedLocalDocs, setUploadedLocalDocs] = useState<any[]>([]);
 
@@ -478,38 +468,6 @@ export default function DashboardPage({
 
     return [...uploadedLocalDocs, ...baseDocs];
   }, [isLive, liveDocs, uploadedLocalDocs]);
-
-  // Dynamically compute all unique document types sorted by frequency
-  const availableDocTypes = useMemo(() => {
-    const typeCounts = new Map<string, number>();
-    allDocuments.forEach((d) => {
-      const t = d.type ? d.type.trim() : "";
-      if (t) {
-        typeCounts.set(t, (typeCounts.get(t) || 0) + 1);
-      }
-    });
-
-    if (typeCounts.size === 0) {
-      return ["All Document Types", "Referral Form", "Patient Demographics", "Clinical Note", "Denial Letter"];
-    }
-
-    // Sort by frequency descending so the most prominent types appear first
-    const sorted = Array.from(typeCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([t]) => t);
-
-    return ["All Document Types", ...sorted];
-  }, [allDocuments]);
-
-  // Top 4 document types for sleek single-line quick pills, plus "All Document Types"
-  const quickPillTypes = useMemo(() => {
-    return availableDocTypes.slice(0, 5);
-  }, [availableDocTypes]);
-
-  // Remaining document types accessible via compact dropdown
-  const otherDocTypes = useMemo(() => {
-    return availableDocTypes.slice(5);
-  }, [availableDocTypes]);
 
   const processedCount = useMemo(() => {
     if (backendStats?.processed) return backendStats.processed;
@@ -556,7 +514,7 @@ export default function DashboardPage({
 
   return (
     <div className="space-y-6 p-4 sm:p-7 lg:p-9">
-      {/* Header & Document Type Filter Strip */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">
@@ -571,63 +529,6 @@ export default function DashboardPage({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Sleek single-line Quick Filter Strip */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-xs">
-            {quickPillTypes.map((dt) => {
-              const isSelected = selectedDocType === dt;
-              return (
-                <button
-                  key={dt}
-                  onClick={() => setSelectedDocType(dt)}
-                  className={cn(
-                    "whitespace-nowrap rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all",
-                    isSelected
-                      ? "bg-[#47a2b0] text-white shadow-[0_2px_8px_rgba(71,162,176,0.3)]"
-                      : "text-slate-600 hover:bg-slate-100/80"
-                  )}
-                >
-                  {dt}
-                </button>
-              );
-            })}
-
-            {/* Compact 'More (N)...' dropdown for all remaining types */}
-            {otherDocTypes.length > 0 && (
-              <div className="relative inline-flex items-center">
-                <select
-                  value={otherDocTypes.includes(selectedDocType) ? selectedDocType : ""}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSelectedDocType(e.target.value);
-                    }
-                  }}
-                  className={cn(
-                    "appearance-none rounded-xl py-1.5 pl-2.5 pr-6 text-[11px] font-bold outline-none transition-all cursor-pointer",
-                    otherDocTypes.includes(selectedDocType)
-                      ? "bg-[#47a2b0] text-white shadow-[0_2px_8px_rgba(71,162,176,0.3)]"
-                      : "bg-transparent text-slate-600 hover:bg-slate-100/80"
-                  )}
-                >
-                  <option value="" disabled className="text-slate-400 bg-white font-medium">
-                    {otherDocTypes.includes(selectedDocType) ? selectedDocType : `More (${otherDocTypes.length})`}
-                  </option>
-                  {otherDocTypes.map((dt) => (
-                    <option key={dt} value={dt} className="text-slate-800 bg-white font-medium">
-                      {dt}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={12}
-                  className={cn(
-                    "pointer-events-none absolute right-2",
-                    otherDocTypes.includes(selectedDocType) ? "text-white" : "text-slate-400"
-                  )}
-                />
-              </div>
-            )}
-          </div>
-
           {/* Quick Upload Button */}
           <button
             onClick={() => setUploadModalOpen(true)}
@@ -695,8 +596,8 @@ export default function DashboardPage({
         <CostCard totalCost={totalCost} costBreakdown={costBreakdown} />
       </div>
 
-      {/* Recent Documents Table filtered by Document Type */}
-      <RecentDocuments onNavigate={onNavigate} selectedDocType={selectedDocType} documentsList={allDocuments} />
+      {/* Recent Documents Table */}
+      <RecentDocuments onNavigate={onNavigate} documentsList={allDocuments} />
 
       {/* Upload Document Modal */}
       <UploadDocumentModal
