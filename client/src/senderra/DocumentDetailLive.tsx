@@ -275,10 +275,10 @@ export function DocumentDetailLive({
                 <div className="mt-2 truncate text-[12px] font-semibold text-[#0e0e0e]" title={formatted}>
                   {formatted}
                 </div>
-                <div className="mt-3 flex items-center justify-between text-[9px]">
-                  <span className="font-semibold text-[#45bd8d]">
+                <div className="mt-3 flex items-center justify-end text-[9px]">
+                  {/* <span className="font-semibold text-[#45bd8d]">
                     {percent(score, 1)} confidence
-                  </span>
+                  </span> */}
                   <span className="font-bold text-[#45bd8d]">✓ Valid</span>
                 </div>
               </div>

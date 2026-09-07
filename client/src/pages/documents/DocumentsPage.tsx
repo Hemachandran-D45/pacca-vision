@@ -161,9 +161,7 @@ export default function DocumentsPage({
                   <th className="px-3 py-3 font-bold">Document Type</th>
                   <th className="px-3 py-3 font-bold">Source</th>
                   <th className="px-3 py-3 font-bold">Status</th>
-                  {/* Confidence column commented out per request
                   <th className="px-3 py-3 font-bold">Confidence</th>
-                  */}
                   <th className="px-3 py-3 font-bold">Pages</th>
                   <th className="px-3 py-3 font-bold">Received</th>
                   <th className="px-5 py-3 font-bold">Action</th>
@@ -208,9 +206,7 @@ export default function DocumentsPage({
                       <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.source}</td>
                       <td className="px-3 py-4"><StatusPill status={doc.status} /></td>
-                      {/* Confidence column commented out per request
-                      <td className="px-3 py-4 text-[10px] text-slate-600">{doc.confidence}</td>
-                      */}
+                      <td className="px-3 py-4 text-[10px] text-slate-600 font-semibold">{doc.confidence}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
                       <td className="px-5 py-4">
@@ -246,13 +242,14 @@ export default function DocumentsPage({
       <UploadDocumentModal
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
-        onUploaded={(newDoc) => {
-          if (newDoc) {
-            const tempDoc = {
-              id: `doc_${Date.now().toString(36)}`,
-              file: newDoc.file,
-              type: newDoc.docType,
-              source: `Upload · ${newDoc.department}`,
+        onUploaded={(result) => {
+          if (result) {
+            const list = Array.isArray(result) ? result : [result];
+            const newDocs = list.map((item, idx) => ({
+              id: `doc_${Date.now().toString(36)}_${idx}`,
+              file: item.file,
+              type: item.docType,
+              source: `Upload · ${item.department}`,
               status: "Needs Review" as const,
               confidence: "94%",
               pages: 1,
@@ -260,8 +257,8 @@ export default function DocumentsPage({
               color: "#f2c94c",
               pdfUrl: "/assets/sample_invoice_001.pdf",
               previewUrl: "/assets/sample_invoice_001.pdf",
-            };
-            setUploadedLocalDocs((prev) => [tempDoc, ...prev]);
+            }));
+            setUploadedLocalDocs((prev) => [...newDocs, ...prev]);
           }
           void poller.refresh();
         }}

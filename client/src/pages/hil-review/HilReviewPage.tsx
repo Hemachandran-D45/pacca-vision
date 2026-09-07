@@ -54,7 +54,7 @@ const MemoizedPdfViewer = memo(
       const clean = url.split("#")[0];
       frozenUrlRef.current = {
         id: documentId,
-        url: `${clean}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`,
+        url: `${clean}#toolbar=0&navpanes=0&scrollbar=1&view=Fit`,
       };
     }
 
@@ -62,7 +62,7 @@ const MemoizedPdfViewer = memo(
 
     if (!currentFrozenUrl) {
       return (
-        <div className="flex h-full min-h-[640px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center">
+        <div className="flex h-full min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center">
           <FileText size={32} className="text-slate-300" />
           <div className="mt-2 text-xs font-bold text-slate-700">Source PDF streaming…</div>
         </div>
@@ -73,7 +73,7 @@ const MemoizedPdfViewer = memo(
       <iframe
         src={currentFrozenUrl}
         title={title}
-        className="h-full min-h-[720px] lg:min-h-[820px] w-full rounded-xl border border-slate-200 bg-white shadow-xs"
+        className="h-full w-full rounded-xl border border-slate-200 bg-white shadow-xs"
       />
     );
   },
@@ -137,9 +137,9 @@ export default function HilReviewPage({
   const isLiveDoc = isLiveConnected && selectedId !== null;
 
   return (
-    <div className="space-y-5 p-4 sm:p-7 lg:p-9">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-80px)] p-3 sm:p-5 lg:p-6 gap-3 lg:overflow-hidden">
       {/* Top Review Control Strip */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="shrink-0 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">
             <span
@@ -253,37 +253,39 @@ export default function HilReviewPage({
       </div>
 
       {/* Main Workbench Body: 75% PDF Left, 25% Sidebar Right */}
-      {isLiveDoc && selectedId ? (
-        <LiveWorkbench
-          key={selectedId}
-          documentId={selectedId}
-          reviewer={userEmail || userName}
-          reviewerName={userName}
-          onResolved={() => {
-            void queuePoller.refresh();
-            const currIdx = liveDocuments.findIndex((d) => d.documentId === selectedId);
-            if (currIdx >= 0 && currIdx < liveDocuments.length - 1) {
-              setSelectedId(liveDocuments[currIdx + 1].documentId);
-            } else if (liveDocuments.length > 1) {
-              setSelectedId(liveDocuments[0].documentId);
-            } else {
-              setSelectedId(null);
-            }
-          }}
-        />
-      ) : (
-        <StandardWorkbench
-          currentDoc={mockList[mockIndex] ?? mockList[0]}
-          userName={userName}
-          onSaveDoc={(updated) => {
-            setMockList((prev) => prev.map((d, i) => (i === mockIndex ? updated : d)));
-          }}
-          onAdvance={() => {
-            const nextIdx = mockList.findIndex((d, i) => i !== mockIndex && d.status !== "Approved");
-            if (nextIdx >= 0) setMockIndex(nextIdx);
-          }}
-        />
-      )}
+      <div className="flex-1 min-h-0">
+        {isLiveDoc && selectedId ? (
+          <LiveWorkbench
+            key={selectedId}
+            documentId={selectedId}
+            reviewer={userEmail || userName}
+            reviewerName={userName}
+            onResolved={() => {
+              void queuePoller.refresh();
+              const currIdx = liveDocuments.findIndex((d) => d.documentId === selectedId);
+              if (currIdx >= 0 && currIdx < liveDocuments.length - 1) {
+                setSelectedId(liveDocuments[currIdx + 1].documentId);
+              } else if (liveDocuments.length > 1) {
+                setSelectedId(liveDocuments[0].documentId);
+              } else {
+                setSelectedId(null);
+              }
+            }}
+          />
+        ) : (
+          <StandardWorkbench
+            currentDoc={mockList[mockIndex] ?? mockList[0]}
+            userName={userName}
+            onSaveDoc={(updated) => {
+              setMockList((prev) => prev.map((d, i) => (i === mockIndex ? updated : d)));
+            }}
+            onAdvance={() => {
+              const nextIdx = mockList.findIndex((d, i) => i !== mockIndex && d.status !== "Approved");
+              if (nextIdx >= 0) setMockIndex(nextIdx);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -383,10 +385,10 @@ function StandardWorkbench({
   const pdfUrl = currentDoc.pdfUrl || "/pdfs/invoice_001.pdf";
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="h-full grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px] min-h-0">
       {/* Left Card: 70-75% PDF Viewer */}
-      <section className="flex flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
-        <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-5">
+      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-100 p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
               Source Document
@@ -413,15 +415,15 @@ function StandardWorkbench({
         </div>
 
         {/* Stable Memoized PDF Iframe */}
-        <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-3 sm:p-4 min-h-[720px] lg:min-h-[820px]">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-2 sm:p-3 min-h-[440px] lg:min-h-0">
           <MemoizedPdfViewer documentId={currentDoc.id} url={pdfUrl} title={`Source document ${currentDoc.file}`} />
         </div>
       </section>
 
       {/* Right Card: 25-30% Sleek Field Verification Sidebar */}
-      <section className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs min-w-0">
+      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
         {/* Document Quick Metadata Strip */}
-        <div className="border-b border-slate-100 pb-4">
+        <div className="shrink-0 border-b border-slate-100 pb-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Document Review</span>
             <span
@@ -440,7 +442,7 @@ function StandardWorkbench({
         </div>
 
         {/* Extracted Fields Form */}
-        <div className="mt-4 flex-1 space-y-5 overflow-y-auto">
+        <div className="mt-3 flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
           {/* Header & Save/Cancel for edits */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
@@ -588,7 +590,7 @@ function StandardWorkbench({
         </div>
 
         {/* Pinned Action Controls */}
-        <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3">
+        <div className="shrink-0 mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={handleApprove}
@@ -754,10 +756,10 @@ function LiveWorkbench({
   );
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="h-full grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px] min-h-0">
       {/* Left Card: 70-75% PDF Viewer with Stable Memoized Rendering */}
-      <section className="flex flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
-        <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-5">
+      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-100 p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
               Source Document
@@ -782,15 +784,15 @@ function LiveWorkbench({
         </div>
 
         {/* Stable Memoized PDF Container */}
-        <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-3 sm:p-4 min-h-[720px] lg:min-h-[820px]">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-100 p-2 sm:p-3 min-h-[440px] lg:min-h-0">
           <MemoizedPdfViewer documentId={documentId} url={pdfUrl || ""} title={`Source PDF for ${summary.file}`} />
         </div>
       </section>
 
       {/* Right Card: 25-30% Sleek Field Verification Sidebar */}
-      <section className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs min-w-0">
+      <section className="flex flex-col h-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
         {/* Document Quick Metadata Strip */}
-        <div className="border-b border-slate-100 pb-4">
+        <div className="shrink-0 border-b border-slate-100 pb-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Document Review</span>
             <span
@@ -809,7 +811,7 @@ function LiveWorkbench({
         </div>
 
         {/* Extracted Fields Form */}
-        <div className="mt-4 flex-1 space-y-5 overflow-y-auto">
+        <div className="mt-3 flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h4 className="font-display text-[13px] font-bold text-[#0e0e0e]">
@@ -959,7 +961,7 @@ function LiveWorkbench({
         </div>
 
         {/* Pinned Action Controls */}
-        <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3">
+        <div className="shrink-0 mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={() => void act("approve")}

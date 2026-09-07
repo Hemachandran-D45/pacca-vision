@@ -345,9 +345,7 @@ function RecentDocuments({
               <th className="px-3 py-3 font-bold">Document Type</th>
               <th className="px-3 py-3 font-bold">Source</th>
               <th className="px-3 py-3 font-bold">Status</th>
-              {/* Confidence column commented out per request
               <th className="px-3 py-3 font-bold">Confidence</th>
-              */}
               <th className="px-3 py-3 font-bold">Pages</th>
               <th className="px-3 py-3 font-bold">Received</th>
               <th className="px-5 py-3 font-bold sm:px-6">Actions</th>
@@ -375,9 +373,8 @@ function RecentDocuments({
                   <td className="px-3 py-3.5 font-medium text-slate-700">{doc.type}</td>
                   <td className="px-3 py-3.5 text-slate-500">{doc.source}</td>
                   <td className="px-3 py-3.5"><StatusPill status={doc.status} /></td>
-                  {/* Confidence column commented out per request
                   <td className="px-3 py-3.5">
-                    <div className="flex items-center gap-2 text-slate-600">
+                    <div className="flex items-center gap-2 text-slate-600 font-semibold">
                       {doc.confidence !== "—" && (
                         <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
                           <span className="block h-full rounded-full bg-[#45bd8d]" style={{ width: doc.confidence }} />
@@ -386,7 +383,6 @@ function RecentDocuments({
                       {doc.confidence}
                     </div>
                   </td>
-                  */}
                   <td className="px-3 py-3.5 text-slate-500">{doc.pages}</td>
                   <td className="px-3 py-3.5 text-slate-500">{doc.received}</td>
                   <td className="px-5 py-3.5 sm:px-6">
@@ -522,8 +518,8 @@ export default function DashboardPage({
         </div>
       </div>
 
-      {/* Metric Tiles (4-column grid with confidence card commented out) */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Metric Tiles (5-column responsive grid) */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <MetricCard
           icon={FileCheck2}
           label="Documents Processed"
@@ -540,7 +536,6 @@ export default function DashboardPage({
           detail="Requires human decision"
           tone="amber"
         />
-        {/* Confidence score metric card commented out per request
         <MetricCard
           icon={Sparkles}
           label="Avg. Confidence"
@@ -549,7 +544,6 @@ export default function DashboardPage({
           detail="vs previous 7 days"
           tone="green"
         />
-        */}
         <MetricCard
           icon={Clock3}
           label="Avg. Processing Time"
@@ -588,13 +582,14 @@ export default function DashboardPage({
       <UploadDocumentModal
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
-        onUploaded={(newDoc) => {
-          if (newDoc) {
-            const tempDoc = {
-              id: `doc_${Date.now().toString(36)}`,
-              file: newDoc.file,
-              type: newDoc.docType,
-              source: `Upload · ${newDoc.department}`,
+        onUploaded={(result) => {
+          if (result) {
+            const list = Array.isArray(result) ? result : [result];
+            const newDocs = list.map((item, idx) => ({
+              id: `doc_${Date.now().toString(36)}_${idx}`,
+              file: item.file,
+              type: item.docType,
+              source: `Upload · ${item.department}`,
               status: "Needs Review" as const,
               confidence: "95%",
               pages: 1,
@@ -602,8 +597,8 @@ export default function DashboardPage({
               color: "#f2c94c",
               pdfUrl: "/assets/sample_invoice_001.pdf",
               previewUrl: "/assets/sample_invoice_001.pdf",
-            };
-            setUploadedLocalDocs((prev) => [tempDoc, ...prev]);
+            }));
+            setUploadedLocalDocs((prev) => [...newDocs, ...prev]);
           }
           void docsPoller.refresh();
           void statsPoller.refresh();

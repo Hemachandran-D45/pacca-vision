@@ -1,4 +1,4 @@
-﻿import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   AlertCircle,
   Building2,
@@ -6,7 +6,10 @@ import {
   FileCheck,
   FileText,
   FileUp,
+  Files,
   Loader2,
+  Plus,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -44,6 +47,8 @@ export const UPLOAD_DOC_TYPES = [
   "Patient Demographics / Intake",
 ] as const;
 
+export type UploadedDocInfo = { file: string; department: string; docType: string };
+
 export function UploadDocumentModal({
   open,
   onOpenChange,
@@ -51,43 +56,70 @@ export function UploadDocumentModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploaded?: (newDoc?: { file: string; department: string; docType: string }) => void;
+  onUploaded?: (newDocs: UploadedDocInfo[] | UploadedDocInfo) => void;
 }) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [department, setDepartment] = useState<string>("");
   const [docType, setDocType] = useState<string>("Auto-detect from document (Default)");
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [errors, setErrors] = useState<{ file?: string; department?: string }>({});
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [errors, setErrors] = useState<{ files?: string; department?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = () => {
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setDepartment("");
     setDocType("Auto-detect from document (Default)");
     setErrors({});
     setBusy(false);
+    setUploadProgress(null);
   };
 
-  const handleFileSelect = (files: FileList | File[] | null) => {
+  const handleAddFiles = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
-    const file = files[0];
-    if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) {
-      toast.error("Unsupported file format", {
+
+    const incoming = Array.from(files);
+    const validPdfs: File[] = [];
+    let invalidCount = 0;
+
+    incoming.forEach((file) => {
+      if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+        validPdfs.push(file);
+      } else {
+        invalidCount++;
+      }
+    });
+
+    if (invalidCount > 0) {
+      toast.error(`${invalidCount} non-PDF file${invalidCount > 1 ? "s" : ""} skipped`, {
         description: "The processing pipeline takes PDF documents only.",
       });
-      return;
     }
-    setSelectedFile(file);
-    setErrors((prev) => ({ ...prev, file: undefined }));
+
+    if (validPdfs.length === 0) return;
+
+    setSelectedFiles((prev) => {
+      const existingKeys = new Set(prev.map((f) => `${f.name}_${f.size}`));
+      const newItems = validPdfs.filter((f) => !existingKeys.has(`${f.name}_${f.size}`));
+      return [...prev, ...newItems];
+    });
+
+    setErrors((prev) => ({ ...prev, files: undefined }));
   };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const nextErrors: { file?: string; department?: string } = {};
-    if (!selectedFile) {
-      nextErrors.file = "Please select or drop a PDF document.";
+    const nextErrors: { files?: string; department?: string } = {};
+    if (selectedFiles.length === 0) {
+      nextErrors.files = "Please select or drop at least one PDF document.";
     }
     if (!department) {
       nextErrors.department = "Department is required. Please choose a department.";
@@ -99,28 +131,55 @@ export function UploadDocumentModal({
     }
 
     setBusy(true);
+    setUploadProgress({ current: 1, total: selectedFiles.length });
+
+    const uploadedList: UploadedDocInfo[] = [];
 
     try {
-      const cleanFileName = selectedFile!.name;
+      let grantsList: any[] = [];
       try {
-        const { grants } = await mintUploadGrants([{ name: cleanFileName }]);
-        if (grants && grants.length > 0) {
-          await uploadToBlob(grants[0], selectedFile!);
+        const res = await mintUploadGrants(selectedFiles.map((f) => ({ name: f.name })));
+        if (res && res.grants) {
+          grantsList = res.grants;
         }
-      } catch (uploadErr) {
-        console.warn("Backend direct-blob upload notice:", uploadErr);
+      } catch (grantErr) {
+        console.warn("Bulk grant minting notice:", grantErr);
       }
 
-      toast.success("Document uploaded successfully", {
-        description: `${cleanFileName} queued for ${department} (${docType.startsWith("Auto-detect") ? "Auto-detect type" : docType}).`,
-      });
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        setUploadProgress({ current: i + 1, total: selectedFiles.length });
 
-      if (onUploaded) {
-        onUploaded({
-          file: cleanFileName,
+        const grant = grantsList[i];
+        if (grant) {
+          try {
+            await uploadToBlob(grant, file);
+          } catch (uploadErr) {
+            console.warn(`Direct blob upload failed for ${file.name}:`, uploadErr);
+          }
+        }
+
+        uploadedList.push({
+          file: file.name,
           department,
           docType: docType.startsWith("Auto-detect") ? "Prior Authorization" : docType,
         });
+      }
+
+      const isBulk = selectedFiles.length > 1;
+      toast.success(
+        isBulk
+          ? `Bulk upload complete: ${selectedFiles.length} documents uploaded`
+          : "Document uploaded successfully",
+        {
+          description: `${
+            isBulk ? `${selectedFiles.length} files` : selectedFiles[0].name
+          } routed to ${department} (${docType.startsWith("Auto-detect") ? "Auto-detect type" : docType}).`,
+        }
+      );
+
+      if (onUploaded) {
+        onUploaded(uploadedList);
       }
 
       onOpenChange(false);
@@ -131,6 +190,7 @@ export function UploadDocumentModal({
       });
     } finally {
       setBusy(false);
+      setUploadProgress(null);
     }
   };
 
@@ -143,7 +203,7 @@ export function UploadDocumentModal({
         if (!isOpen) resetState();
       }}
     >
-      <DialogContent className="max-w-[540px] rounded-3xl border-slate-200 p-6 sm:p-7">
+      <DialogContent className="max-w-[580px] rounded-3xl border-slate-200 p-6 sm:p-7">
         <DialogHeader>
           <div className="flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
@@ -151,50 +211,43 @@ export function UploadDocumentModal({
             </div>
             <div>
               <DialogTitle className="font-display text-xl font-bold tracking-[-.03em] text-[#0e0e0e]">
-                Upload Operational Document
+                Upload Operational Documents
               </DialogTitle>
               <DialogDescription className="mt-0.5 text-[11px] text-slate-500">
-                Submit documents directly into automated intake, classification, and validation.
+                Submit single or bulk documents into automated intake, classification, and validation.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* File Upload Dropzone / Placeholder */}
+          {/* File Upload Dropzone / Multi-File Manager */}
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Document File <span className="text-rose-500 font-bold">*</span>
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Document Files <span className="text-rose-500 font-bold">*</span>
+              </label>
+              {selectedFiles.length > 0 && (
+                <span className="text-[10px] font-semibold text-slate-500">
+                  {selectedFiles.length} {selectedFiles.length === 1 ? "file" : "files"} ({bytes(totalSize)})
+                </span>
+              )}
+            </div>
 
-            {selectedFile ? (
-              <div className="flex items-center justify-between rounded-2xl border border-[#47a2b0]/30 bg-[#ebf5f7]/40 p-4 transition">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#47a2b0] text-white">
-                    <FileText size={20} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-[12px] font-bold text-[#0e0e0e]">
-                      {selectedFile.name}
-                    </div>
-                    <div className="mt-0.5 text-[10px] text-slate-500">
-                      {bytes(selectedFile.size)} · Ready to process
-                    </div>
-                  </div>
-                </div>
+            {/* Hidden native input with multiple support */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleAddFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
 
-                {!busy && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFile(null)}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700 transition"
-                    title="Remove file"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ) : (
+            {selectedFiles.length === 0 ? (
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -204,7 +257,7 @@ export function UploadDocumentModal({
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragging(false);
-                  handleFileSelect(e.dataTransfer.files);
+                  handleAddFiles(e.dataTransfer.files);
                 }}
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
@@ -214,28 +267,90 @@ export function UploadDocumentModal({
                     : "border-slate-200 bg-slate-50/60 hover:border-[#47a2b0]/50 hover:bg-slate-50"
                 )}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  className="hidden"
-                  onChange={(e) => handleFileSelect(e.target.files)}
-                />
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-xs">
-                  <Upload size={20} className="text-[#47a2b0]" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-xs text-[#47a2b0]">
+                  <Upload size={20} />
                 </div>
                 <div className="mt-2 text-[12px] font-bold text-[#0e0e0e]">
-                  Click to browse or drop your PDF document here
+                  Click to browse or drop PDF documents here
                 </div>
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Accepts standard PDF multi-page scans, digital forms, and faxes
+                  Supports single files or <strong>bulk upload</strong> of multiple PDFs
                 </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-[9px] font-bold text-slate-500 shadow-xs border border-slate-200/60">
+                  <Files size={12} className="text-[#47a2b0]" /> Bulk PDF Multi-Select Enabled
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-3">
+                {/* Header bar of selected files */}
+                <div className="flex items-center justify-between px-1 pb-1 text-[11px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-[#47a2b0]/15 px-2 py-0.5 text-[10px] font-bold text-[#2d7d8a]">
+                      <Files size={12} />
+                      {selectedFiles.length} {selectedFiles.length === 1 ? "Document" : "Documents (Bulk)"}
+                    </span>
+                  </div>
+                  {!busy && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-[#47a2b0] hover:text-[#37828e] transition"
+                      >
+                        <Plus size={12} /> Add more
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFiles([])}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-500 hover:text-rose-700 transition"
+                      >
+                        <Trash2 size={11} /> Clear all
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Scrollable list of files */}
+                <div className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
+                  {selectedFiles.map((file, idx) => (
+                    <div
+                      key={`${file.name}_${idx}`}
+                      className="flex items-center justify-between rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-xs transition"
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ebf5f7] text-[#47a2b0]">
+                          <FileText size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-[11px] font-bold text-[#0e0e0e]" title={file.name}>
+                            {file.name}
+                          </div>
+                          <div className="text-[9px] text-slate-400">
+                            {bytes(file.size)} · PDF
+                          </div>
+                        </div>
+                      </div>
+
+                      {!busy && (
+                        <button
+                          type="button"
+                          onClick={() => removeFile(idx)}
+                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-500 transition"
+                          title="Remove file"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {errors.file && (
+            {errors.files && (
               <p className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-rose-600">
-                <AlertCircle size={12} /> {errors.file}
+                <AlertCircle size={12} /> {errors.files}
               </p>
             )}
           </div>
@@ -301,7 +416,7 @@ export function UploadDocumentModal({
               ))}
             </select>
             <p className="mt-1 text-[9px] text-slate-400">
-              Leave on Auto-detect to let the AI classify the document automatically.
+              Leave on Auto-detect to let the AI classify {selectedFiles.length > 1 ? "each document" : "the document"} automatically.
             </p>
           </div>
 
@@ -322,8 +437,25 @@ export function UploadDocumentModal({
               disabled={busy}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-5 py-2.5 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.18)] hover:bg-[#37828e] transition active:scale-[.98] disabled:opacity-50"
             >
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-              {busy ? "Uploading to Pipeline..." : "Upload Document"}
+              {busy ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>
+                    {uploadProgress
+                      ? `Uploading ${uploadProgress.current} of ${uploadProgress.total}...`
+                      : "Uploading..."}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Upload size={15} />
+                  <span>
+                    {selectedFiles.length > 1
+                      ? `Upload ${selectedFiles.length} Documents`
+                      : "Upload Document"}
+                  </span>
+                </>
+              )}
             </button>
           </DialogFooter>
         </form>
