@@ -23,7 +23,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { MetricCard } from "@/components/common/MetricCard";
 import { SectionHeading } from "@/components/common/SectionHeading";
@@ -54,6 +54,7 @@ import {
   getStoredUploadedDocs,
   saveStoredUploadedDocs,
   pruneStoredUploadedDocs,
+  PACCA_UPLOADED_DOCS_EVENT,
 } from "@/senderra/localDocs";
 
 function listStatus(uiStatus: string) {
@@ -494,12 +495,30 @@ export default function DashboardPage({
     getStoredUploadedDocs().map(toOptimisticRow)
   );
 
+  // Sync uploaded docs across tabs or after uploads
+  useEffect(() => {
+    const sync = () => {
+      setUploadedLocalDocs(getStoredUploadedDocs().map(toOptimisticRow));
+    };
+    window.addEventListener(PACCA_UPLOADED_DOCS_EVENT, sync);
+    return () => window.removeEventListener(PACCA_UPLOADED_DOCS_EVENT, sync);
+  }, []);
+
   // Live polling for backend documents & stats
   const docsPoller = usePolled(() => fetchDocuments(), 8000);
   const statsPoller = usePolled(() => fetchStats(), 8000);
 
   const liveDocs = docsPoller.data?.documents ?? [];
   const backendStats = statsPoller.data?.stats;
+
+  // Prune local uploads once Azure Cosmos returns them
+  useEffect(() => {
+    if (liveDocs.length > 0) {
+      const liveIds = liveDocs.map((d) => d.documentId);
+      const liveFiles = liveDocs.map((d) => d.file || "");
+      pruneStoredUploadedDocs(liveIds, liveFiles);
+    }
+  }, [liveDocs]);
 
   const allDocuments = useMemo(() => {
     const baseDocs = liveDocs.map((d) => ({
@@ -524,11 +543,16 @@ export default function DashboardPage({
       costUsd: d.costUsd ?? 0,
     }));
 
-    const liveIds = new Set(baseDocs.map((row) => row.id));
-    if (liveIds.size > 0) {
-      pruneStoredUploadedDocs(Array.from(liveIds));
-    }
-    const locals = uploadedLocalDocs.filter((row) => row.id && !liveIds.has(row.id));
+    const liveIdSet = new Set(baseDocs.flatMap((row) => [row.id, row.id.replace(/\.pdf$/i, "")]));
+    const liveFileSet = new Set(baseDocs.map((row) => (row.file || "").toLowerCase().trim()));
+
+    const locals = uploadedLocalDocs.filter(
+      (row) =>
+        row.id &&
+        !liveIdSet.has(row.id) &&
+        !liveIdSet.has(row.id.replace(/\.pdf$/i, "")) &&
+        !liveFileSet.has((row.file || "").toLowerCase().trim())
+    );
     return [...locals, ...baseDocs];
   }, [liveDocs, uploadedLocalDocs]);
 

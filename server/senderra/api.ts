@@ -1,6 +1,7 @@
 import { isConfigError, readConfig } from "./config.js";
 import { applyReviewAction, container, fetchRecords, listDocuments, patchGaps, readDocument, readGapsItem } from "./cosmos.js";
 import {
+  fetchOutreach,
   gapsPayloadFromExtract,
   ivrHealthPublic,
   outreachHint,
@@ -239,13 +240,48 @@ async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResul
   const ops = patchOps(outcome);
   const patched = stored ? await patchGaps(handle.container, documentId, ops, stored._etag) : false;
 
+  const isCompleted = String(outcome.call_status || "").toUpperCase() === "COMPLETED";
+
   if (outcome.trigger_status === "accepted") {
+    const settledCorrections: Record<string, unknown> = {};
+    if (outcome.request_id) {
+      try {
+        const outreachData = await fetchOutreach(outcome.request_id as string);
+        if (outreachData?.fields) {
+          for (const f of outreachData.fields) {
+            if (f.status === "SETTLED" && f.value !== undefined && f.value !== null) {
+              settledCorrections[f.field] = f.value;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch IVR outreach details:", err);
+      }
+    }
+
     try {
-      await applyReviewAction(handle.container, documentId, {
-        type: "route_to_ivr",
-        by: typeof body.by === "string" && body.by.trim() ? body.by.trim() : "IVR Outreach",
-        note: `Routed to IVR (call_status: ${outcome.call_status ?? "calling"}${outcome.request_id ? `, request: ${outcome.request_id}` : ""})`,
-      });
+      if (Object.keys(settledCorrections).length > 0) {
+        await applyReviewAction(handle.container, documentId, {
+          type: "correct",
+          by: "IVR Outreach",
+          corrections: settledCorrections,
+          note: `Settled via IVR outreach (request #${outcome.request_id})`,
+        });
+      }
+
+      if (isCompleted) {
+        await applyReviewAction(handle.container, documentId, {
+          type: "approve",
+          by: "IVR Outreach",
+          note: `All fields settled via IVR call (request #${outcome.request_id ?? ""})`,
+        });
+      } else {
+        await applyReviewAction(handle.container, documentId, {
+          type: "route_to_ivr",
+          by: typeof body.by === "string" && body.by.trim() ? body.by.trim() : "IVR Outreach",
+          note: `Routed to IVR (call_status: ${outcome.call_status ?? "calling"}${outcome.request_id ? `, request: ${outcome.request_id}` : ""})`,
+        });
+      }
     } catch (err) {
       console.warn("Could not record review action for IVR trigger:", err);
     }
@@ -265,9 +301,36 @@ async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResul
       ...outcome,
       skipReason,
       patched,
-      uiStatus: "Routed to IVR",
+      uiStatus: isCompleted ? "Processed" : "Routed to IVR",
     },
   };
+}
+
+async function handleIvrOutreach(query: URLSearchParams): Promise<ApiResult> {
+  const reqIdParam = query.get("requestId")?.trim();
+  const docIdParam = query.get("documentId")?.trim();
+
+  let reqId = reqIdParam;
+  if (!reqId && docIdParam) {
+    const handle = await requireContainer();
+    if (!isFail(handle)) {
+      const gaps = (await readGapsItem(handle.container, docIdParam)) as GapsItem | null;
+      if (gaps && gaps.request_id) {
+        reqId = String(gaps.request_id);
+      }
+    }
+  }
+
+  if (!reqId) {
+    return fail(400, "Provide requestId or documentId.");
+  }
+
+  const outreach = await fetchOutreach(reqId);
+  if (!outreach) {
+    return fail(404, `Could not retrieve outreach for request ${reqId}.`);
+  }
+
+  return { status: 200, body: { ok: true, outreach } };
 }
 
 async function handleStats(): Promise<ApiResult> {
@@ -454,6 +517,7 @@ export async function handleSenderra(
     if (method === "POST" && route === "/upload-sas") return await handleUploadSas(body);
     if (method === "POST" && route === "/review") return await handleReview(body);
     if (method === "POST" && route === "/ivr-trigger") return await handleIvrTrigger(body);
+    if (method === "GET" && route === "/ivr-outreach") return await handleIvrOutreach(query);
     return fail(404, `No Senderra route ${method} ${route}.`);
   } catch (error) {
     return fail(500, String(error));

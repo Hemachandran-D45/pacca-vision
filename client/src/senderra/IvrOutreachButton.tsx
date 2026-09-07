@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Phone, PhoneCall } from "lucide-react";
+import { CheckCircle2, Loader2, Phone, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { triggerIvr, type OutreachHint } from "@/senderra/api";
@@ -25,26 +25,48 @@ export function IvrOutreachButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [called, setCalled] = useState(false);
+  const [settled, setSettled] = useState(false);
 
   if (!outreach?.visible) return null;
 
-  const isCalling = called || outreach.gapStatus === "in_progress";
+  const isCompleted = settled || outreach.gapStatus === "resolved" || outreach.openCount === 0;
+  const isCalling = !isCompleted && (called || outreach.gapStatus === "in_progress");
   const skipText = outreach.skipReason ? SKIP_LABEL[outreach.skipReason] ?? outreach.skipReason : null;
-  const title = isCalling
+  const title = isCompleted
+    ? "All fields settled via IVR outreach call"
+    : isCalling
     ? "IVR call active · Status routed to IVR"
     : outreach.enabled
     ? "Place call to patient via IVR outreach and update status to Routed to IVR"
     : skipText ?? "Outreach is not eligible";
 
   const run = async () => {
-    if (!outreach.enabled || busy) return;
+    if (!outreach.enabled || busy || isCompleted) return;
     setBusy(true);
     try {
       const result = await triggerIvr(documentId);
       const status = result.trigger_status;
+      const callStatus = String(result.call_status || "").toUpperCase();
       const errorText = (result.trigger_error || "").toLowerCase();
 
-      if (status === "accepted" || errorText.includes("already calling") || errorText.includes("already in progress")) {
+      if (callStatus === "COMPLETED" || errorText.includes("already completed") || errorText.includes("completed")) {
+        setSettled(true);
+        setCalled(false);
+        const bits = [
+          result.request_id ? `request #${result.request_id}` : null,
+        ].filter(Boolean);
+
+        toast.success("Outreach Settled", {
+          description: bits.length
+            ? `All fields settled via IVR call (${bits.join(" · ")}). Document marked processed.`
+            : "All fields settled via IVR call. Document marked processed.",
+        });
+      } else if (
+        status === "accepted" ||
+        callStatus === "CALLING" ||
+        errorText.includes("already calling") ||
+        errorText.includes("already in progress")
+      ) {
         setCalled(true);
         const bits = [
           result.call_id ? `call_id ${result.call_id}` : null,
@@ -78,13 +100,15 @@ export function IvrOutreachButton({
     <button
       type="button"
       onClick={() => void run()}
-      disabled={!outreach.enabled || busy}
+      disabled={!outreach.enabled || busy || isCompleted}
       title={title}
       className={
         className ??
-        `inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-          isCalling
-            ? "border-indigo-200 bg-indigo-50/80 text-indigo-700 shadow-sm"
+        `inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition disabled:cursor-not-allowed disabled:opacity-75 ${
+          isCompleted
+            ? "border-emerald-200 bg-emerald-50/80 text-emerald-700 shadow-xs"
+            : isCalling
+            ? "border-indigo-200 bg-indigo-50/80 text-indigo-700 shadow-xs"
             : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 hover:bg-indigo-50/30"
         }`
       }
@@ -92,7 +116,12 @@ export function IvrOutreachButton({
       {busy ? (
         <>
           <Loader2 size={14} className="animate-spin text-[#47a2b0]" />
-          <span>Calling…</span>
+          <span>Connecting…</span>
+        </>
+      ) : isCompleted ? (
+        <>
+          <CheckCircle2 size={14} className="text-emerald-600" />
+          <span>IVR Completed</span>
         </>
       ) : isCalling ? (
         <>

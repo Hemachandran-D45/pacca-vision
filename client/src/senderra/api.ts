@@ -264,6 +264,30 @@ export function triggerIvr(documentId: string) {
   });
 }
 
+export type IvrOutreachDetail = {
+  request_id: number | string;
+  member_id?: string;
+  status: string;
+  failure_reason?: string | null;
+  sync_status?: string | null;
+  sync_detail?: string | null;
+  call_context_id?: string | null;
+  requested_at?: string | null;
+  fields?: {
+    field: string;
+    asked_as?: string;
+    status: string;
+    value?: unknown;
+  }[];
+};
+
+export function fetchIvrOutreach(params: { requestId?: string | number; documentId?: string }) {
+  const query = new URLSearchParams();
+  if (params.requestId) query.set("requestId", String(params.requestId));
+  if (params.documentId) query.set("documentId", params.documentId);
+  return request<{ outreach: IvrOutreachDetail }>(`/ivr-outreach?${query.toString()}`);
+}
+
 /**
  * Poll-based live data.
  *

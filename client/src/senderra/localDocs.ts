@@ -1,4 +1,4 @@
-﻿import type { UploadedDocInfo } from "@/components/documents/UploadDocumentModal";
+import type { UploadedDocInfo } from "@/components/documents/UploadDocumentModal";
 
 const STORAGE_KEY = "pacca_uploaded_docs_v1";
 
@@ -23,6 +23,8 @@ export function getStoredUploadedDocs(): StoredUploadedDoc[] {
   }
 }
 
+export const PACCA_UPLOADED_DOCS_EVENT = "pacca_uploaded_docs_changed";
+
 export function saveStoredUploadedDocs(docs: UploadedDocInfo[]): StoredUploadedDoc[] {
   if (typeof window === "undefined" || !window.localStorage) return [];
   try {
@@ -39,20 +41,29 @@ export function saveStoredUploadedDocs(docs: UploadedDocInfo[]): StoredUploadedD
     }
     const list = Array.from(map.values()).slice(-50);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent(PACCA_UPLOADED_DOCS_EVENT, { detail: list }));
     return list;
   } catch {
     return [];
   }
 }
 
-export function pruneStoredUploadedDocs(liveIds: string[]) {
-  if (typeof window === "undefined" || !window.localStorage || liveIds.length === 0) return;
+export function pruneStoredUploadedDocs(liveIds: string[], liveFiles: string[] = []) {
+  if (typeof window === "undefined" || !window.localStorage || (liveIds.length === 0 && liveFiles.length === 0)) return;
   try {
     const existing = getStoredUploadedDocs();
-    const liveSet = new Set(liveIds);
-    const filtered = existing.filter((doc) => !liveSet.has(doc.documentId));
+    const liveSet = new Set(liveIds.flatMap((id) => [id, id.replace(/\.pdf$/i, "")]));
+    const fileSet = new Set(liveFiles.map((f) => f.toLowerCase().trim()));
+
+    const filtered = existing.filter((doc) => {
+      const idMatch = liveSet.has(doc.documentId) || liveSet.has(doc.documentId.replace(/\.pdf$/i, ""));
+      const fileMatch = doc.file && fileSet.has(doc.file.toLowerCase().trim());
+      return !idMatch && !fileMatch;
+    });
+
     if (filtered.length !== existing.length) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent(PACCA_UPLOADED_DOCS_EVENT, { detail: filtered }));
     }
   } catch {}
 }

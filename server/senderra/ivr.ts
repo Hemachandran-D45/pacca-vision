@@ -327,14 +327,26 @@ export async function trigger(item: GapsItem, config = readIvrConfig()): Promise
     } catch {}
 
     const detail = typeof bodyJson?.detail === "string" ? bodyJson.detail : text;
-    if (detail.toLowerCase().includes("already calling") || detail.toLowerCase().includes("already in progress")) {
-      const reqMatch = detail.match(/request\s+(\w+)/i);
+    const detailLower = detail.toLowerCase();
+    if (
+      detailLower.includes("already completed") ||
+      detailLower.includes("completed") ||
+      detailLower.includes("already calling") ||
+      detailLower.includes("already in progress") ||
+      detailLower.includes("already partial") ||
+      detailLower.includes("partial")
+    ) {
+      const reqMatch = detail.match(/(?:request|outreach\/)\s*(\w+)/i);
       const callMatch = detail.match(/call\s+(\w+)/i);
+      const isCompleted = detailLower.includes("completed");
+      const isPartial = detailLower.includes("partial");
+      const callStatus = isCompleted ? "COMPLETED" : isPartial ? "PARTIAL" : "CALLING";
+
       return {
         trigger_status: ACCEPTED,
         triggered_at: t0,
         trigger_http_status: resp.status,
-        call_status: "CALLING",
+        call_status: callStatus,
         request_id: reqMatch ? reqMatch[1] : undefined,
         call_id: callMatch ? callMatch[1] : undefined,
       };
@@ -383,12 +395,75 @@ export async function trigger(item: GapsItem, config = readIvrConfig()): Promise
   return out;
 }
 
+export type IvrOutreachField = {
+  field: string;
+  asked_as?: string;
+  status: string;
+  value?: unknown;
+};
+
+export type IvrOutreachStatus = {
+  request_id: number | string;
+  member_id?: string;
+  status: string;
+  failure_reason?: string | null;
+  sync_status?: string | null;
+  sync_detail?: string | null;
+  call_context_id?: string | null;
+  requested_at?: string | null;
+  fields?: IvrOutreachField[];
+};
+
+export async function fetchOutreach(
+  requestId: string | number,
+  config = readIvrConfig()
+): Promise<IvrOutreachStatus | null> {
+  if (!config.enabled || !config.url) return null;
+  let url: string;
+  if (config.url.includes("trigger-outreach")) {
+    url = config.url.replace(/\/trigger-outreach\/?$/, `/outreach/${requestId}`);
+  } else {
+    try {
+      url = new URL(`/idp/outreach/${requestId}`, config.url).toString();
+    } catch {
+      return null;
+    }
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+    "User-Agent": "senderra-idp/1.0",
+  };
+  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
+
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(Math.round(config.timeoutSec * 1000)),
+    });
+    if (!resp.ok) return null;
+    return (await resp.json()) as IvrOutreachStatus;
+  } catch {
+    return null;
+  }
+}
+
 export function patchOps(outcome: IvrOutcome): { op: "set"; path: string; value: unknown }[] {
   const ops = Object.entries(outcome)
     .filter(([, v]) => v != null)
     .map(([k, v]) => ({ op: "set" as const, path: `/${k}`, value: v }));
   if (outcome.trigger_status === ACCEPTED) {
-    ops.push({ op: "set", path: "/gapStatus", value: "in_progress" });
+    const isCompleted = String(outcome.call_status || "").toUpperCase() === "COMPLETED";
+    ops.push({
+      op: "set",
+      path: "/gapStatus",
+      value: isCompleted ? "resolved" : "in_progress",
+    });
+    if (isCompleted) {
+      ops.push({ op: "set", path: "/openCount", value: 0 });
+    }
   }
   return ops;
 }

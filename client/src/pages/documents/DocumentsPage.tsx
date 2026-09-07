@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UploadedDocInfo } from "@/components/documents/UploadDocumentModal";
 import { Download, Eye, FileSearch, FileText, Filter, RefreshCw, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
   getStoredUploadedDocs,
   saveStoredUploadedDocs,
   pruneStoredUploadedDocs,
+  PACCA_UPLOADED_DOCS_EVENT,
 } from "@/senderra/localDocs";
 
 function listStatus(uiStatus: string) {
@@ -82,10 +83,28 @@ export default function DocumentsPage({
     getStoredUploadedDocs().map(toOptimisticRow)
   );
 
+  // Sync uploaded docs across tabs or after uploads
+  useEffect(() => {
+    const sync = () => {
+      setUploadedLocalDocs(getStoredUploadedDocs().map(toOptimisticRow));
+    };
+    window.addEventListener(PACCA_UPLOADED_DOCS_EVENT, sync);
+    return () => window.removeEventListener(PACCA_UPLOADED_DOCS_EVENT, sync);
+  }, []);
+
   // Live polling for backend documents
   const poller = usePolled(() => fetchDocuments(), 6000);
   const liveDocs = poller.data?.documents ?? [];
   const isLive = Boolean(poller.data);
+
+  // Prune local uploads once Azure Cosmos returns them
+  useEffect(() => {
+    if (liveDocs.length > 0) {
+      const liveIds = liveDocs.map((d) => d.documentId);
+      const liveFiles = liveDocs.map((d) => d.file || "");
+      pruneStoredUploadedDocs(liveIds, liveFiles);
+    }
+  }, [liveDocs]);
 
   const allDocuments = useMemo(() => {
     const baseDocs = liveDocs.map((d) => ({
@@ -109,11 +128,16 @@ export default function DocumentsPage({
       previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
     }));
 
-    const liveIds = new Set(baseDocs.map((row) => row.id));
-    if (liveIds.size > 0) {
-      pruneStoredUploadedDocs(Array.from(liveIds));
-    }
-    const locals = uploadedLocalDocs.filter((row) => row.id && !liveIds.has(row.id));
+    const liveIdSet = new Set(baseDocs.flatMap((row) => [row.id, row.id.replace(/\.pdf$/i, "")]));
+    const liveFileSet = new Set(baseDocs.map((row) => (row.file || "").toLowerCase().trim()));
+
+    const locals = uploadedLocalDocs.filter(
+      (row) =>
+        row.id &&
+        !liveIdSet.has(row.id) &&
+        !liveIdSet.has(row.id.replace(/\.pdf$/i, "")) &&
+        !liveFileSet.has((row.file || "").toLowerCase().trim())
+    );
     return [...locals, ...baseDocs];
   }, [liveDocs, uploadedLocalDocs]);
 
@@ -236,7 +260,7 @@ export default function DocumentsPage({
             <ErrorBlock error={poller.error} onRetry={() => void poller.refresh()} />
           </div>
         )}
-        {poller.loading && !isLive && !poller.error ? (
+        {poller.loading && !isLive && filtered.length === 0 && !poller.error ? (
           <div className="p-8 text-center text-[12px] font-semibold text-slate-500">
             Loading documents from Azure…
           </div>
@@ -335,6 +359,8 @@ export default function DocumentsPage({
               const ids = new Set(newDocs.map((n) => n.id));
               return [...newDocs, ...prev.filter((p) => !ids.has(p.id))];
             });
+            setStatus("All statuses");
+            setQuery("");
           }
           void poller.refresh();
         }}
