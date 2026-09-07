@@ -1,7 +1,28 @@
-import { Bell, CircleHelp, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  CircleHelp,
+  Cloud,
+  FileText,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Server,
+  ShieldCheck,
+  User,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { MockUser } from "@/components/MockAuth";
 import { useQueueCount } from "@/contexts/QueueCountContext";
+import { cn } from "@/lib/utils";
 
 export function Topbar({
   title,
@@ -21,8 +42,38 @@ export function Topbar({
   onRoleSwitch: (role: MockUser["role"]) => void;
 }) {
   const { notificationCount } = useQueueCount();
+  const [, navigate] = useLocation();
+
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const helpRef = useRef<HTMLDivElement>(null);
+
+  // Close menus on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target as Node)
+      ) {
+        setNotificationsOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+      if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
+        setHelpOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-20 flex min-h-[76px] items-center justify-between gap-3 border-b border-stone-200 bg-[#f2f2f0]/95 px-4 backdrop-blur-xl sm:px-7 lg:px-9">
+    <header className="sticky top-0 z-30 flex min-h-[76px] items-center justify-between gap-3 border-b border-stone-200 bg-[#f2f2f0]/95 px-4 backdrop-blur-xl sm:px-7 lg:px-9">
       <div className="flex min-w-0 items-center gap-3">
         <button onClick={onMenu} className="rounded-xl p-2 text-stone-500 hover:bg-white lg:hidden">
           <Menu size={19} />
@@ -63,7 +114,7 @@ export function Topbar({
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex">
           <span className="font-bold text-[#0e0e0e]">Client Workspace</span>
           <span className="ml-1 rounded-md bg-[#45bd8d]/15 px-2 py-0.5 text-[9px] font-bold text-[#1f845d]">
-            Production
+            Azure Production
           </span>
         </div>
 
@@ -75,45 +126,240 @@ export function Topbar({
           />
         </label>
 
-        <button
-          aria-label="Notifications"
-          onClick={() =>
-            toast(
-              notificationCount > 0
-                ? `${notificationCount} document${notificationCount === 1 ? "" : "s"} awaiting review`
-                : "You’re all caught up",
-              {
-                description:
-                  notificationCount > 0
-                    ? "Action required on low-confidence or missing fields in HIL Review."
-                    : "No pending review exceptions in queue.",
-              }
-            )
-          }
-          className="relative rounded-xl p-2 text-stone-500 hover:bg-white transition"
-        >
-          <Bell size={18} />
-          {notificationCount > 0 && (
-            <span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e04f4f] px-1 text-[9px] font-bold text-white shadow-xs">
-              {notificationCount}
-            </span>
+        {/* NOTIFICATIONS DROPDOWN */}
+        <div className="relative" ref={notificationsRef}>
+          <button
+            aria-label="Notifications"
+            onClick={() => {
+              setNotificationsOpen(!notificationsOpen);
+              setProfileOpen(false);
+              setHelpOpen(false);
+            }}
+            className={cn(
+              "relative rounded-xl p-2 text-stone-500 transition hover:bg-white",
+              notificationsOpen && "bg-white text-[#47a2b0] shadow-xs"
+            )}
+          >
+            <Bell size={18} />
+            {notificationCount > 0 && (
+              <span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e04f4f] px-1 text-[9px] font-bold text-white shadow-xs">
+                {notificationCount}
+              </span>
+            )}
+          </button>
+
+          {notificationsOpen && (
+            <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-[14px] font-bold text-[#0e0e0e]">Notifications</span>
+                  {notificationCount > 0 ? (
+                    <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">
+                      {notificationCount} new
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+                      All caught up
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setNotificationsOpen(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 transition"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="mt-3 space-y-2.5 max-h-[380px] overflow-y-auto">
+                {/* HIL Review Notification */}
+                {notificationCount > 0 ? (
+                  <div
+                    onClick={() => {
+                      setNotificationsOpen(false);
+                      navigate("/hil-review");
+                    }}
+                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 transition hover:bg-amber-50"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                      <AlertTriangle size={15} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-amber-900">Awaiting HIL Review</span>
+                        <span className="text-[9px] text-amber-700 font-semibold">Active</span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] text-amber-800 leading-relaxed">
+                        {notificationCount} document{notificationCount === 1 ? "" : "s"} require manual field validation or rule approval.
+                      </p>
+                      <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-[#47a2b0] hover:underline">
+                        Open HIL Review Queue <ChevronRight size={12} />
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                      <CheckCircle2 size={15} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-bold text-emerald-900">Review Queue Clear</div>
+                      <p className="mt-0.5 text-[10px] text-emerald-700">
+                        All incoming documents processed with high straight-through processing rate.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Azure Pipeline Telemetry Notification */}
+                <div className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+                    <Server size={15} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-800">Azure Pipeline Active</span>
+                      <span className="text-[9px] text-emerald-600 font-bold">100% Healthy</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-slate-500 leading-relaxed">
+                      Azure AI Document Intelligence & OpenAI GPT-4o workers healthy. Latency 6.4s median.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Storage & DB Status */}
+                <div className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700">
+                    <Cloud size={15} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-800">Azure Blob & Cosmos DB</span>
+                      <span className="text-[9px] text-emerald-600 font-bold">Connected</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-slate-500 leading-relaxed">
+                      Container SAS delegation active with enterprise encryption at rest.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 border-t border-slate-100 pt-2.5">
+                <button
+                  onClick={() => {
+                    setNotificationsOpen(false);
+                    navigate("/monitor");
+                  }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-[10px] font-bold text-[#47a2b0] hover:bg-slate-50 transition"
+                >
+                  View full telemetry in Pipeline Monitor <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
-        <button
-          aria-label="Help"
-          onClick={() => toast("PACCA Vision support", { description: "Your workspace runbook is available from the Help Center." })}
-          className="hidden rounded-xl p-2 text-stone-500 hover:bg-white sm:block"
-        >
-          <CircleHelp size={18} />
-        </button>
+        {/* HELP DROPDOWN */}
+        <div className="relative" ref={helpRef}>
+          <button
+            aria-label="Help"
+            onClick={() => {
+              setHelpOpen(!helpOpen);
+              setNotificationsOpen(false);
+              setProfileOpen(false);
+            }}
+            className={cn(
+              "hidden rounded-xl p-2 text-stone-500 transition hover:bg-white sm:block",
+              helpOpen && "bg-white text-[#47a2b0] shadow-xs"
+            )}
+          >
+            <CircleHelp size={18} />
+          </button>
 
-        <button
-          onClick={() => toast(`Signed in as ${user.name}`, { description: `${user.role} · ${user.tenant}` })}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#47a2b0] text-xs font-bold text-white shadow-[0_3px_8px_rgba(71,162,176,.3)]"
-        >
-          {user.initials}
-        </button>
+          {helpOpen && (
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <span className="font-display text-[13px] font-bold text-[#0e0e0e]">Support & Runbooks</span>
+                <button onClick={() => setHelpOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="mt-2.5 space-y-1.5 text-[11px]">
+                <div className="rounded-xl p-2 hover:bg-slate-50 cursor-pointer">
+                  <div className="font-bold text-slate-800">Workspace Runbook</div>
+                  <div className="text-[10px] text-slate-400">Azure deployment guidelines & SLA policies</div>
+                </div>
+                <div className="rounded-xl p-2 hover:bg-slate-50 cursor-pointer">
+                  <div className="font-bold text-slate-800">Document Type Schemas</div>
+                  <div className="text-[10px] text-slate-400">Class A-D field guidance and rules</div>
+                </div>
+                <div className="rounded-xl p-2 hover:bg-slate-50 cursor-pointer">
+                  <div className="font-bold text-slate-800">Security & Compliance</div>
+                  <div className="text-[10px] text-slate-400">FedRAMP High & HIPAA architecture on Azure</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* USER PROFILE DROPDOWN */}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => {
+              setProfileOpen(!profileOpen);
+              setNotificationsOpen(false);
+              setHelpOpen(false);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#47a2b0] text-xs font-bold text-white shadow-[0_3px_8px_rgba(71,162,176,.3)] transition hover:opacity-95"
+          >
+            {user.initials}
+          </button>
+
+          {profileOpen && (
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#47a2b0] font-display text-sm font-bold text-white">
+                  {user.initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-display text-[13px] font-bold text-[#0e0e0e]">{user.name}</div>
+                  <div className="truncate text-[10px] text-slate-400">{user.role}</div>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-2 text-[10px]">
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
+                  <span className="text-slate-400">Tenant Workspace</span>
+                  <span className="font-bold text-slate-700">{user.tenant}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
+                  <span className="text-slate-400">Cloud Host</span>
+                  <span className="font-bold text-[#47a2b0] flex items-center gap-1">
+                    <Cloud size={12} /> Microsoft Azure
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
+                  <span className="text-slate-400">Compliance</span>
+                  <span className="font-bold text-emerald-700 flex items-center gap-1">
+                    <ShieldCheck size={12} /> FedRAMP / HIPAA
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 border-t border-slate-100 pt-2.5">
+                <button
+                  onClick={() => {
+                    setProfileOpen(false);
+                    toast("Signed out of demo session");
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition"
+                >
+                  <LogOut size={13} /> Sign out of workspace
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

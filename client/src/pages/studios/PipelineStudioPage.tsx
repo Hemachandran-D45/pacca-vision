@@ -23,11 +23,11 @@ export default function PipelineStudioPage() {
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
   const [connectorSaved, setConnectorSaved] = useState(true);
   const [connectorConfig, setConnectorConfig] = useState({
-    inputConnector: "Amazon S3",
+    inputConnector: "Azure Blob Storage",
     inputIntegration: "Client 1 — Invoice Intake",
     inputBucket: "client-1-invoices",
     inputPath: "/incoming/",
-    outputConnector: "Amazon S3",
+    outputConnector: "Azure Blob Storage",
     outputIntegration: "Client 1 — Invoice Output",
     outputBucket: "client-1-output",
     outputPath: "/processed/",
@@ -145,13 +145,13 @@ export default function PipelineStudioPage() {
                   ? [
                       ["Connector", "inputConnector"],
                       ["Integration", "inputIntegration"],
-                      ["Bucket", "inputBucket"],
+                      ["Blob Container", "inputBucket"],
                       ["Path", "inputPath"],
                     ]
                   : [
                       ["Output connector", "outputConnector"],
                       ["Integration", "outputIntegration"],
-                      ["Bucket", "outputBucket"],
+                      ["Blob Container", "outputBucket"],
                       ["Path", "outputPath"],
                     ]
                 ).map(([label, key]) => (

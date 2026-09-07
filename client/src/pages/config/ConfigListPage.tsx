@@ -10,8 +10,8 @@ export default function ConfigListPage({ kind }: { kind: "rules" | "integrations
     ["Tax amount normalization", "Invoice Processing", "6 rules", "Live"],
   ];
   const integrations = [
-    ["AWS Textract", "Document understanding", "Connected", "2.3M calls"],
-    ["AWS Bedrock", "Claude 3.5 Sonnet", "Connected", "48.2K calls"],
+    ["Azure AI Document Intelligence", "Document understanding", "Connected", "2.3M calls"],
+    ["Azure OpenAI Service", "GPT-4o / GPT-4o-mini", "Connected", "48.2K calls"],
     ["Microsoft OneDrive", "Source connector", "Connected", "1,204 docs"],
     ["Client 1 intake", "Source connector", "Attention", "Credential expires in 8d"],
   ];

@@ -97,8 +97,49 @@ export function SolutionsV2() {
   const [newGuidance, setNewGuidance] = useState("");
   const [nameError, setNameError] = useState("");
 
+  // Add Department dialog state
+  const [customDepartments, setCustomDepartments] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("pacca_custom_departments");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [addDeptOpen, setAddDeptOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [newDeptError, setNewDeptError] = useState("");
+
   // Department filter
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
+
+  const handleCreateDepartment = () => {
+    const trimmed = newDeptName.trim();
+    if (!trimmed) {
+      setNewDeptError("Department name is required.");
+      return;
+    }
+    if (
+      DEFAULT_DEPARTMENTS.some((d) => d.toLowerCase() === trimmed.toLowerCase()) ||
+      customDepartments.some((d) => d.toLowerCase() === trimmed.toLowerCase())
+    ) {
+      setNewDeptError("A department with this name already exists.");
+      return;
+    }
+    const updated = [...customDepartments, trimmed];
+    setCustomDepartments(updated);
+    try {
+      localStorage.setItem("pacca_custom_departments", JSON.stringify(updated));
+    } catch {}
+    setSelectedDepartment(trimmed);
+    setNewDepartment(trimmed);
+    setAddDeptOpen(false);
+    setNewDeptName("");
+    setNewDeptError("");
+    toast.success(`Department "${trimmed}" created`, {
+      description: "You can now add document types under this department.",
+    });
+  };
 
   // Quick add field draft state
   const [draftField, setDraftField] = useState("");
@@ -388,11 +429,12 @@ export function SolutionsV2() {
   const availableDepartments = useMemo(() => {
     const set = new Set<string>();
     DEFAULT_DEPARTMENTS.forEach((d) => set.add(d));
+    customDepartments.forEach((d) => set.add(d));
     types.forEach((t) => {
       if (t.department) set.add(t.department);
     });
     return Array.from(set);
-  }, [types]);
+  }, [types, customDepartments]);
 
   const filteredTypes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -417,8 +459,13 @@ export function SolutionsV2() {
       if (!groups[dept]) groups[dept] = [];
       groups[dept].push(t);
     });
+
+    // If user filtered by a specific department that currently has no doc types, show its empty group
+    if (selectedDepartment !== "All Departments" && !groups[selectedDepartment]) {
+      groups[selectedDepartment] = [];
+    }
     return groups;
-  }, [filteredTypes]);
+  }, [filteredTypes, selectedDepartment]);
 
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row gap-6 p-4 sm:p-7 lg:p-9">
@@ -443,24 +490,37 @@ export function SolutionsV2() {
           />
         </div>
 
-        {/* Department Filter Selector */}
-        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-xs">
-          <Building2 size={13} className="text-[#47a2b0] shrink-0" />
-          <select
-            value={selectedDepartment}
-            onChange={(e) => setSelectedDepartment(e.target.value)}
-            className="w-full bg-transparent text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+        {/* Department Filter Selector & Quick Add Dept Button */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-xs">
+            <Building2 size={13} className="text-[#47a2b0] shrink-0" />
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="w-full bg-transparent text-[11px] font-semibold text-slate-700 outline-none cursor-pointer truncate"
+            >
+              <option value="All Departments">All Departments ({types.length})</option>
+              {availableDepartments.map((dept) => {
+                const count = types.filter((t) => (t.department || "Prior Authorization") === dept).length;
+                return (
+                  <option key={dept} value={dept}>
+                    {dept} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <button
+            onClick={() => {
+              setNewDeptName("");
+              setNewDeptError("");
+              setAddDeptOpen(true);
+            }}
+            title="Add Department"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-[#47a2b0] hover:text-[#47a2b0] shadow-xs transition"
           >
-            <option value="All Departments">All Departments ({types.length})</option>
-            {availableDepartments.map((dept) => {
-              const count = types.filter((t) => (t.department || "Prior Authorization") === dept).length;
-              return (
-                <option key={dept} value={dept}>
-                  {dept} ({count})
-                </option>
-              );
-            })}
-          </select>
+            <Plus size={14} />
+          </button>
         </div>
 
         {/* Document type list grouped by Department */}
@@ -469,7 +529,7 @@ export function SolutionsV2() {
             <div className="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-400 flex items-center justify-center gap-2">
               <Loader2 size={15} className="animate-spin text-[#47a2b0]" /> Loading schemas...
             </div>
-          ) : filteredTypes.length === 0 ? (
+          ) : filteredTypes.length === 0 && Object.keys(groupedByDepartment).length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-[11px] text-slate-400">
               No matching document types.
             </div>
@@ -486,7 +546,21 @@ export function SolutionsV2() {
                 </div>
 
                 <div className="space-y-1.5">
-                  {deptTypes.map((item) => {
+                  {deptTypes.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 p-3.5 text-center">
+                      <p className="text-[10px] text-slate-400">No document types in {dept} yet.</p>
+                      <button
+                        onClick={() => {
+                          setNewDepartment(dept);
+                          setCreateOpen(true);
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#47a2b0]/10 px-2.5 py-1 text-[10px] font-bold text-[#47a2b0] hover:bg-[#47a2b0]/20 transition"
+                      >
+                        <Plus size={12} /> Add doc type to {dept}
+                      </button>
+                    </div>
+                  ) : (
+                    deptTypes.map((item) => {
                     const isSelected = selectedKey === item.key;
                     const reqCount = item.fields.filter((f) => f.required).length;
 
@@ -534,20 +608,33 @@ export function SolutionsV2() {
                         </div>
                       </button>
                     );
-                  })}
+                  })
+                )}
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Create button */}
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#37828e] transition"
-        >
-          <Plus size={15} /> Add document type
-        </button>
+        {/* Action buttons: Add Department & Add Document Type */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => {
+              setNewDeptName("");
+              setNewDeptError("");
+              setAddDeptOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-[11px] font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+          >
+            <Building2 size={13} className="text-[#47a2b0]" /> Add Dept
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#47a2b0] px-2.5 py-2.5 text-[11px] font-bold text-white shadow-xs hover:bg-[#37828e] transition"
+          >
+            <Plus size={14} /> Add Doc Type
+          </button>
+        </div>
       </aside>
 
       {/* RIGHT CONFIGURATION PANEL */}
@@ -999,6 +1086,93 @@ export function SolutionsV2() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]"
             >
               <Check size={14} /> Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CREATE DEPARTMENT DIALOG */}
+      <Dialog open={addDeptOpen} onOpenChange={setAddDeptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold text-[#0e0e0e] flex items-center gap-2">
+              <Building2 size={18} className="text-[#47a2b0]" /> Add Department
+            </DialogTitle>
+            <DialogDescription className="text-[11px] text-slate-500">
+              Create an operational department to categorize document types, validation gates, and schema contracts.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-bold text-slate-500">
+                Department Name <span className="text-rose-500 font-bold">*</span>
+              </span>
+              <input
+                value={newDeptName}
+                onChange={(e) => {
+                  setNewDeptName(e.target.value);
+                  if (newDeptError) setNewDeptError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateDepartment();
+                  }
+                }}
+                placeholder="e.g. Underwriting & Risk, Legal & Contracting, Claims Operations"
+                className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
+                autoFocus
+              />
+              {newDeptError ? (
+                <p className="mt-2 text-[10px] font-semibold text-rose-600">{newDeptError}</p>
+              ) : null}
+            </label>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-[10px] text-slate-500">
+              <span className="font-bold text-slate-700">Quick suggestions:</span>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[
+                  "Underwriting & Risk",
+                  "Procurement & Supply",
+                  "Legal & Contracts",
+                  "Member Services",
+                  "Human Resources",
+                ].map((sug) => (
+                  <button
+                    key={sug}
+                    type="button"
+                    onClick={() => {
+                      setNewDeptName(sug);
+                      if (newDeptError) setNewDeptError("");
+                    }}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-600 hover:border-[#47a2b0] hover:text-[#47a2b0] transition"
+                  >
+                    + {sug}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAddDeptOpen(false);
+                setNewDeptName("");
+                setNewDeptError("");
+              }}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateDepartment}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]"
+            >
+              <Check size={14} /> Create Department
             </button>
           </DialogFooter>
         </DialogContent>

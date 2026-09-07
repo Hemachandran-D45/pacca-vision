@@ -129,7 +129,7 @@ function MockAnalyticsDashboard() {
             ))}
           </div>
           <div className="mt-6 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
-            {[["AWS", "$338.50"], ["Compute", "$86.40"], ["Storage", "$33.20"]].map(([a, b]) => (
+            {[["Azure AI", "$338.50"], ["Compute", "$86.40"], ["Storage", "$33.20"]].map(([a, b]) => (
               <div key={a}>
                 <div className="text-[9px] text-slate-400">{a}</div>
                 <div className="mt-1 text-[13px] font-bold text-[#0e0e0e]">{b}</div>

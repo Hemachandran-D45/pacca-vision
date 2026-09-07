@@ -303,7 +303,7 @@ export const costData = [
   { label: "Document understanding (representative)", value: 203.3, percent: 42, color: "#47a2b0" },
   { label: "LLM extraction (representative)", value: 135.2, percent: 28, color: "#b89dcb" },
   { label: "Compute orchestration (representative)", value: 86.4, percent: 18, color: "#00b0f0" },
-  { label: "Storage (S3)", value: 33.2, percent: 7, color: "#606b72" },
+  { label: "Storage (Azure Blob)", value: 33.2, percent: 7, color: "#606b72" },
   { label: "Others", value: 24.5, percent: 5, color: "#a0aab0" },
 ];
 

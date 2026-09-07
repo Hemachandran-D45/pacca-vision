@@ -150,32 +150,61 @@ function DonutCard({ documentsList }: { documentsList: any[] }) {
   );
 }
 
-function CostCard() {
+function CostCard({
+  totalCost,
+  costBreakdown,
+}: {
+  totalCost: number;
+  costBreakdown: { label: string; value: number; percent: number; color: string }[];
+}) {
+  const [viewBy, setViewBy] = useState<"service" | "model">("service");
+
+  const modelBreakdown = useMemo(
+    () => [
+      { label: "GPT-4o (Extraction)", value: totalCost * 0.48, percent: 48, color: "#47a2b0" },
+      { label: "GPT-4o-mini (Classification)", value: totalCost * 0.24, percent: 24, color: "#45bd8d" },
+      { label: "Layout Analysis (Azure OCR)", value: totalCost * 0.2, percent: 20, color: "#b89dcb" },
+      { label: "Embedding & Verification", value: totalCost * 0.08, percent: 8, color: "#00b0f0" },
+    ],
+    [totalCost]
+  );
+
+  const activeData = viewBy === "service" ? costBreakdown : modelBreakdown;
+
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)]">
       <div className="flex items-center justify-between">
         <SectionHeading title="Cost Overview" />
-        <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-500 outline-none">
-          <option>By Service</option>
-          <option>By Model</option>
+        <select
+          value={viewBy}
+          onChange={(e) => setViewBy(e.target.value as "service" | "model")}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-500 outline-none cursor-pointer"
+        >
+          <option value="service">By Service</option>
+          <option value="model">By Model</option>
         </select>
       </div>
       <div className="mt-3 text-[10px] text-slate-400">Estimated processing cost (USD)</div>
       <div className="mt-0.5 flex items-baseline gap-2">
-        <span className="font-display text-[27px] font-bold tracking-[-0.05em] text-[#0e0e0e]">$482.60</span>
+        <span className="font-display text-[27px] font-bold tracking-[-0.05em] text-[#0e0e0e]">
+          ${totalCost.toFixed(2)}
+        </span>
         <span className="flex items-center text-[10px] font-bold text-[#45bd8d]">
           <ArrowDownRight size={12} /> 8.7%
         </span>
       </div>
       <div className="mt-4 space-y-3">
-        {costData.map((cost) => (
+        {activeData.map((cost) => (
           <div key={cost.label}>
             <div className="mb-1 flex items-center justify-between gap-2 text-[9px]">
               <span className="truncate text-slate-500">{cost.label}</span>
-              <span className="shrink-0 text-slate-500">${cost.value.toFixed(2)}</span>
+              <span className="shrink-0 font-mono text-slate-600 font-semibold">${cost.value.toFixed(2)}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full" style={{ width: `${cost.percent * 2.1}%`, background: cost.color }} />
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${cost.percent * 2.1}%`, background: cost.color }}
+              />
             </div>
           </div>
         ))}
@@ -470,6 +499,25 @@ export default function DashboardPage({
     return "7.8s";
   }, [backendStats]);
 
+  const totalCost = useMemo(() => {
+    if (backendStats?.totalCostUsd && backendStats.totalCostUsd > 0) {
+      return backendStats.totalCostUsd;
+    }
+    const docSum = allDocuments.reduce((acc, d) => acc + (d.costUsd || 0), 0);
+    if (docSum > 0) return docSum;
+    return Math.max(18.5, processedCount * 0.16 + pendingDocs.length * 0.08);
+  }, [backendStats, allDocuments, processedCount, pendingDocs.length]);
+
+  const costBreakdown = useMemo(() => {
+    return [
+      { label: "Azure Document Intelligence", value: totalCost * 0.42, percent: 42, color: "#47a2b0" },
+      { label: "Azure OpenAI Service", value: totalCost * 0.28, percent: 28, color: "#b89dcb" },
+      { label: "Compute orchestration", value: totalCost * 0.18, percent: 18, color: "#00b0f0" },
+      { label: "Azure Blob Storage", value: totalCost * 0.07, percent: 7, color: "#606b72" },
+      { label: "Others", value: totalCost * 0.05, percent: 5, color: "#a0aab0" },
+    ];
+  }, [totalCost]);
+
   return (
     <div className="space-y-6 p-4 sm:p-7 lg:p-9">
       {/* Header & Document Type Filter Strip */}
@@ -572,7 +620,7 @@ export default function DashboardPage({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(290px,.9fr)_minmax(280px,.8fr)]">
         <TrendCard />
         <DonutCard documentsList={allDocuments} />
-        <CostCard />
+        <CostCard totalCost={totalCost} costBreakdown={costBreakdown} />
       </div>
 
       {/* Recent Documents Table filtered by Document Type */}
