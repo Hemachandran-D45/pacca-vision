@@ -97,11 +97,12 @@ export default function Home() {
       toast.error(`Your authenticated persona does not have permission to switch to ${role}`);
       return;
     }
-    const next = demoPersonas[role] || {
-      ...user,
+    const next: MockUser = {
+      ...authenticatedUser!,
       role,
-      name: role,
-      initials: role === "PACCA Platform Admin" ? "SK" : role === "PACCA Solution Developer" ? "MC" : "AR",
+      tenant: role === "Client Staff" ? "Client 1" : (authenticatedUser?.tenant ?? "PACCA Platform"),
+      tenantCode: role === "Client Staff" ? "CLIENT1" : (authenticatedUser?.tenantCode ?? "PACCA"),
+      experience: "client",
     };
     setActiveUser(next);
     const nextAllowed = demoAllowedPaths(role);
@@ -114,7 +115,7 @@ export default function Home() {
         go("/");
       }
     }
-    toast.success(`Switched perspective to ${next.name} (${role})`);
+    toast.success(`Switched perspective to ${role} (${authenticatedUser?.initials})`);
   }
 
   const openDocument = (documentId: string) => go(`/documents/${encodeURIComponent(documentId)}`);

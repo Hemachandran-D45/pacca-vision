@@ -98,7 +98,7 @@ export function Topbar({
             >
               {availablePerspectives.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {p} ({user.initials})
                 </option>
               ))}
             </select>
@@ -106,7 +106,7 @@ export function Topbar({
         ) : (
           <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
             <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Role</span>
-            <span className="font-semibold text-[#0e0e0e]">{user.role}</span>
+            <span className="font-semibold text-[#0e0e0e]">{user.role} ({user.initials})</span>
           </div>
         )}
 

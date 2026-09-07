@@ -68,7 +68,7 @@ export function CentralAdminPortal({
                 >
                   {availablePerspectives.map((p) => (
                     <option key={p} value={p} className="text-[#0e0e0e]">
-                      {p}
+                      {p} ({user.initials})
                     </option>
                   ))}
                 </select>
