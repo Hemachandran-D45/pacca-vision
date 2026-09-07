@@ -34,7 +34,9 @@ export default function DocumentsPage({
       ? liveDocs.map((d) => ({
           id: d.documentId,
           file: d.file,
-          type: d.docType ? humanize(d.docType) : "Prior Authorization",
+          type: d.docType
+            ? (d.docType.toLowerCase() === "clinicalnotes" ? "Clinical Note" : humanize(d.docType))
+            : "Prior Authorization",
           source: d.source || "Auto-intake",
           status: (d.uiStatus === "Processed"
             ? "Processed"
@@ -64,9 +66,10 @@ export default function DocumentsPage({
       }
     });
     if (typesSet.size === 0) {
-      return ["All Document Types", "Prior Authorization", "Clinical Note", "Referral Form"];
+      return ["All Document Types", "Referral Form", "Patient Demographics", "Clinical Note", "Denial Letter"];
     }
-    return ["All Document Types", ...Array.from(typesSet)];
+    const sorted = Array.from(typesSet).sort();
+    return ["All Document Types", ...sorted];
   }, [allDocuments]);
 
   const filtered = useMemo(
