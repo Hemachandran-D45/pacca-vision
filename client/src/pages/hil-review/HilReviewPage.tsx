@@ -138,7 +138,20 @@ export default function HilReviewPage({
     return 0;
   });
 
-  const isLiveDoc = isLiveConnected && selectedId !== null && liveDocuments.some((d) => d.documentId === selectedId);
+  /*
+   * A document opened by id is shown whether or not it is in the queue.
+   *
+   * This used to require queue membership, so any deep link to something
+   * `/documents?needsReview=true` filters out — a routed-to-IVR document, an
+   * approved one — fell straight through to the "No documents awaiting
+   * review" empty state, even though `LiveWorkbench` fetches by id and would
+   * have rendered it perfectly well. Queue membership still decides the
+   * auto-selected document; it no longer decides whether a document can be
+   * displayed at all.
+   */
+  const isInQueue = liveDocuments.some((d) => d.documentId === selectedId);
+  const isOpenedDirectly = Boolean(focusDocumentId) && selectedId === focusDocumentId;
+  const isLiveDoc = isLiveConnected && selectedId !== null && (isInQueue || isOpenedDirectly);
 
   return (
     <div className="p-3 sm:p-5 lg:p-6 space-y-3.5">
@@ -187,6 +200,9 @@ export default function HilReviewPage({
                 onChange={(e) => setSelectedId(e.target.value)}
                 className="max-w-[340px] truncate bg-transparent px-2 py-1 text-[11px] font-bold text-[#0e0e0e] outline-none cursor-pointer"
               >
+                {selectedId && !isInQueue && (
+                  <option value={selectedId}>Opened directly · {selectedId}</option>
+                )}
                 {liveDocuments.map((doc, idx) => (
                   <option key={doc.documentId} value={doc.documentId}>
                     {idx + 1}. {formatDocumentLabel(doc.file, doc.docType)} {doc.uiStatus === "Routed to IVR" ? "📞 (IVR Active)" : ""}

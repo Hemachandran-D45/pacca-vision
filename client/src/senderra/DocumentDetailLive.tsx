@@ -36,15 +36,37 @@ export function DocumentDetailLive({
   useEffect(() => {
     if (!data) return;
     const status = data.summary.uiStatus;
-    if (data.summary.needsReview && data.summary.reviewStatus !== "approved") {
-      onReview(documentId);
-      return;
+
+    /*
+     * A document out on an IVR call is NOT awaiting a human decision, even
+     * though `needsReview` is still true — that flag is the pipeline's
+     * extract-time routing decision, and routing to IVR is what was done
+     * about it. Sending it to HIL landed on "No documents awaiting review",
+     * because `/documents?needsReview=true` deliberately excludes
+     * `routed_to_ivr`: the redirect aimed at a queue that is defined to not
+     * contain it. Its status and the outreach control live on this page.
+     */
+    const outOnCall =
+      status === "Routed to IVR" ||
+      data.summary.reviewStatus === "routed_to_ivr" ||
+      data.outreach?.gapStatus === "in_progress";
+
+    if (!outOnCall) {
+      if (data.summary.needsReview && data.summary.reviewStatus !== "approved") {
+        onReview(documentId);
+        return;
+      }
+      if (status === "In HIL Review" || status === "Needs Review") {
+        onReview(documentId);
+        return;
+      }
     }
-    if (status === "In HIL Review" || status === "Needs Review") {
-      onReview(documentId);
-      return;
-    }
-    setInterval(status === "Queued" || status === "Processing" ? 5000 : null);
+
+    // Keep polling while the call is live so the page settles on its own when
+    // the outreach completes, rather than stranding the reviewer on a stale
+    // "Routed to IVR".
+    const inFlight = outOnCall || status === "Queued" || status === "Processing";
+    setInterval(inFlight ? 5000 : null);
   }, [data, documentId, onReview]);
 
   if (loading && !data) {
