@@ -9,6 +9,7 @@ import {
   FileText,
   Lock,
   Pencil,
+  Phone,
   RefreshCw,
   Save,
   UserCheck,
@@ -28,6 +29,7 @@ import {
   type ExtractedField,
 } from "@/senderra/api";
 import { IvrOutreachButton } from "@/senderra/IvrOutreachButton";
+import { FieldProvenanceBadge } from "@/senderra/FieldProvenance";
 import { StatusPill } from "@/components/common/StatusPill";
 import { hilQueue, type HilItem } from "@/data/mockData";
 
@@ -136,7 +138,20 @@ export default function HilReviewPage({
     return 0;
   });
 
-  const isLiveDoc = isLiveConnected && selectedId !== null && liveDocuments.some((d) => d.documentId === selectedId);
+  /*
+   * A document opened by id is shown whether or not it is in the queue.
+   *
+   * This used to require queue membership, so any deep link to something
+   * `/documents?needsReview=true` filters out — a routed-to-IVR document, an
+   * approved one — fell straight through to the "No documents awaiting
+   * review" empty state, even though `LiveWorkbench` fetches by id and would
+   * have rendered it perfectly well. Queue membership still decides the
+   * auto-selected document; it no longer decides whether a document can be
+   * displayed at all.
+   */
+  const isInQueue = liveDocuments.some((d) => d.documentId === selectedId);
+  const isOpenedDirectly = Boolean(focusDocumentId) && selectedId === focusDocumentId;
+  const isLiveDoc = isLiveConnected && selectedId !== null && (isInQueue || isOpenedDirectly);
 
   return (
     <div className="p-3 sm:p-5 lg:p-6 space-y-3.5">
@@ -185,6 +200,9 @@ export default function HilReviewPage({
                 onChange={(e) => setSelectedId(e.target.value)}
                 className="max-w-[340px] truncate bg-transparent px-2 py-1 text-[11px] font-bold text-[#0e0e0e] outline-none cursor-pointer"
               >
+                {selectedId && !isInQueue && (
+                  <option value={selectedId}>Opened directly · {selectedId}</option>
+                )}
                 {liveDocuments.map((doc, idx) => (
                   <option key={doc.documentId} value={doc.documentId}>
                     {idx + 1}. {formatDocumentLabel(doc.file, doc.docType)} {doc.uiStatus === "Routed to IVR" ? "📞 (IVR Active)" : ""}
@@ -758,10 +776,20 @@ function LiveWorkbench({
   }
 
   const { summary, pdfUrl } = data;
-  const flagged = fieldEntries.filter(
+
+  /**
+   * IVR answers get their own group rather than being scored like an
+   * extraction. Their `field_score` is the extract-time score for the *blank*
+   * the call was placed to fill — 0.99 for a confidently-absent field — so
+   * scoring would file a value transcribed off a phone line under "Verified,
+   * locked", which is precisely the one most likely to need a human eye.
+   */
+  const ivrCollected = fieldEntries.filter(([, f]) => f.provenance?.origin === "ivr");
+  const scored = fieldEntries.filter(([, f]) => f.provenance?.origin !== "ivr");
+  const flagged = scored.filter(
     ([, f]) => f.needs_review || (typeof f.scores?.field_score === "number" && f.scores.field_score < 0.8)
   );
-  const verified = fieldEntries.filter(
+  const verified = scored.filter(
     ([, f]) => !f.needs_review && (typeof f.scores?.field_score !== "number" || f.scores.field_score >= 0.8)
   );
 
@@ -839,7 +867,8 @@ function LiveWorkbench({
                 Extracted Fields
               </h4>
               <p className="text-[9px] text-slate-400">
-                {flagged.length} require review · {verified.length} STP verified
+                {flagged.length} require review · {ivrCollected.length} from IVR ·{" "}
+                {verified.length} STP verified
               </p>
             </div>
             <div className="flex items-center gap-1.5">
@@ -897,8 +926,11 @@ function LiveWorkbench({
                         <label className="text-[10px] font-bold text-[#0e0e0e]" htmlFor={`live-flagged-${name}`}>
                           {humanize(name)}
                         </label>
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-800">
-                          Review Required
+                        <span className="flex items-center gap-1.5">
+                          <FieldProvenanceBadge provenance={field.provenance} dense />
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-800">
+                            Review Required
+                          </span>
                         </span>
                       </div>
 
@@ -926,7 +958,71 @@ function LiveWorkbench({
             )}
           </div>
 
-          {/* Group 2: STP Verified Fields (Locked with Optional Override) */}
+          {/* Group 2: Values collected on the IVR call */}
+          {ivrCollected.length > 0 && (
+            <div className="space-y-2.5 border-t border-slate-100 pt-3">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                <Phone size={12} />
+                <span>Collected via IVR ({ivrCollected.length})</span>
+              </div>
+              <p className="text-[9px] leading-relaxed text-slate-400">
+                Answers given on the outreach call, not read off the document. Editable without
+                unlocking — a value transcribed over the phone is the likeliest to need a fix.
+              </p>
+
+              <div className="space-y-2">
+                {ivrCollected.map(([name, field]) => {
+                  const curVal = currentValue(name, field);
+                  const origVal = originalValue(name, field);
+                  const isDirty = curVal !== origVal;
+
+                  return (
+                    <div
+                      key={name}
+                      className={cn(
+                        "rounded-xl border p-2.5 transition",
+                        isDirty
+                          ? "border-[#47a2b0] bg-[#47a2b0]/5 ring-1 ring-[#47a2b0]/30"
+                          : "border-indigo-200 bg-indigo-50/30"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-[10px] font-bold text-[#0e0e0e]" htmlFor={`live-ivr-${name}`}>
+                          {humanize(name)}
+                        </label>
+                        <FieldProvenanceBadge provenance={field.provenance} />
+                      </div>
+
+                      {field.provenance?.askedAs && (
+                        <p className="mt-1 text-[9px] italic leading-snug text-indigo-600/80">
+                          Asked: “{field.provenance.askedAs}”
+                        </p>
+                      )}
+
+                      <div className="relative mt-1.5">
+                        <input
+                          id={`live-ivr-${name}`}
+                          value={curVal}
+                          onChange={(e) => setDrafts((prev) => ({ ...prev, [name]: e.target.value }))}
+                          className={cn(
+                            "w-full rounded-lg border bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#0e0e0e] outline-none transition",
+                            isDirty ? "border-[#47a2b0]" : "border-indigo-300 focus:border-[#47a2b0]"
+                          )}
+                        />
+                        {isDirty && (
+                          <span className="absolute -top-2 right-2 rounded-full bg-[#47a2b0] px-1.5 text-[7px] font-bold text-white shadow-xs">
+                            Modified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Group 3: STP Verified Fields (Locked with Optional Override) */}
           <div className="space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
               <div className="flex items-center gap-1.5">
@@ -945,8 +1041,9 @@ function LiveWorkbench({
 
                 return (
                   <div key={name} className="flex items-center justify-between gap-2 p-2 text-[10px]">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium text-slate-600">{humanize(name)}</div>
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <span className="truncate font-medium text-slate-600">{humanize(name)}</span>
+                      <FieldProvenanceBadge provenance={field.provenance} dense />
                     </div>
 
                     <div className="flex items-center gap-1.5 text-right">

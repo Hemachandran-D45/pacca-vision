@@ -30,10 +30,24 @@ export type DocumentSummary = {
   correctionCount: number;
 };
 
+/**
+ * Where the value the UI is showing actually came from — see the server's
+ * `FieldProvenance`. Absent means the model extracted it off the page.
+ */
+export type FieldProvenance = {
+  origin: "ivr" | "reviewer";
+  by?: string | null;
+  at?: string | null;
+  askedAs?: string | null;
+  callId?: string | null;
+  requestId?: string | number | null;
+};
+
 export type ExtractedField = {
   value: string | number | boolean | null;
   quote?: string | null;
   class?: string;
+  provenance?: FieldProvenance;
   grounding?: {
     grounded?: boolean;
     match?: string;

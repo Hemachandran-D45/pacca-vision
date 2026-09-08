@@ -100,6 +100,31 @@ export type FieldScores = {
   weakest_signal?: string | null;
 };
 
+/**
+ * Where a field's current value actually came from.
+ *
+ * The pipeline writes one value per field and never revises it; anything else
+ * in `fields.fields[name].value` was put there by `readDocument`, merging the
+ * gaps item or the review item over the extraction. Without this record the
+ * three origins are indistinguishable in the UI - a number a patient read out
+ * over the phone looks exactly like one the model lifted off the page.
+ *
+ * Absent means the model extracted it. `origin: "ivr"` covers both a value
+ * merged straight from `gaps.gaps[name]` and a correction written by the IVR
+ * sync under the `IVR Outreach` identity.
+ */
+export type FieldProvenance = {
+  origin: "ivr" | "reviewer";
+  /** `patient` / `prescriber` for IVR, the reviewer's identity otherwise. */
+  by?: string | null;
+  /** `captured_at` on the gap, or the correction's timestamp. */
+  at?: string | null;
+  /** The question the caller was actually asked, from the gaps item's `will_ask`. */
+  askedAs?: string | null;
+  callId?: string | null;
+  requestId?: string | number | null;
+};
+
 export type ExtractedField = {
   value: string | number | boolean | null;
   quote?: string | null;
@@ -108,6 +133,7 @@ export type ExtractedField = {
   scores?: FieldScores;
   needs_review?: boolean;
   review_reasons?: string[];
+  provenance?: FieldProvenance;
 };
 
 /** Written by fn_extract. The reviewer's item — never touched by aggregates. */
@@ -144,6 +170,10 @@ export type GapsItem = {
   gaps?: Record<string, Record<string, unknown>>;
   trigger_status?: string;
   call_id?: string | null;
+  /** Set by the IVR backend on accept; the handle for `/idp/outreach/<id>`. */
+  request_id?: string | number | null;
+  /** What the call was scripted to ask, per field. */
+  will_ask?: { field?: string; mode?: string; asked_as?: string }[];
   _etag?: string;
 };
 
