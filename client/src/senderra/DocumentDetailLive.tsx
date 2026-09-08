@@ -13,6 +13,7 @@ import {
   usePolled,
 } from "./api";
 import { ErrorBlock, LoadingBlock, StatusPill } from "./parts";
+import { FieldProvenanceBadge } from "./FieldProvenance";
 import { IvrOutreachButton } from "./IvrOutreachButton";
 
 export function DocumentDetailLive({
@@ -282,25 +283,24 @@ export function DocumentDetailLive({
             </div>
           ) : (
             fieldEntries.map(([name, field]) => {
-              const gapEntry = (data.gaps?.gaps as Record<string, any> | undefined)?.[name];
-              const gapVal = gapEntry?.value;
-              const correction = data.review?.corrections?.[name];
-              const effectiveValue = correction?.value ?? (gapVal !== undefined && gapVal !== null ? gapVal : field.value);
-              const formatted = formatFieldValue(effectiveValue);
-              const isCorrected = Boolean(
-                correction ||
-                (gapVal !== undefined && gapVal !== null && String(gapVal).trim() !== "") ||
-                (field.needs_review === false && field.class === "A" && data.summary.uiStatus === "Processed")
-              );
-              const score = field.scores?.field_score ?? field.scores?.model_confidence;
-              const req = isCorrected ? "Verified" : field.class === "A" ? "Required" : "Optional";
+              // The server has already merged the gaps item and the review
+              // item over the extraction, and recorded which one won in
+              // `provenance` — re-deriving the effective value here would only
+              // give the two layers a chance to disagree.
+              const provenance = field.provenance;
+              const formatted = formatFieldValue(field.value);
+              const req = field.class === "A" ? "Required" : "Optional";
 
               return (
                 <div
                   key={name}
                   className={cn(
                     "rounded-xl border bg-white p-3 shadow-xs",
-                    isCorrected ? "border-emerald-200 bg-emerald-50/20" : "border-slate-100"
+                    provenance?.origin === "ivr"
+                      ? "border-indigo-200 bg-indigo-50/20"
+                      : provenance?.origin === "reviewer"
+                      ? "border-violet-200 bg-violet-50/20"
+                      : "border-slate-100"
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -308,9 +308,7 @@ export function DocumentDetailLive({
                     <span
                       className={cn(
                         "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
-                        isCorrected
-                          ? "bg-emerald-100 text-emerald-800"
-                          : req === "Required"
+                        req === "Required"
                           ? "bg-[#ebf5f7] text-[#47a2b0]"
                           : "bg-slate-100 text-slate-500"
                       )}
@@ -321,8 +319,9 @@ export function DocumentDetailLive({
                   <div className="mt-2 truncate text-[12px] font-semibold text-[#0e0e0e]" title={formatted}>
                     {formatted}
                   </div>
-                  <div className="mt-3 flex items-center justify-end text-[9px]">
-                    <span className="font-bold text-[#45bd8d]">✓ Valid</span>
+                  <div className="mt-3 flex items-center justify-between gap-2 text-[9px]">
+                    <FieldProvenanceBadge provenance={provenance} />
+                    <span className="ml-auto font-bold text-[#45bd8d]">✓ Valid</span>
                   </div>
                 </div>
               );

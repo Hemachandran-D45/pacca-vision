@@ -1,6 +1,6 @@
 import type { Container } from "@azure/cosmos";
 import { isConfigError, readConfig } from "./config.js";
-import { applyReviewAction, container, fetchRecords, listDocuments, patchGaps, readDocument, readGapsItem } from "./cosmos.js";
+import { applyReviewAction, container, fetchRecords, IVR_IDENTITY, listDocuments, patchGaps, readDocument, readGapsItem } from "./cosmos.js";
 import {
   fetchOutreach,
   gapsPayloadFromExtract,
@@ -203,7 +203,7 @@ async function syncIvrOutreach(
     if (Object.keys(settledCorrections).length > 0 || isCompleted) {
       await applyReviewAction(container, documentId, {
         type: isCompleted ? "approve" : "correct",
-        by: "IVR Outreach",
+        by: IVR_IDENTITY,
         corrections: settledCorrections,
         note: `Fields collected via IVR call (request #${requestId}, status: ${outreach.status})`,
       });
@@ -217,12 +217,17 @@ async function syncIvrOutreach(
             gapsItem.openCount = 0;
           }
           if (gapsItem.gaps) {
+            const capturedAt = new Date().toISOString();
             for (const [field, val] of Object.entries(settledCorrections)) {
-              if (gapsItem.gaps[field]) {
-                gapsItem.gaps[field].value = val;
-                gapsItem.gaps[field].status = "collected";
-                gapsItem.gaps[field].source = "patient";
-              }
+              const gap = gapsItem.gaps[field];
+              if (!gap) continue;
+              gap.value = val;
+              gap.status = "collected";
+              // Who answered is the party the gap was routed to, not always the
+              // patient — the field badge in the UI quotes this back verbatim.
+              gap.source = gap.source ?? gap.askable_by ?? "patient";
+              gap.captured_at = gap.captured_at ?? capturedAt;
+              gap.call_id = gap.call_id ?? outreach.call_context_id ?? gapsItem.call_id ?? null;
             }
           }
           await container.items.upsert(gapsItem);
@@ -367,7 +372,7 @@ async function handleIvrTrigger(body: Record<string, unknown>): Promise<ApiResul
       try {
         await applyReviewAction(handle.container, documentId, {
           type: "route_to_ivr",
-          by: typeof body.by === "string" && body.by.trim() ? body.by.trim() : "IVR Outreach",
+          by: typeof body.by === "string" && body.by.trim() ? body.by.trim() : IVR_IDENTITY,
           note: `Routed to IVR (call_status: ${outcome.call_status ?? "calling"}${outcome.request_id ? `, request: ${outcome.request_id}` : ""})`,
         });
       } catch (err) {
@@ -581,7 +586,7 @@ async function handleIvrWriteback(body: Record<string, unknown>): Promise<ApiRes
   const reqId = body.request_id ?? body.requestId;
   await applyReviewAction(handle.container, documentId, {
     type: "approve",
-    by: "IVR Outreach",
+    by: IVR_IDENTITY,
     corrections,
     note: `Settled via IVR writeback${reqId ? ` (request #${reqId})` : ""}`,
   });

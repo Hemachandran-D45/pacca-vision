@@ -3,6 +3,7 @@ import { isConfigError, readConfig, type SenderraConfig } from "./config.js";
 import type {
   DocumentSummary,
   ExtractedField,
+  FieldProvenance,
   ExtractItem,
   FieldsItem,
   GapsItem,
@@ -54,6 +55,13 @@ export async function container(): Promise<
   };
   return cached;
 }
+
+/**
+ * The identity `syncIvrOutreach` and the writeback webhook sign their writes
+ * with. A correction carrying it is a phone answer, not a human edit — the
+ * only thing separating the two in the review item.
+ */
+export const IVR_IDENTITY = "IVR Outreach";
 
 export function documentKey(runId: string, docId: string): string {
   return `${runId}/${docId}`;
@@ -188,7 +196,7 @@ function toSummary(
     receivedAt: extract?.recorded_at ?? ocr?.recorded_at ?? null,
     source: extract?.source ?? ocr?.source ?? null,
     reviewStatus: isGapsResolved && review?.status === "routed_to_ivr" ? "approved" : review?.status ?? null,
-    reviewedBy: review?.reviewed_by ?? (isGapsResolved ? "IVR Outreach" : null),
+    reviewedBy: review?.reviewed_by ?? (isGapsResolved ? IVR_IDENTITY : null),
     claimedBy: review?.claimed_by ?? null,
     correctionCount: Object.keys(corrections).length,
   };
@@ -210,6 +218,44 @@ export async function listDocuments(
   return [...ids]
     .map((id) => toSummary(id, ocr.get(id), extract.get(id), review.get(id), gaps.get(id)))
     .sort((a, b) => (b.receivedAt ?? "").localeCompare(a.receivedAt ?? ""));
+}
+
+/**
+ * The question the IVR call was scripted to ask, per field.
+ *
+ * `will_ask` is the IVR backend's own echo of the script, stored on the gaps
+ * item when the trigger is accepted. It is the only place the caller-facing
+ * wording ("member ID on your insurance card") exists — the gap's own
+ * `description` is the extraction prompt, written for the model, not a person.
+ */
+function askedAsByField(gaps: GapsItem | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!Array.isArray(gaps?.will_ask)) return out;
+  for (const entry of gaps.will_ask) {
+    if (entry && typeof entry.field === "string" && typeof entry.asked_as === "string") {
+      out[entry.field] = entry.asked_as;
+    }
+  }
+  return out;
+}
+
+/** Provenance for a value that came off an IVR call, from the gap that carried it. */
+function ivrProvenance(
+  gap: Record<string, unknown> | undefined,
+  askedAs: string | undefined,
+  requestId: string | number | null,
+  fallbackAt?: string | null
+): FieldProvenance {
+  const text = (value: unknown): string | null =>
+    typeof value === "string" && value.trim() ? value : null;
+  return {
+    origin: "ivr",
+    by: text(gap?.source),
+    at: text(gap?.captured_at) ?? fallbackAt ?? null,
+    askedAs: askedAs ?? null,
+    callId: text(gap?.call_id),
+    requestId,
+  };
 }
 
 /**
@@ -241,6 +287,9 @@ export async function readDocument(c: Container, documentId: string) {
   const nextFields: Record<string, ExtractedField> = { ...(fields?.fields ?? {}) };
   let hasFieldUpdates = false;
 
+  const askedAs = askedAsByField(gaps);
+  const requestId = gaps?.request_id ?? null;
+
   // Merge values collected by IVR stored in gaps item
   if (gaps?.gaps) {
     for (const [name, gap] of Object.entries(gaps.gaps)) {
@@ -253,17 +302,20 @@ export async function readDocument(c: Container, documentId: string) {
         (gapVal !== undefined && gapVal !== null && String(gapVal).trim() !== "" && statusLower !== "open");
       if (isCollected && gapVal !== undefined && gapVal !== null) {
         hasFieldUpdates = true;
+        const provenance = ivrProvenance(g, askedAs[name], requestId);
         if (nextFields[name]) {
           nextFields[name] = {
             ...nextFields[name],
             value: gapVal,
             needs_review: false,
+            provenance,
           };
         } else {
           nextFields[name] = {
             value: gapVal,
             class: "A",
             needs_review: false,
+            provenance,
           };
         }
       }
@@ -276,17 +328,26 @@ export async function readDocument(c: Container, documentId: string) {
       const val = corr.value as string | number | boolean | null;
       if (val !== undefined && val !== null) {
         hasFieldUpdates = true;
+        // `syncIvrOutreach` writes collected answers as corrections under the
+        // `IVR Outreach` identity, so a correction is not automatically a
+        // human edit — the writer decides which badge the field gets.
+        const provenance: FieldProvenance =
+          corr.by === IVR_IDENTITY
+            ? ivrProvenance(gaps?.gaps?.[name], askedAs[name], requestId, corr.at)
+            : { origin: "reviewer", by: corr.by, at: corr.at };
         if (nextFields[name]) {
           nextFields[name] = {
             ...nextFields[name],
             value: val,
             needs_review: false,
+            provenance,
           };
         } else {
           nextFields[name] = {
             value: val,
             class: "A",
             needs_review: false,
+            provenance,
           };
         }
       }
