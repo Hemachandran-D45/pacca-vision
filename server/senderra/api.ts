@@ -1,6 +1,16 @@
 import type { Container } from "@azure/cosmos";
 import { isConfigError, readConfig } from "./config.js";
-import { applyReviewAction, container, fetchRecords, IVR_IDENTITY, listDocuments, patchGaps, readDocument, readGapsItem } from "./cosmos.js";
+import {
+  applyReviewAction,
+  container,
+  fetchRecords,
+  isReviewSettled,
+  IVR_IDENTITY,
+  listDocuments,
+  patchGaps,
+  readDocument,
+  readGapsItem,
+} from "./cosmos.js";
 import {
   fetchOutreach,
   gapsPayloadFromExtract,
@@ -107,21 +117,35 @@ async function handleDocuments(query: URLSearchParams): Promise<ApiResult> {
 
   let documents = await listDocuments(handle.container);
 
-  // Proactively check and sync any documents currently routed to IVR
-  const ivrCandidates = documents.filter((d) => d.uiStatus === "Routed to IVR" || d.reviewStatus === "routed_to_ivr");
+  /*
+   * Documents with a call still in flight, checked against the IVR backend.
+   *
+   * Settled ones are excluded up front — re-asking about a document a human or
+   * a completed call already closed cannot change the answer, and each check
+   * costs an external round trip. Concurrently, not in sequence: this used to
+   * be a serial loop of 10s-timeout fetches, so N routed documents made the
+   * list endpoint N x 10s in the worst case and blew the serverless budget.
+   */
+  const ivrCandidates = documents.filter(
+    (d) =>
+      d.reviewStatus !== "approved" &&
+      d.reviewStatus !== "rejected" &&
+      (d.uiStatus === "Routed to IVR" || d.reviewStatus === "routed_to_ivr")
+  );
   if (ivrCandidates.length > 0) {
-    let anySynced = false;
-    for (const d of ivrCandidates) {
-      try {
-        const gaps = (await readGapsItem(handle.container, d.documentId)) as GapsItem | null;
-        const reqId = gaps?.request_id;
-        if (reqId) {
-          const ok = await syncIvrOutreach(handle.container, d.documentId, reqId as string | number);
-          if (ok) anySynced = true;
+    const results = await Promise.all(
+      ivrCandidates.map(async (d) => {
+        try {
+          const gaps = (await readGapsItem(handle.container, d.documentId)) as GapsItem | null;
+          const reqId = gaps?.request_id;
+          if (!reqId) return false;
+          return await syncIvrOutreach(handle.container, d.documentId, reqId as string | number);
+        } catch {
+          return false;
         }
-      } catch {}
-    }
-    if (anySynced) {
+      })
+    );
+    if (results.some(Boolean)) {
       documents = await listDocuments(handle.container);
     }
   }
@@ -299,14 +323,28 @@ async function handleDocument(query: URLSearchParams): Promise<ApiResult> {
   }
 
   let currentDoc = document;
+
+  /*
+   * Re-check the IVR backend only while a call could still change something.
+   *
+   * `request_id` stays on the gaps item forever, so the old condition was true
+   * for the rest of the document's life: every 5s poll of this endpoint paid
+   * an outreach fetch plus a full re-settlement (~2.8s of a 3.0s response) to
+   * redo work that finished hours earlier — which is also what appended a
+   * dozen duplicate `approved` audit entries per document and let a stale
+   * phone answer overwrite a reviewer's correction. Settled is final; a later
+   * revision on the IVR side has to arrive through `/ivr-writeback`.
+   */
+  const settled = isReviewSettled(currentDoc.review);
   if (
-    currentDoc.summary.uiStatus === "Routed to IVR" ||
-    currentDoc.review?.status === "routed_to_ivr" ||
-    currentDoc.gaps?.gapStatus === "in_progress" ||
-    Boolean((currentDoc.gaps as Record<string, unknown> | null)?.request_id)
+    !settled &&
+    (currentDoc.summary.uiStatus === "Routed to IVR" ||
+      currentDoc.review?.status === "routed_to_ivr" ||
+      currentDoc.gaps?.gapStatus === "in_progress" ||
+      Boolean(currentDoc.gaps?.request_id))
   ) {
     const reqId =
-      (currentDoc.gaps as Record<string, unknown> | null)?.request_id ??
+      currentDoc.gaps?.request_id ??
       (typeof currentDoc.review?.note === "string"
         ? currentDoc.review.note.match(/request[:\s#]+(\w+)/i)?.[1]
         : null);

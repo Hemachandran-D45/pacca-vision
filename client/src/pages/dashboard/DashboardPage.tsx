@@ -298,9 +298,28 @@ function PipelineCard({
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)] sm:p-6">
       <SectionHeading title="Live Document Processing Pipeline" action="View full pipeline" onAction={() => onNavigate("/monitor")} />
-      <div className="mt-7 grid min-w-[620px] grid-cols-7 gap-1 overflow-x-auto">
+      {/*
+        The scroll container and the 620px track have to be two elements.
+        `overflow-x-auto` scrolls a box's children, never the box itself, so a
+        `min-width` on the same node just pushes the card open — which is what
+        it did at the xl breakpoint, where this column is ~590px wide.
+      */}
+      <div className="-mx-5 mt-7 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
+        <div className="grid min-w-[620px] grid-cols-7 gap-1">
         {stageCounts.map((stage, index) => (
           <div key={stage.name} className="relative text-center">
+            {/*
+              Connector spans centre-to-centre of adjacent columns: one column
+              width plus the grid gap. Measuring it off the 48px circle instead
+              left it short on wide layouts and overshooting into the next
+              circle on narrow ones.
+            */}
+            {index < stageCounts.length - 1 && (
+              <span
+                aria-hidden
+                className="absolute left-1/2 top-6 h-px w-[calc(100%+.25rem)] bg-slate-300"
+              />
+            )}
             <div className="flex items-center justify-center">
               <div
                 className={cn(
@@ -313,9 +332,6 @@ function PipelineCard({
                 )}
               >
                 <stage.icon size={21} />
-                {index < stageCounts.length - 1 && (
-                  <span className="absolute left-[calc(100%+1px)] top-1/2 h-px w-[calc(100%+8px)] bg-slate-300" />
-                )}
               </div>
             </div>
             <div className="mt-3 text-[11px] font-bold text-[#0e0e0e]">{stage.name}</div>
@@ -345,6 +361,7 @@ function PipelineCard({
             </div>
           </div>
         ))}
+        </div>
       </div>
       <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-[10px] text-slate-500">
         <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-[#45bd8d]" />Completed</span>

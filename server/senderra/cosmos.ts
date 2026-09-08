@@ -407,6 +407,51 @@ export async function patchGaps(
 }
 
 /**
+ * Nothing an IVR sync could still change.
+ *
+ * `syncIvrOutreach` exists to write collected answers and close the document
+ * out; once a human or a completed call has already done that, re-running it
+ * cannot produce a new outcome — it can only append a duplicate audit entry
+ * and overwrite a reviewer's correction with a stale phone answer. Both of
+ * which it did, several times, before this guard existed.
+ */
+export function isReviewSettled(review: ReviewItem | null | undefined): boolean {
+  return review?.status === "approved" || review?.status === "rejected";
+}
+
+/**
+ * review + fields + gaps + extract in ONE round trip.
+ *
+ * All four share the `/documentId` partition — that is the whole point of the
+ * partition key. Fetching them as four point reads spends four sequential
+ * round trips (~250 ms each from outside the region) on what one
+ * single-partition query returns for a handful of RU.
+ */
+async function readWritableItems(c: Container, documentId: string) {
+  // `extract` is deliberately absent: nothing below writes it any more.
+  let resources: (FieldsItem | GapsItem | ReviewItem)[] = [];
+  try {
+    ({ resources } = await c.items
+      .query<FieldsItem | GapsItem | ReviewItem>(
+        {
+          query:
+            "SELECT * FROM c WHERE c.documentId = @k AND (c.itemType = 'review' OR c.itemType = 'fields' OR c.itemType = 'gaps')",
+          parameters: [{ name: "@k", value: documentId }],
+        },
+        { partitionKey: documentId }
+      )
+      .fetchAll());
+  } catch {
+    resources = [];
+  }
+  return {
+    review: resources.find((r) => r.itemType === "review") as ReviewItem | undefined,
+    fields: resources.find((r) => r.itemType === "fields") as FieldsItem | undefined,
+    gaps: resources.find((r) => r.itemType === "gaps") as GapsItem | undefined,
+  };
+}
+
+/**
  * Read-modify-write of the review item.
  *
  * Not a patch: the audit array is append-only and has to be read before it can
@@ -427,13 +472,10 @@ export async function applyReviewAction(
   const { runId, docId } = splitDocumentId(documentId);
   const now = new Date().toISOString();
 
-  let existing: ReviewItem | undefined;
-  try {
-    const { resource } = await c.item("review", documentId).read<ReviewItem>();
-    existing = resource;
-  } catch {
-    existing = undefined;
-  }
+  const { review: existing, fields: fieldsItem, gaps: gapsItem } = await readWritableItems(
+    c,
+    documentId
+  );
 
   const item: ReviewItem = {
     id: "review",
@@ -512,60 +554,64 @@ export async function applyReviewAction(
     });
   }
 
-  await c.items.upsert(item);
+  /**
+   * One upsert per item that actually changed, issued together.
+   *
+   * These were four sequential read-then-upsert pairs; the reads are now the
+   * single query above, and the writes have no ordering dependency on each
+   * other — they are different documents in the same partition.
+   */
+  const writes: Promise<unknown>[] = [c.items.upsert(item)];
 
-  // Sync corrections to fields item so extraction schema permanently reflects reviewer/IVR answers
-  if (action.corrections && Object.keys(action.corrections).length > 0) {
-    try {
-      const { resource: fieldsItem } = await c.item("fields", documentId).read<FieldsItem>();
-      if (fieldsItem && fieldsItem.fields) {
-        for (const [field, value] of Object.entries(action.corrections)) {
-          const val = value as string | number | boolean | null;
-          if (fieldsItem.fields[field]) {
-            fieldsItem.fields[field].value = val;
-            fieldsItem.fields[field].needs_review = false;
-          } else {
-            fieldsItem.fields[field] = { value: val, class: "A", needs_review: false };
-          }
-        }
-        await c.items.upsert(fieldsItem);
+  // Corrections are mirrored onto the fields item so the stored extraction
+  // permanently reflects the reviewer's / IVR's answer, not just the overlay
+  // that `readDocument` computes at read time.
+  if (action.corrections && Object.keys(action.corrections).length > 0 && fieldsItem?.fields) {
+    for (const [field, value] of Object.entries(action.corrections)) {
+      const val = value as string | number | boolean | null;
+      if (fieldsItem.fields[field]) {
+        fieldsItem.fields[field].value = val;
+        fieldsItem.fields[field].needs_review = false;
+      } else {
+        fieldsItem.fields[field] = { value: val, class: "A", needs_review: false };
       }
-    } catch (err) {
-      console.warn("Could not sync corrections to fields item:", err);
     }
+    writes.push(c.items.upsert(fieldsItem));
   }
 
-  // When approving: resolve gaps and clear extract needs_review
-  if (action.type === "approve") {
-    try {
-      const { resource: gapsItem } = await c.item("gaps", documentId).read<GapsItem>();
-      if (gapsItem) {
-        gapsItem.gapStatus = "resolved";
-        gapsItem.openCount = 0;
-        if (gapsItem.gaps) {
-          for (const g of Object.values(gapsItem.gaps)) {
-            if (g && g.status === "open") {
-              g.status = "settled";
-            }
-          }
-        }
-        await c.items.upsert(gapsItem);
-      }
-    } catch (err) {
-      console.warn("Could not resolve gaps item upon approval:", err);
+  // Approving closes out any open gaps: there is nothing left for a call to ask.
+  if (action.type === "approve" && gapsItem) {
+    gapsItem.gapStatus = "resolved";
+    gapsItem.openCount = 0;
+    for (const g of Object.values(gapsItem.gaps ?? {})) {
+      if (g && g.status === "open") g.status = "settled";
     }
-
-    try {
-      const { resource: extractItem } = await c.item("extract", documentId).read<ExtractItem>();
-      if (extractItem) {
-        extractItem.needs_review = false;
-        extractItem.status = "Succeeded";
-        await c.items.upsert(extractItem);
-      }
-    } catch (err) {
-      console.warn("Could not update extract item upon approval:", err);
-    }
+    writes.push(c.items.upsert(gapsItem));
   }
+
+  /*
+   * The `extract` item is deliberately NOT touched here.
+   *
+   * It is the pipeline's own measurement, taken at extract time: what the
+   * model produced and how the gates judged it. `computeAnalytics` and
+   * `/stats` aggregate over it, so clearing `needs_review` on approval
+   * rewrote history — it made every reviewed document look like it had never
+   * needed review, which is precisely the number the HIL loop exists to
+   * measure. It also overwrote real terminal statuses (`ClassifiedOther`)
+   * with `Succeeded`.
+   *
+   * Nothing needs the mutation: `deriveUiStatus` already ranks an approved
+   * review and a resolved gaps item above `needs_review`, and `toSummary`
+   * zeroes `needsReview` / `fieldsNeedingReview` for the same cases.
+   */
+
+  const settled = await Promise.allSettled(writes);
+  for (const result of settled) {
+    // A failed side-write must not lose the review itself, which is index 0
+    // and the only one whose failure the caller can see.
+    if (result.status === "rejected") console.warn("Review side-write failed:", result.reason);
+  }
+  if (settled[0].status === "rejected") throw settled[0].reason;
 
   return item;
 }
