@@ -1,9 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import {
   AlertCircle,
-  Building2,
-  CheckCircle2,
-  FileCheck,
   FileText,
   FileUp,
   Files,
@@ -91,18 +88,14 @@ export function UploadDocumentModal({
   onUploaded?: (newDocs: UploadedDocInfo[] | UploadedDocInfo) => void;
 }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [department, setDepartment] = useState<string>("");
-  const [docType, setDocType] = useState<string>("Auto-detect from document (Default)");
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
-  const [errors, setErrors] = useState<{ files?: string; department?: string }>({});
+  const [errors, setErrors] = useState<{ files?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = () => {
     setSelectedFiles([]);
-    setDepartment("");
-    setDocType("Auto-detect from document (Default)");
     setErrors({});
     setBusy(false);
     setUploadProgress(null);
@@ -149,16 +142,8 @@ export function UploadDocumentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const nextErrors: { files?: string; department?: string } = {};
     if (selectedFiles.length === 0) {
-      nextErrors.files = "Please select or drop at least one PDF document.";
-    }
-    if (!department) {
-      nextErrors.department = "Department is required. Please choose a department.";
-    }
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
+      setErrors({ files: "Please select or drop at least one PDF document." });
       return;
     }
 
@@ -184,10 +169,10 @@ export function UploadDocumentModal({
         }
         await uploadToBlob(grant, file);
 
-        const resolvedType = resolveUploadDocType(docType, department, file.name);
+        const resolvedType = resolveUploadDocType("Auto-detect", "Operations", file.name);
         uploadedList.push({
           file: file.name,
-          department,
+          department: "Operations",
           docType: resolvedType,
           documentId: grant.documentId,
           blobName: grant.blobName,
@@ -195,15 +180,14 @@ export function UploadDocumentModal({
       }
 
       const isBulk = selectedFiles.length > 1;
-      const firstType = resolveUploadDocType(docType, department, selectedFiles[0]?.name);
       toast.success(
         isBulk
           ? `Bulk upload complete: ${selectedFiles.length} documents uploaded`
           : "Document uploaded successfully",
         {
-          description: `${
-            isBulk ? `${selectedFiles.length} files` : selectedFiles[0].name
-          } routed to ${department} (${firstType}).`,
+          description: isBulk
+            ? `${selectedFiles.length} documents queued for intake, OCR & classification.`
+            : `${selectedFiles[0].name} queued for intake, OCR & classification.`,
         }
       );
 
@@ -290,7 +274,7 @@ export function UploadDocumentModal({
                 }}
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
-                  "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition",
+                  "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed py-9 px-6 text-center transition",
                   dragging
                     ? "border-[#47a2b0] bg-[#ebf5f7]/60"
                     : "border-slate-200 bg-slate-50/60 hover:border-[#47a2b0]/50 hover:bg-slate-50"
@@ -382,71 +366,6 @@ export function UploadDocumentModal({
                 <AlertCircle size={12} /> {errors.files}
               </p>
             )}
-          </div>
-
-          {/* Department (Required) */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Department <span className="text-rose-500 font-bold">*</span>
-              </label>
-              <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[8px] font-bold text-rose-600">
-                Required
-              </span>
-            </div>
-            <div className="relative">
-              <select
-                value={department}
-                onChange={(e) => {
-                  setDepartment(e.target.value);
-                  if (errors.department) {
-                    setErrors((prev) => ({ ...prev, department: undefined }));
-                  }
-                }}
-                className={cn(
-                  "h-11 w-full rounded-xl border bg-white px-3 text-[11px] font-semibold text-slate-700 outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]",
-                  errors.department ? "border-rose-300 bg-rose-50/30" : "border-slate-200"
-                )}
-              >
-                <option value="">Select a department...</option>
-                {UPLOAD_DEPARTMENTS.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {errors.department && (
-              <p className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-rose-600">
-                <AlertCircle size={12} /> {errors.department}
-              </p>
-            )}
-          </div>
-
-          {/* Document Type (Optional) */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Document Type
-              </label>
-              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[8px] font-bold text-slate-500">
-                Optional
-              </span>
-            </div>
-            <select
-              value={docType}
-              onChange={(e) => setDocType(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 outline-none transition focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0]"
-            >
-              {UPLOAD_DOC_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-[9px] text-slate-400">
-              Leave on Auto-detect to let the AI classify {selectedFiles.length > 1 ? "each document" : "the document"} automatically.
-            </p>
           </div>
 
           <DialogFooter className="mt-6 flex flex-row items-center justify-end gap-2 border-t border-slate-100 pt-4">
