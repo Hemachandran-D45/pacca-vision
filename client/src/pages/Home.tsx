@@ -11,7 +11,6 @@ import {
 } from "@/components/MockAuth";
 import type { MockUser } from "@/components/MockAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { CentralAdminPortal } from "@/pages/admin/CentralAdminPortal";
 import { AppRoutes } from "@/routes/AppRoutes";
 import { pageMeta } from "@/routes/pageMeta";
 
@@ -41,50 +40,18 @@ export default function Home() {
       <LoginScreen
         onLogin={(nextUser) => {
           setAuthenticatedUser(nextUser);
-          setActiveUser(nextUser);
-          if (nextUser.role === "PACCA Platform Admin") {
-            navigate(nextUser.experience === "central" ? "/central-admin" : "/");
-          } else if (nextUser.role === "PACCA Solution Developer") {
-            navigate("/solutions-v2");
-          } else {
-            navigate("/documents");
-          }
+          setActiveUser({ ...nextUser, experience: "client", tenant: "Client 1", tenantCode: "CLIENT1" });
+          navigate("/documents");
         }}
       />
     );
   }
 
-  if (path === "/central-admin" || user.experience === "central") {
-    // Only Platform Admin can access Central Admin Portal
-    if (authenticatedUser?.role !== "PACCA Platform Admin") {
-      navigate(authenticatedUser?.role === "PACCA Solution Developer" ? "/solutions-v2" : "/documents");
-      return null;
-    }
-    return (
-      <CentralAdminPortal
-        user={user}
-        availablePerspectives={availablePerspectives}
-        onRoleSwitch={switchRole}
-        onLogout={() => {
-          setAuthenticatedUser(null);
-          setActiveUser(null);
-        }}
-        onClientWorkspace={(client = "Client 1") => {
-          const clientAdmin: MockUser = {
-            ...authenticatedUser!,
-            name: "Suresh Kiran",
-            role: "PACCA Platform Admin",
-            initials: "SK",
-            tenant: client,
-            tenantCode: "CLIENT1",
-            experience: "client",
-          };
-          setActiveUser(clientAdmin);
-          navigate("/");
-        }}
-      />
-    );
+  if (path === "/central-admin") {
+    navigate("/");
+    return null;
   }
+
 
   const detailMatch = path.match(/^\/documents\/(.+)$/);
   const basePath = detailMatch ? "/documents" : path;

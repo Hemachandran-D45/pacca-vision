@@ -395,13 +395,13 @@ export const STATUS_INK: Record<DocumentSummary["uiStatus"], string> = {
 
 /** Human labels for the pipeline's reason codes. The codes stay authoritative. */
 export const REASON_LABEL: Record<string, string> = {
-  extraction_needs_review: "Field extraction below threshold",
+  extraction_needs_review: "Quality score below floor",
   classification_needs_review: "Document type uncertain",
-  ocr_needs_review: "Page legibility below floor",
-  low_model_confidence: "Low model confidence",
-  low_ocr_confidence: "Low OCR confidence",
-  ungrounded: "Quote not found in document",
-  weak_grounding: "Weak grounding match",
+  ocr_needs_review: "Page scan legibility below floor",
+  low_model_confidence: "Low model certainty (< 75%)",
+  low_ocr_confidence: "Faint / low OCR confidence",
+  ungrounded: "Hallucination Risk · Quote not found in PDF",
+  weak_grounding: "Weak grounding match on page",
 };
 
 export const FIELD_CLASS_LABEL: Record<string, string> = {

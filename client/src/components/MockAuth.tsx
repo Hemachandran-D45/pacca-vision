@@ -45,9 +45,20 @@ export const demoPersonas: Record<Role, MockUser> = {
 
 export const centralAdminUser: MockUser = demoPersonas["PACCA Platform Admin"];
 
-// TEMPORARY DEMO SCOPE — re-enable by removing paths from this set after the meeting.
-// Implementations and route components remain intact; this only hides them in demo mode.
-export const DEMO_HIDDEN_PATHS = new Set(["/environment", "/users", "/audit", "/integrations"]);
+export const DEMO_HIDDEN_PATHS = new Set([
+  "/environment",
+  "/users",
+  "/integrations",
+  "/solutions",
+  "/solutions-v2",
+  "/pipeline-studio",
+  "/metadata-studio",
+  "/rules",
+  "/deployment",
+  "/infrastructure",
+  "/central-admin",
+  "/settings",
+]);
 
 export const demoAllowedPaths = (role: Role): string[] => rolePermissions[role].filter((path) => !DEMO_HIDDEN_PATHS.has(path));
 

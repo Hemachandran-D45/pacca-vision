@@ -23,6 +23,7 @@ import {
 } from "./ivr.js";
 import { listRecentUploads, mintReadSas, mintUploadSas } from "./blob.js";
 import { computeAnalytics } from "./analytics.js";
+import { getDynamicSchema, syncSchemasToBlob } from "./schemaLoader.js";
 import type { DocumentSummary, ExtractItem } from "./types.js";
 
 export type ApiResult = { status: number; body: unknown };
@@ -695,6 +696,15 @@ export async function handleSenderra(
     if (method === "POST" && route === "/ivr-trigger") return await handleIvrTrigger(body);
     if (method === "GET" && route === "/ivr-outreach") return await handleIvrOutreach(query);
     if (method === "POST" && (route === "/ivr-writeback" || route === "/ivr-webhook")) return await handleIvrWriteback(body);
+    if (method === "GET" && route === "/schema") {
+      const docType = query.get("docType") || "prior_authorization";
+      const res = await getDynamicSchema(docType);
+      return { status: res.ok ? 200 : 404, body: res };
+    }
+    if (method === "POST" && route === "/schemas/sync") {
+      const res = await syncSchemasToBlob();
+      return { status: res.ok ? 200 : 500, body: res };
+    }
     return fail(404, `No Senderra route ${method} ${route}.`);
   } catch (error) {
     return fail(500, String(error));

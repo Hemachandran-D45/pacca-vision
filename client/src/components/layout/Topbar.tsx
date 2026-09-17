@@ -86,44 +86,17 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Perspective Switcher for personas with available perspectives */}
-        {availablePerspectives && availablePerspectives.length > 1 ? (
-          <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Perspective</span>
-            <select
-              aria-label="Switch demo perspective"
-              value={user.role}
-              onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
-              className="cursor-pointer bg-transparent font-semibold text-[#0e0e0e] outline-none hover:text-[#47a2b0] transition"
-            >
-              {availablePerspectives.map((p) => (
-                <option key={p} value={p}>
-                  {p} ({user.initials})
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Role</span>
-            <span className="font-semibold text-[#0e0e0e]">{user.role} ({user.initials})</span>
-          </div>
-        )}
+        {/* Dedicated Single-Client Workspace Badge */}
+        <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-bold text-[#0e0e0e]">Senderra RX</span>
+          <span className="text-stone-400">·</span>
+          <span className="font-semibold text-stone-600">Dedicated Instance</span>
+        </div>
 
-        {/* Central Admin Portal quick link for Platform Admin */}
-        {authenticatedRole === "PACCA Platform Admin" && (
-          <button
-            onClick={() => navigate("/central-admin")}
-            className="hidden items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#47a2b0] hover:bg-stone-50 shadow-xs transition md:flex"
-            title="Open Central Admin Portal"
-          >
-            <Globe2 size={13} /> Central Admin
-          </button>
-        )}
-
-        <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] shadow-sm md:flex">
-          <span className="font-bold text-[#0e0e0e]">Client Workspace</span>
-          <span className="ml-1 rounded-md bg-[#45bd8d]/15 px-2 py-0.5 text-[9px] font-bold text-[#1f845d]">
+        <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
+          <span className="font-bold text-[#0e0e0e]">Prior Auth Pipeline</span>
+          <span className="rounded-md bg-[#45bd8d]/15 px-2 py-0.5 text-[9px] font-bold text-[#1f845d]">
             Azure Production
           </span>
         </div>

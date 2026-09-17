@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, FileText, Loader2, RotateCcw, ShieldCheck, UserRound } from "lucide-react";
+import { AlertTriangle, Check, FileText, Loader2, RotateCcw, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -156,6 +156,8 @@ function QueueRow({
     </button>
   );
 }
+
+
 
 function Workbench({
   documentId,
@@ -448,13 +450,26 @@ function EditableField({
   return (
     <div
       className={cn(
-        "rounded-xl border p-3",
-        field.needs_review ? "border-amber-200 bg-amber-50/40" : "border-slate-100"
+        "rounded-xl border p-3 transition",
+        field.needs_review
+          ? "border-amber-300 bg-amber-50/50 shadow-xs ring-1 ring-amber-200/70"
+          : "border-slate-100"
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="text-[10px] font-bold text-[#0e0e0e]" htmlFor={`field-${name}`}>
-          {humanize(name)}
+        <label
+          className="flex items-center gap-1.5 text-[10px] font-bold text-[#0e0e0e]"
+          htmlFor={`field-${name}`}
+        >
+          {field.needs_review && (
+            <span
+              className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500 text-white"
+              title="Verification required by validation gate"
+            >
+              <AlertTriangle size={9} />
+            </span>
+          )}
+          <span>{humanize(name)}</span>
         </label>
         <ConfidenceBar value={field.scores?.field_score ?? null} />
       </div>
@@ -478,7 +493,14 @@ function EditableField({
           “{field.quote}”
         </div>
       )}
-      <ReasonChips reasons={field.review_reasons ?? []} className="mt-2" />
+      {field.needs_review && (field.review_reasons?.length ?? 0) > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-amber-200/60 pt-1.5">
+          <span className="text-[8px] font-bold uppercase tracking-wider text-amber-900">
+            Trigger:
+          </span>
+          <ReasonChips reasons={field.review_reasons ?? []} />
+        </div>
+      )}
     </div>
   );
 }
