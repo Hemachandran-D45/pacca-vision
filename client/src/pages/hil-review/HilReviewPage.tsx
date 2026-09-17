@@ -26,12 +26,8 @@ import {
   postReview,
   relativeTime,
   usePolled,
-  REASON_LABEL,
-  type DocumentDetail,
   type ExtractedField,
 } from "@/senderra/api";
-import { DEMO_HIL_DOC } from "@/senderra/mockHilDocument";
-import { MockDocViewer } from "@/senderra/MockDocViewer";
 import { IvrOutreachButton } from "@/senderra/IvrOutreachButton";
 import { FieldProvenanceBadge } from "@/senderra/FieldProvenance";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -120,19 +116,15 @@ export default function HilReviewPage({
   const liveDocuments = queuePoller.data?.documents ?? [];
   const isLiveConnected = Boolean(queuePoller.data);
 
-  // Selected document ID (defaults to demo document if local queue is empty)
-  const [selectedId, setSelectedId] = useState<string | null>(
-    focusDocumentId ?? (liveDocuments.length > 0 ? liveDocuments[0]?.documentId ?? "demo-pa-88421" : "demo-pa-88421")
-  );
+  // Selected document ID
+  const [selectedId, setSelectedId] = useState<string | null>(focusDocumentId ?? null);
 
   // Sync selectedId when live documents load or focusDocumentId changes
   useEffect(() => {
     if (focusDocumentId) {
       setSelectedId(focusDocumentId);
-    } else if (isLiveConnected && liveDocuments.length > 0 && !selectedId) {
-      setSelectedId(liveDocuments[0]?.documentId ?? "demo-pa-88421");
-    } else if (!selectedId) {
-      setSelectedId("demo-pa-88421");
+    } else if (isLiveConnected && (!selectedId || !liveDocuments.some((d) => d.documentId === selectedId))) {
+      setSelectedId(liveDocuments.length > 0 ? liveDocuments[0]?.documentId ?? null : null);
     }
   }, [focusDocumentId, isLiveConnected, liveDocuments, selectedId]);
 
@@ -180,9 +172,7 @@ export default function HilReviewPage({
               Human in the Loop Review
             </h2>
             <span className="rounded-full bg-[#f2c94c]/20 px-2.5 py-0.5 text-[11px] font-bold text-[#b7860b]">
-              {liveDocuments.length > 0
-                ? `${liveDocuments.length} awaiting decision`
-                : "1 Intake Awaiting Review (Local Demo)"}
+              {isLiveConnected ? liveDocuments.length : mockList.filter((d) => d.status === "Needs Review").length} awaiting decision
             </span>
           </div>
           <p className="mt-1 text-[11px] text-slate-500">
@@ -192,7 +182,7 @@ export default function HilReviewPage({
 
         {/* Document Navigation & Quick Switcher */}
         <div className="flex flex-wrap items-center gap-2">
-          {isLiveConnected || true ? (
+          {isLiveConnected ? (
             <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
               <button
                 onClick={() => {
@@ -206,11 +196,11 @@ export default function HilReviewPage({
                 <ChevronLeft size={16} />
               </button>
               <select
-                value={selectedId ?? "demo-pa-88421"}
+                value={selectedId ?? ""}
                 onChange={(e) => setSelectedId(e.target.value)}
                 className="max-w-[340px] truncate bg-transparent px-2 py-1 text-[11px] font-bold text-[#0e0e0e] outline-none cursor-pointer"
               >
-                {selectedId && selectedId !== "demo-pa-88421" && !isInQueue && (
+                {selectedId && !isInQueue && (
                   <option value={selectedId}>Opened directly · {selectedId}</option>
                 )}
                 {liveDocuments.map((doc, idx) => (
@@ -218,9 +208,6 @@ export default function HilReviewPage({
                     {idx + 1}. {formatDocumentLabel(doc.file, doc.docType)} {doc.uiStatus === "Routed to IVR" ? "📞 (IVR Active)" : ""}
                   </option>
                 ))}
-                <option value="demo-pa-88421">
-                  {liveDocuments.length > 0 ? "★ Demo Reference: " : "1. "}PA-88421_ClinicalExceptions.pdf (3 Gate Exceptions)
-                </option>
               </select>
               <button
                 onClick={() => {
@@ -287,18 +274,7 @@ export default function HilReviewPage({
 
       {/* Main Workbench Body: 75% PDF Left, 25% Sidebar Right */}
       <div className="w-full">
-        {selectedId === "demo-pa-88421" ? (
-          <LiveWorkbench
-            key="demo-pa-88421"
-            documentId="demo-pa-88421"
-            reviewer={userEmail || userName}
-            reviewerName={userName}
-            initialDoc={DEMO_HIL_DOC}
-            onResolved={() => {
-              toast.info("Demo intake resolved. Reload the page to test again.");
-            }}
-          />
-        ) : isLiveDoc && selectedId ? (
+        {isLiveDoc && selectedId ? (
           <LiveWorkbench
             key={selectedId}
             documentId={selectedId}
@@ -312,7 +288,7 @@ export default function HilReviewPage({
               } else if (liveDocuments.length > 1 && liveDocuments[0]) {
                 setSelectedId(liveDocuments[0].documentId);
               } else {
-                setSelectedId("demo-pa-88421");
+                setSelectedId(null);
               }
             }}
           />
@@ -320,17 +296,22 @@ export default function HilReviewPage({
           <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-[12px] font-semibold text-slate-500">
             Loading live review queue from Azure…
           </div>
+        ) : queuePoller.error ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-[12px] text-rose-700">
+            {queuePoller.error}
+          </div>
         ) : (
-          <LiveWorkbench
-            key="demo-pa-88421"
-            documentId="demo-pa-88421"
-            reviewer={userEmail || userName}
-            reviewerName={userName}
-            initialDoc={DEMO_HIL_DOC}
-            onResolved={() => {
-              toast.info("Demo intake resolved. Reload the page to test again.");
-            }}
-          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <CheckCircle2 size={24} />
+            </div>
+            <div className="mt-3 font-display text-base font-bold text-[#0e0e0e]">
+              No documents awaiting review
+            </div>
+            <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+              All intake documents have been reviewed or processed through straight-through automation.
+            </p>
+          </div>
         )}
       </div>
     </div>
@@ -681,27 +662,19 @@ function LiveWorkbench({
   reviewer,
   reviewerName,
   onResolved,
-  initialDoc,
 }: {
   documentId: string;
   reviewer: string;
   reviewerName: string;
   onResolved: () => void;
-  initialDoc?: DocumentDetail | null;
 }) {
-  const isDemo = documentId === "demo-pa-88421" || Boolean(initialDoc);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [unlockedFields, setUnlockedFields] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<null | "save" | "approve" | "reject">(null);
-  const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>("prescriber_npi");
 
   // Fetch document details once upon opening; pause periodic polling while staff is reviewing
-  const polled = usePolled(() => fetchDocument(documentId), null, [documentId]);
-  const data = isDemo ? (initialDoc ?? DEMO_HIL_DOC) : polled.data;
-  const error = isDemo ? null : polled.error;
-  const loading = isDemo ? false : polled.loading;
-  const refresh = isDemo ? async () => {} : polled.refresh;
+  const { data, error, loading, refresh } = usePolled(() => fetchDocument(documentId), null, [documentId]);
 
   const toggleUnlock = (key: string) => {
     setUnlockedFields((prev) => {
@@ -741,25 +714,6 @@ function LiveWorkbench({
   const act = async (action: "correct" | "approve" | "reject") => {
     setBusy(action === "correct" ? "save" : action);
     try {
-      if (isDemo) {
-        await new Promise((r) => setTimeout(r, 350));
-        if (action === "correct") {
-          toast.success(`${changed.length} correction${changed.length === 1 ? "" : "s"} saved locally`);
-          setDrafts({});
-          return;
-        }
-        if (action === "approve") {
-          toast.success("Approved & delivered to downstream pipeline (Demo Simulation)");
-          onResolved();
-          return;
-        }
-        if (action === "reject") {
-          toast.error("Document rejected / routed for triage (Demo Simulation)");
-          onResolved();
-          return;
-        }
-      }
-
       const corrections =
         changed.length > 0
           ? Object.fromEntries(changed.map((entry) => [entry.name, entry.to]))
@@ -841,44 +795,37 @@ function LiveWorkbench({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
-        {/* Left Card: 65-70% PDF Viewer with Stable Memoized Rendering */}
-        <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
-          <div className="shrink-0 flex items-center justify-between border-b border-slate-100 p-3 sm:p-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
-                Source Document
-              </h3>
-              <span
-                className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 truncate max-w-[280px]"
-                title={summary.file}
-              >
-                {formatDocumentLabel(summary.file, summary.docType)}
-              </span>
-            </div>
-            {pdfUrl && (
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#47a2b0] hover:text-[#37828e]"
-              >
-                <ExternalLink size={12} /> Open PDF
-              </a>
-            )}
+      {/* Left Card: 65-70% PDF Viewer with Stable Memoized Rendering */}
+      <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden min-w-0">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-100 p-3 sm:p-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-display text-[15px] font-bold text-[#0e0e0e]">
+              Source Document
+            </h3>
+            <span
+              className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 truncate max-w-[280px]"
+              title={summary.file}
+            >
+              {formatDocumentLabel(summary.file, summary.docType)}
+            </span>
           </div>
+          {pdfUrl && (
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#47a2b0] hover:text-[#37828e]"
+            >
+              <ExternalLink size={12} /> Open PDF
+            </a>
+          )}
+        </div>
 
-          {/* Stable Memoized PDF Container or Scanned Doc Preview */}
-          <div className="relative flex flex-1 flex-col overflow-hidden bg-white p-2 min-h-0">
-            {pdfUrl ? (
-              <MemoizedPdfViewer documentId={documentId} url={pdfUrl} title={`Source PDF for ${summary.file}`} />
-            ) : (
-              <MockDocViewer
-                highlightedField={selectedFieldKey}
-                onSelectField={(key) => setSelectedFieldKey(key)}
-              />
-            )}
-          </div>
-        </section>
+        {/* Stable Memoized PDF Container */}
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-white p-2 min-h-0">
+          <MemoizedPdfViewer documentId={documentId} url={pdfUrl || ""} title={`Source PDF for ${summary.file}`} />
+        </div>
+      </section>
 
       {/* Right Card: 30-35% Sleek Field Verification Sidebar */}
       <section className="flex flex-col h-[calc(100vh-190px)] min-h-[580px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs min-w-0 overflow-hidden">
@@ -968,14 +915,11 @@ function LiveWorkbench({
                   return (
                     <div
                       key={name}
-                      onClick={() => setSelectedFieldKey(name)}
                       className={cn(
-                        "rounded-xl border p-2.5 transition cursor-pointer",
+                        "rounded-xl border p-2.5 transition",
                         isDirty
                           ? "border-[#47a2b0] bg-[#47a2b0]/5 ring-1 ring-[#47a2b0]/30"
-                          : selectedFieldKey === name
-                          ? "border-amber-400 bg-amber-50/80 ring-1 ring-amber-400/50"
-                          : "border-amber-200 bg-amber-50/30 hover:bg-amber-50/60"
+                          : "border-amber-200 bg-amber-50/30"
                       )}
                     >
                       <div className="flex items-center justify-between">
@@ -989,41 +933,6 @@ function LiveWorkbench({
                           </span>
                         </span>
                       </div>
-
-                      {/* Explainability reason chips */}
-                      {field.review_reasons && field.review_reasons.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                          {field.review_reasons.map((r) => (
-                            <span
-                              key={r}
-                              className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[8.5px] font-bold text-amber-900 border border-amber-300"
-                            >
-                              <AlertTriangle size={9} /> {REASON_LABEL[r] ?? humanize(r)}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Weakest signal metrics */}
-                      {field.scores && (
-                        <div className="mt-1 flex items-center gap-2 text-[9px] text-slate-500 font-mono">
-                          {typeof field.scores.ocr_score === "number" && field.scores.ocr_score < 0.75 && (
-                            <span className="font-semibold text-amber-800">
-                              OCR: {(field.scores.ocr_score * 100).toFixed(0)}%
-                            </span>
-                          )}
-                          {typeof field.scores.grounding_score === "number" && field.scores.grounding_score < 0.75 && (
-                            <span className="font-semibold text-rose-700">
-                              Grounding: {(field.scores.grounding_score * 100).toFixed(0)}%
-                            </span>
-                          )}
-                          {typeof field.scores.model_confidence === "number" && field.scores.model_confidence < 0.75 && (
-                            <span className="text-amber-700">
-                              Certainty: {(field.scores.model_confidence * 100).toFixed(0)}%
-                            </span>
-                          )}
-                        </div>
-                      )}
 
                       <div className="relative mt-1.5">
                         <input
