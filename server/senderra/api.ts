@@ -697,7 +697,7 @@ export async function handleSenderra(
     if (method === "GET" && route === "/ivr-outreach") return await handleIvrOutreach(query);
     if (method === "POST" && (route === "/ivr-writeback" || route === "/ivr-webhook")) return await handleIvrWriteback(body);
     if (method === "GET" && route === "/schema") {
-      const docType = query.get("docType") || "prior_authorization";
+      const docType = query.get("docType") || query.get("type") || "referralForm";
       const res = await getDynamicSchema(docType);
       return { status: res.ok ? 200 : 404, body: res };
     }
