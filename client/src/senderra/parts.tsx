@@ -78,7 +78,7 @@ export function ErrorBlock({ error, onRetry }: { error: string; onRetry?: () => 
         <AlertTriangle size={17} className="mt-0.5 shrink-0 text-rose-600" />
         <div className="min-w-0 flex-1">
           <div className="font-display text-[13px] font-bold text-rose-900">
-            Could not reach the Senderra pipeline
+            Could not reach the Client pipeline
           </div>
           <p className="mt-1.5 break-words text-[11px] leading-relaxed text-rose-800/90">{error}</p>
           {onRetry && (

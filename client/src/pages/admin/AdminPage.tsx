@@ -69,10 +69,7 @@ export default function AdminPage({ kind }: { kind: "users" | "settings" }) {
   }
 
   const users = [
-    ["Suresh Kiran", "suresh@pacca.vision", "Platform Administrator", "Active", "Today, 09:12"],
-    ["Aisha Rahman", "aisha@pacca.vision", "Reviewer", "Active", "Today, 08:45"],
-    ["Maya Chen", "maya@pacca.vision", "Solution Builder", "Active", "Yesterday"],
-    ["Oliver Grant", "oliver@pacca.vision", "Analyst", "Invited", "May 07"],
+    ["Suresh Kiran", "suresh.kiran@pacca.demo", "Operations Lead", "Active", "Today, 09:12"],
   ];
 
   return (

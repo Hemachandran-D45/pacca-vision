@@ -89,9 +89,9 @@ export function Topbar({
         {/* Dedicated Single-Client Workspace Badge */}
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-bold text-[#0e0e0e]">Senderra RX</span>
+          <span className="font-bold text-[#0e0e0e]">Client</span>
           <span className="text-stone-400">·</span>
-          <span className="font-semibold text-stone-600">Dedicated Instance</span>
+          <span className="font-semibold text-stone-600">Dedicated Workspace</span>
         </div>
 
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">

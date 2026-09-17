@@ -157,7 +157,7 @@ export function CommandCenterLive({
             Command Center
           </h1>
           <p className="mt-1.5 text-[11px] text-slate-500">
-            Every number on this page is read from the Senderra IDP pipeline's Cosmos projection.
+            Every number on this page is read from the Client IDP pipeline's Cosmos projection.
           </p>
         </div>
         <button

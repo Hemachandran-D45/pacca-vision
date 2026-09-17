@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, FileText, Info, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +73,7 @@ export function MockDocViewer({
               {/* Header */}
               <div className="border-b-2 border-slate-800 pb-3">
                 <div className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">
-                  CONFIDENTIAL MEDICAL COMMUNICATION · SENDERRA SPECIALTY RX
+                  CONFIDENTIAL MEDICAL COMMUNICATION · CLIENT SPECIALTY RX
                 </div>
                 <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 mt-0.5">
                   PRIOR AUTHORIZATION &amp; ENROLLMENT INTAKE FORM

@@ -34,8 +34,6 @@ export function Sidebar({
     "/pipeline-studio",
     "/rules",
     "/integrations",
-    "/solutions",
-    "/solutions-v2",
     "/central-admin",
     "/users",
     "/settings",
@@ -73,9 +71,9 @@ export function Sidebar({
 
       <div className="flex items-center justify-between px-5 py-4">
         <div className={cn("min-w-0", collapsed && "lg:hidden")}>
-          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">Dedicated Instance</div>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">Dedicated Workspace</div>
           <div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-white">
-            Senderra RX <span className="rounded-md bg-[#45bd8d]/15 text-[#45bd8d] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider">Active</span>
+            Client <span className="rounded-md bg-[#45bd8d]/15 text-[#45bd8d] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider">Active</span>
           </div>
         </div>
         <button className="rounded-lg p-1 text-slate-400 hover:bg-white/10 lg:hidden" onClick={onCloseMobile}>

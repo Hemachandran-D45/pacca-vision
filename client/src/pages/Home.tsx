@@ -40,7 +40,7 @@ export default function Home() {
       <LoginScreen
         onLogin={(nextUser) => {
           setAuthenticatedUser(nextUser);
-          setActiveUser({ ...nextUser, experience: "client", tenant: "Client 1", tenantCode: "CLIENT1" });
+          setActiveUser({ ...nextUser, experience: "client", tenant: "Client", tenantCode: "CLIENT" });
           navigate("/documents");
         }}
       />
@@ -67,8 +67,8 @@ export default function Home() {
     const next: MockUser = {
       ...authenticatedUser!,
       role,
-      tenant: role === "Client Staff" ? "Client 1" : (authenticatedUser?.tenant ?? "PACCA Platform"),
-      tenantCode: role === "Client Staff" ? "CLIENT1" : (authenticatedUser?.tenantCode ?? "PACCA"),
+      tenant: "Client",
+      tenantCode: "CLIENT",
       experience: "client",
     };
     setActiveUser(next);

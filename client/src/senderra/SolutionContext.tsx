@@ -34,7 +34,7 @@ export const SOLUTIONS: Record<SolutionKey, SolutionDefinition> = {
     key: "priorauth",
     name: "Prior Auth Processing",
     summary:
-      "Specialty-pharmacy prior authorisation. Live Senderra IDP pipeline — Content Understanding OCR, classification and field extraction with grounded evidence.",
+      "Specialty-pharmacy prior authorisation. Live Client IDP pipeline — Content Understanding OCR, classification and field extraction with grounded evidence.",
     live: true,
     documentTypes:
       "Prescription · Prior-auth response · Approval / denial letter · Clinical notes · Patient demographics · Insurance card",

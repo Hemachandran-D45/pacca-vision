@@ -8,49 +8,53 @@ type Role = "PACCA Platform Admin" | "PACCA Solution Developer" | "Client Staff"
 export type MockUser = { name: string; initials: string; email: string; role: Role; tenant: string; tenantCode: string; experience?: "central" | "client" };
 
 export const demoUsers: MockUser[] = [
-  { name: "Aisha Rahman", initials: "AR", email: "aisha@client1.demo", role: "Client Staff", tenant: "Client 1", tenantCode: "CLIENT1" },
-  { name: "Nadia Okafor", initials: "NO", email: "nadia@client1.demo", role: "Client Staff", tenant: "Client 1", tenantCode: "CLIENT1" },
-  { name: "Maya Chen", initials: "MC", email: "maya@pacca.demo", role: "PACCA Solution Developer", tenant: "PACCA Platform", tenantCode: "PACCA" },
-  { name: "Suresh Kiran", initials: "SK", email: "admin@pacca.demo", role: "PACCA Platform Admin", tenant: "PACCA Platform", tenantCode: "PACCA", experience: "central" },
+  {
+    name: "Suresh Kiran",
+    initials: "SK",
+    email: "suresh.kiran@pacca.demo",
+    role: "Client Staff",
+    tenant: "Client",
+    tenantCode: "CLIENT",
+    experience: "client",
+  },
 ];
+
 export const demoPersonas: Record<Role, MockUser> = {
   "PACCA Platform Admin": {
     name: "Suresh Kiran",
     initials: "SK",
     email: "suresh.kiran@pacca.demo",
     role: "PACCA Platform Admin",
-    tenant: "PACCA Platform",
-    tenantCode: "PACCA",
-    experience: "central",
+    tenant: "Client",
+    tenantCode: "CLIENT",
+    experience: "client",
   },
   "PACCA Solution Developer": {
-    name: "Maya Chen",
-    initials: "MC",
-    email: "maya.chen@pacca.demo",
+    name: "Suresh Kiran",
+    initials: "SK",
+    email: "suresh.kiran@pacca.demo",
     role: "PACCA Solution Developer",
-    tenant: "PACCA Platform",
-    tenantCode: "PACCA",
+    tenant: "Client",
+    tenantCode: "CLIENT",
     experience: "client",
   },
   "Client Staff": {
-    name: "Aisha Rahman",
-    initials: "AR",
-    email: "aisha.rahman@client1.demo",
+    name: "Suresh Kiran",
+    initials: "SK",
+    email: "suresh.kiran@pacca.demo",
     role: "Client Staff",
-    tenant: "Client 1",
-    tenantCode: "CLIENT1",
+    tenant: "Client",
+    tenantCode: "CLIENT",
     experience: "client",
   },
 };
 
-export const centralAdminUser: MockUser = demoPersonas["PACCA Platform Admin"];
+export const centralAdminUser: MockUser = demoPersonas["Client Staff"];
 
 export const DEMO_HIDDEN_PATHS = new Set([
   "/environment",
   "/users",
   "/integrations",
-  "/solutions",
-  "/solutions-v2",
   "/pipeline-studio",
   "/metadata-studio",
   "/rules",
@@ -63,8 +67,16 @@ export const DEMO_HIDDEN_PATHS = new Set([
 export const demoAllowedPaths = (role: Role): string[] => rolePermissions[role].filter((path) => !DEMO_HIDDEN_PATHS.has(path));
 
 export const rolePermissions: Record<Role, string[]> = {
-  // Client Staff: Operates the client's published workspace only
-  "Client Staff": ["/", "/documents", "/hil-review", "/monitor", "/analytics"],
+  // Client Staff: Operates the client's published workspace and solutions
+  "Client Staff": [
+    "/",
+    "/documents",
+    "/hil-review",
+    "/monitor",
+    "/analytics",
+    "/solutions-v2",
+    "/solutions",
+  ],
   // PACCA Solution Developer: Configure & Deploy solutions and pipelines (NO Administration / Settings / Users)
   "PACCA Solution Developer": [
     "/",
@@ -115,13 +127,154 @@ export function getAvailablePerspectives(authenticatedRole: Role): Role[] {
 type LoginProps = { onLogin: (user: MockUser) => void };
 
 export function LoginScreen({ onLogin }: LoginProps) {
-  const [entryMode, setEntryMode] = useState<"central" | "client">("central");
-  const [tenant, setTenant] = useState("Client 1");
-  const [email, setEmail] = useState("admin@pacca.demo");
-  const [password, setPassword] = useState("pacca-demo");
+  const [email, setEmail] = useState("suresh.kiran@pacca.demo");
+  const [password, setPassword] = useState("••••••••");
   const [showDemo, setShowDemo] = useState(true);
-  const selected = entryMode === "central" ? centralAdminUser : (demoUsers.find((user) => user.email === email) ?? demoUsers[2]);
-  return <div className="relative flex min-h-screen overflow-hidden bg-[#0e0e0e] text-white"><div className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(circle at 78% 22%, rgba(71,162,176,.28), transparent 26%), radial-gradient(circle at 18% 88%, rgba(69,189,141,.16), transparent 24%)" }} /><div className="relative hidden w-[48%] flex-col justify-between border-r border-white/10 p-10 lg:flex xl:p-16"><Logo size="lg" /><div className="max-w-md"><div className="mb-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-[#47a2b0]"><span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Platform access</div><h1 className="font-display text-5xl font-bold leading-[1.06] tracking-[-.06em]">Operate every document with <span className="text-[#47a2b0]">confidence.</span></h1><p className="mt-6 max-w-sm text-sm leading-relaxed text-slate-300">A reusable, cloud-agnostic operations layer for document intake, processing, human review, and trusted final metadata.</p><div className="hidden">{[["4,812", "documents processed"], ["96.4%", "mean confidence"], ["27", "in HIL review"], ["98.6%", "SLA compliance"]].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/6 p-4"><div className="font-display text-xl font-bold">{value}</div><div className="mt-1 text-[10px] text-slate-400">{label}</div></div>)}</div></div><div className="text-[10px] text-slate-500">PACCA Vision · Reusable Intelligent Document Processing Operations Platform</div></div><div className="relative flex flex-1 items-center justify-center p-5 sm:p-10"><div className="w-full max-w-[430px]"><div className="mb-8 lg:hidden"><Logo /></div><div className="rounded-[26px] border border-white/12 bg-white p-6 text-[#0e0e0e] shadow-[0_24px_80px_rgba(0,0,0,.28)] sm:p-8"><div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1"><button onClick={() => setEntryMode("client")} className={cn("rounded-lg px-3 py-2 text-[10px] font-bold transition", entryMode === "client" ? "bg-white text-[#47a2b0] shadow-sm" : "text-slate-500")}>Client Workspace</button><button onClick={() => setEntryMode("central")} className={cn("rounded-lg px-3 py-2 text-[10px] font-bold transition", entryMode === "central" ? "bg-[#0e0e0e] text-white shadow-sm" : "text-slate-500")}>Central Admin</button></div><div className="flex items-start justify-between"><div><div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">{entryMode === "central" ? "Platform administration" : "Client workspace access"}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.05em]">{entryMode === "central" ? "PACCA Admin Portal" : "Sign in to PACCA"}</h2><p className="mt-2 text-[11px] text-slate-500">{entryMode === "central" ? "Manage clients, deployments, and platform health." : "Choose a client workspace to continue."}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]"><ShieldCheck size={18} /></div></div><div className="mt-7 space-y-4"><div className="block"><span className="mb-2 block text-[10px] font-bold text-slate-500">{entryMode === "central" ? "Platform scope" : "Authorized workspace"}</span><div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-slate-700"><span>{entryMode === "central" ? "PACCA Platform" : "Client 1"}</span><span className="text-[9px] font-bold text-[#45bd8d]">Authorized</span></div></div><label className="block"><span className="mb-2 block text-[10px] font-bold text-slate-500">Email</span><input value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]" /></label><label className="block"><span className="mb-2 block text-[10px] font-bold text-slate-500">Password</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]" /></label><button onClick={() => onLogin({ ...selected, tenant: entryMode === "central" ? "PACCA Platform" : tenant })} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] text-[11px] font-bold text-white shadow-[0_9px_20px_rgba(71,162,176,.22)] hover:bg-[#37828e]">{entryMode === "central" ? "Enter Admin Portal" : "Continue to workspace"} <ArrowRight size={15} /></button></div><div className="mt-6 border-t border-slate-100 pt-5"><button onClick={() => setShowDemo(!showDemo)} className="flex w-full items-center justify-between text-left text-[10px] font-bold text-slate-500"><span>Use a demo persona</span><ChevronDown size={14} className={cn("transition", showDemo && "rotate-180")} /></button>{showDemo && <div className="mt-3 grid gap-2">{demoUsers.map((user) => <button key={user.email} onClick={() => { setEmail(user.email); setTenant(user.tenant); setEntryMode(user.role === "PACCA Platform Admin" ? "central" : "client"); }} className={cn("flex items-center gap-3 rounded-xl border p-3 text-left transition", email === user.email ? "border-[#47a2b0] bg-[#ebf5f7]/70" : "border-slate-100 hover:bg-slate-50")}><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ebf5f7] text-[9px] font-bold text-[#47a2b0]">{user.initials}</div><div className="min-w-0 flex-1"><div className="text-[10px] font-bold text-[#0e0e0e]">{user.name}</div><div className="mt-0.5 text-[9px] text-slate-400">{user.role} · {user.tenant}</div></div>{email === user.email && <Check size={14} className="text-[#47a2b0]" />}</button>)}</div>}</div></div><div className="mt-5 flex items-center justify-center gap-2 text-[9px] text-slate-500"><LockKeyhole size={12} /> Mock authentication · no credentials are transmitted</div></div></div></div>;
+  const selected = demoUsers.find((user) => user.email === email) ?? demoUsers[0];
+
+  return (
+    <div className="relative flex min-h-screen overflow-hidden bg-[#0e0e0e] text-white">
+      <div
+        className="absolute inset-0 opacity-60"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 78% 22%, rgba(71,162,176,.28), transparent 26%), radial-gradient(circle at 18% 88%, rgba(69,189,141,.16), transparent 24%)",
+        }}
+      />
+      <div className="relative hidden w-[48%] flex-col justify-between border-r border-white/10 p-10 lg:flex xl:p-16">
+        <Logo size="lg" />
+        <div className="max-w-md">
+          <div className="mb-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-[#47a2b0]">
+            <span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Platform access
+          </div>
+          <h1 className="font-display text-5xl font-bold leading-[1.06] tracking-[-.06em]">
+            Operate every document with <span className="text-[#47a2b0]">confidence.</span>
+          </h1>
+          <p className="mt-6 max-w-sm text-sm leading-relaxed text-slate-300">
+            A reusable, cloud-agnostic operations layer for document intake, processing, human review, and trusted final metadata.
+          </p>
+        </div>
+        <div className="text-[10px] text-slate-500">
+          PACCA Vision · Reusable Intelligent Document Processing Operations Platform
+        </div>
+      </div>
+
+      <div className="relative flex flex-1 items-center justify-center p-5 sm:p-10">
+        <div className="w-full max-w-[430px]">
+          <div className="mb-8 lg:hidden">
+            <Logo />
+          </div>
+          <div className="rounded-[26px] border border-white/12 bg-white p-6 text-[#0e0e0e] shadow-[0_24px_80px_rgba(0,0,0,.28)] sm:p-8">
+            <div className="mb-5 flex items-center justify-between rounded-xl bg-slate-100 px-3.5 py-2.5">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-[#47a2b0]">
+                <span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Dedicated Client Workspace
+              </div>
+              <span className="rounded-md bg-white px-2 py-0.5 text-[9px] font-bold text-slate-600 shadow-xs">
+                Secure Instance
+              </span>
+            </div>
+
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
+                  Client workspace access
+                </div>
+                <h2 className="mt-2 font-display text-2xl font-bold tracking-[-.05em]">
+                  Sign in to PACCA
+                </h2>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Dedicated intelligent document processing operations workspace.
+                </p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
+                <ShieldCheck size={18} />
+              </div>
+            </div>
+
+            <div className="mt-7 space-y-4">
+              <div className="block">
+                <span className="mb-2 block text-[10px] font-bold text-slate-500">
+                  Authorized workspace
+                </span>
+                <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-slate-700">
+                  <span>Client</span>
+                  <span className="text-[9px] font-bold text-[#45bd8d]">Authorized</span>
+                </div>
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-bold text-slate-500">Email</span>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-bold text-slate-500">Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
+                />
+              </label>
+
+              <button
+                onClick={() => onLogin({ ...selected, tenant: "Client", tenantCode: "CLIENT" })}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] text-[11px] font-bold text-white shadow-[0_9px_20px_rgba(71,162,176,.22)] hover:bg-[#37828e]"
+              >
+                Continue to workspace <ArrowRight size={15} />
+              </button>
+            </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              <button
+                onClick={() => setShowDemo(!showDemo)}
+                className="flex w-full items-center justify-between text-left text-[10px] font-bold text-slate-500"
+              >
+                <span>Authorized Team Member</span>
+                <ChevronDown size={14} className={cn("transition", showDemo && "rotate-180")} />
+              </button>
+              {showDemo && (
+                <div className="mt-3 grid gap-2">
+                  {demoUsers.map((user) => (
+                    <button
+                      key={user.email}
+                      onClick={() => {
+                        setEmail(user.email);
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border p-3 text-left transition",
+                        email === user.email
+                          ? "border-[#47a2b0] bg-[#ebf5f7]/70"
+                          : "border-slate-100 hover:bg-slate-50"
+                      )}
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ebf5f7] text-[9px] font-bold text-[#47a2b0]">
+                        {user.initials}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] font-bold text-[#0e0e0e]">{user.name}</div>
+                        <div className="mt-0.5 text-[9px] text-slate-400">
+                          {user.role} · {user.tenant}
+                        </div>
+                      </div>
+                      {email === user.email && <Check size={14} className="text-[#47a2b0]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mt-5 flex items-center justify-center gap-2 text-[9px] text-slate-500">
+            <LockKeyhole size={12} /> Mock authentication · single client workspace
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function SkeletonPage() {
