@@ -92,6 +92,7 @@ export function Topbar({
           <span className="font-bold text-[#0e0e0e]">Client</span>
           <span className="text-stone-400">·</span>
           <span className="font-semibold text-stone-600">Dedicated Workspace</span>
+          <span className="rounded-md bg-stone-100 px-1.5 py-0.5 text-[9px] font-bold text-stone-700">v1.2</span>
         </div>
 
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
