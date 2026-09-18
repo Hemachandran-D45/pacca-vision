@@ -165,21 +165,12 @@ export function LoginScreen({ onLogin }: LoginProps) {
             <Logo />
           </div>
           <div className="rounded-[26px] border border-white/12 bg-white p-6 text-[#0e0e0e] shadow-[0_24px_80px_rgba(0,0,0,.28)] sm:p-8">
-            <div className="mb-5 flex items-center justify-between rounded-xl bg-slate-100 px-3.5 py-2.5">
-              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-800">
-                <span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Dedicated Client Workspace
-              </div>
-              <span className="rounded-md bg-white px-2.5 py-0.5 text-[9px] font-bold text-[#47a2b0] shadow-xs border border-slate-200">
-                Version 1.2
-              </span>
-            </div>
-
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">
-                  Single-Client Production Workspace
+                <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
+                  Client workspace access
                 </div>
-                <h2 className="mt-1.5 font-display text-2xl font-bold tracking-[-.05em]">
+                <h2 className="mt-2 font-display text-2xl font-bold tracking-[-.05em]">
                   Sign in to PACCA
                 </h2>
                 <p className="mt-2 text-[11px] text-slate-500">
