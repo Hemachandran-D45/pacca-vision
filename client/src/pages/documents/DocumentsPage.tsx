@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import type { UploadedDocInfo } from "@/components/documents/UploadDocumentModal";
-import { Download, Eye, FileSearch, FileText, Filter, RefreshCw, Search, Upload } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  FileSearch,
+  FileText,
+  Filter,
+  RefreshCw,
+  Search,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { SectionHeading } from "@/components/common/SectionHeading";
@@ -18,6 +32,7 @@ import {
   pruneStoredUploadedDocs,
   PACCA_UPLOADED_DOCS_EVENT,
 } from "@/senderra/localDocs";
+import { cn } from "@/lib/utils";
 
 function listStatus(uiStatus: string) {
   if (uiStatus === "Processed") return "Processed" as const;
@@ -50,13 +65,20 @@ function inferDocType(docType: string | null | undefined, file: string, source?:
   return "Specialty Prescription";
 }
 
+function getConfidenceNumber(confStr: string): number {
+  const num = parseFloat(confStr.replace("%", ""));
+  return isNaN(num) ? 95 : num;
+}
+
 function toOptimisticRow(item: UploadedDocInfo) {
+  const ts = item.uploadedAt || new Date().toISOString();
   return {
     id: item.documentId,
     file: item.file,
     type: item.docType || resolveUploadDocType("", item.department, item.file),
     source: `Upload · ${item.department}`,
-    timestamp: formatTimestamp(item.uploadedAt || new Date().toISOString()),
+    timestamp: formatTimestamp(ts),
+    rawTimestamp: new Date(ts).getTime(),
     status: "Queued" as const,
     confidence: "—",
     pages: "—" as const,
@@ -80,8 +102,12 @@ export default function DocumentsPage({
   onOpenHil?: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("All statuses");
-  const [docType, setDocType] = useState<string>("All Document Types");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "highest_confidence" | "lowest_confidence">("newest");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadedLocalDocs, setUploadedLocalDocs] = useState<ReturnType<typeof toOptimisticRow>[]>(() =>
     getStoredUploadedDocs().map(toOptimisticRow)
@@ -117,6 +143,7 @@ export default function DocumentsPage({
       type: inferDocType(d.docType, d.file, d.source),
       source: d.source || "Auto-intake",
       timestamp: formatTimestamp(d.receivedAt),
+      rawTimestamp: d.receivedAt ? new Date(d.receivedAt).getTime() : 0,
       status: listStatus(d.uiStatus),
       confidence: percent(d.confidence, 1),
       pages: d.pages ?? "—",
@@ -149,53 +176,28 @@ export default function DocumentsPage({
     return [...locals, ...baseDocs];
   }, [liveDocs, uploadedLocalDocs]);
 
-  // Dynamically compute all available document types from the live inventory
-  const availableDocTypes = useMemo(() => {
-    const typesSet = new Set<string>();
-    allDocuments.forEach((d) => {
-      if (d.type && d.type.trim()) {
-        typesSet.add(d.type.trim());
-      }
-    });
-    if (typesSet.size === 0) {
-      return ["All Document Types", "Referral Form", "Patient Demographics", "Clinical Note", "Denial Letter"];
-    }
-    const sorted = Array.from(typesSet).sort();
-    return ["All Document Types", ...sorted];
-  }, [allDocuments]);
-
   const filtered = useMemo(() => {
     const rawQuery = query.toLowerCase().trim();
-    if (!rawQuery && status === "All statuses" && docType === "All Document Types") {
-      return allDocuments;
-    }
-
     const tokens = rawQuery
       .replace(/[,/\\#$%=?_]/g, " ")
       .split(/\s+/)
       .filter(Boolean);
 
     return allDocuments.filter((d) => {
-      // 1. Search Query Matching (Multi-token + loose matching)
-      let matchesQuery = true;
+      // 1. Search Query Matching (Multi-token + typo tolerance)
       if (tokens.length > 0) {
-        // Expand row text with synonyms and stripped punctuation
         const baseRow = `${d.id} ${d.file} ${d.type} ${d.source || ""} ${d.timestamp || ""} ${d.status || ""} ${d.confidence || ""} ${d.isDuplicate ? "duplicate duplicate-detected already-processed" : ""} ${d.received || ""}`
           .toLowerCase();
         const cleanRow = baseRow.replace(/[,/\\#$%=?_.-]/g, " ");
         const rowWords = cleanRow.split(/\s+/).filter(Boolean);
 
-        matchesQuery = tokens.every((token) => {
-          // Direct substring match anywhere in row
+        const matchesTokens = tokens.every((token) => {
           if (baseRow.includes(token) || cleanRow.includes(token)) return true;
-
-          // Special month aliases (e.g. "september" matches "sep", "august" matches "aug")
           if (token === "september" && cleanRow.includes("sep")) return true;
           if (token === "october" && cleanRow.includes("oct")) return true;
           if (token === "november" && cleanRow.includes("nov")) return true;
           if (token === "december" && cleanRow.includes("dec")) return true;
 
-          // Typo tolerance for words 4+ chars (e.g., "clincal" -> "clinical", "referal" -> "referral")
           if (token.length >= 4) {
             for (const word of rowWords) {
               if (Math.abs(word.length - token.length) <= 1) {
@@ -223,28 +225,60 @@ export default function DocumentsPage({
           }
           return false;
         });
+
+        if (!matchesTokens) return false;
       }
 
-      // 2. Status Matching
-      const matchesStatus =
-        status === "All statuses" ||
-        (status === "Needs Review" && (d.status === "Needs Review" || d.status === "HIL Review")) ||
-        (status === "HIL Review" && (d.status === "HIL Review" || d.status === "Needs Review")) ||
-        (status === "Duplicate" && (d.isDuplicate || d.status === "Duplicate")) ||
-        (status === "Validation failed" && (d.status === "Validation failed" || d.status === "Failed")) ||
-        (d.status && d.status.toLowerCase().trim() === status.toLowerCase().trim());
+      // 2. Status Dropdown Filter
+      if (statusFilter === "processed" && d.status !== "Processed") return false;
+      if (statusFilter === "ivr" && d.status !== "Routed to IVR") return false;
+      if (statusFilter === "duplicate" && !d.isDuplicate && d.status !== "Duplicate") return false;
+      if (statusFilter === "failed" && d.status !== "Validation failed" && d.status !== "Failed") return false;
+      if (statusFilter === "review" && d.status !== "Needs Review" && d.status !== "HIL Review") return false;
 
-      // 3. Document Type Matching
-      const matchesType =
-        docType === "All Document Types" ||
-        (d.type && d.type.toLowerCase().trim() === docType.toLowerCase().trim());
+      // 3. Date Filter
+      if (dateFilter === "today") {
+        const rowDate = (d.timestamp || "").toLowerCase();
+        if (!rowDate.includes("sep 21") && !rowDate.includes("today")) return false;
+      }
 
-      return matchesQuery && matchesStatus && matchesType;
+      return true;
     });
-  }, [allDocuments, query, status, docType]);
+  }, [allDocuments, query, statusFilter, dateFilter]);
+
+  // Sorted list
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "newest") {
+        return (b.rawTimestamp || 0) - (a.rawTimestamp || 0);
+      }
+      if (sortBy === "oldest") {
+        return (a.rawTimestamp || 0) - (b.rawTimestamp || 0);
+      }
+      if (sortBy === "highest_confidence") {
+        return getConfidenceNumber(b.confidence) - getConfidenceNumber(a.confidence);
+      }
+      if (sortBy === "lowest_confidence") {
+        return getConfidenceNumber(a.confidence) - getConfidenceNumber(b.confidence);
+      }
+      return 0;
+    });
+  }, [filtered, sortBy]);
+
+  // Reset pagination on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, dateFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paginatedDocs = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, page, pageSize]);
 
   return (
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
+      {/* 1. TOP HEADER: INVENTORY OVERVIEW & UPLOAD */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-[11px] text-slate-500">Operational document inventory</div>
@@ -260,69 +294,115 @@ export default function DocumentsPage({
         </button>
       </div>
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(20,43,75,.025)]">
-        <div className="flex flex-wrap gap-2">
-          <label className="flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3">
-            <Search size={15} className="text-slate-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400"
-              placeholder="Search by ID, filename, status, type, timestamp..."
-            />
-          </label>
+      {/* 2. UNIFIED CONTROLS BAR: SEARCH, DATE, COMPACT STATUS DROPDOWN, SORT, RESET */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-[0_2px_12px_rgba(20,43,75,.025)]">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* LEFT: PROMINENT SEARCH BAR, DATE PICKER, STATUS DROPDOWN */}
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+            {/* UNIFIED SEARCH BAR */}
+            <label className="flex h-10 min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-[12px] shadow-2xs focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+              <Search size={15} className="text-slate-400 shrink-0" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-transparent text-[12px] font-medium text-slate-800 outline-none placeholder:text-slate-400"
+                placeholder="Search by file name, ID, or status..."
+              />
+              {query && (
+                <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
+            </label>
 
-          <select
-            value={docType}
-            onChange={(e) => setDocType(e.target.value)}
-            className="h-9 min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none cursor-pointer"
-          >
-            {availableDocTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            {/* DATE PICKER DROPDOWN */}
+            <div className="relative">
+              <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 cursor-pointer">
+                <Calendar size={14} className="text-slate-500" />
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="bg-transparent text-[12px] font-semibold text-slate-700 outline-none cursor-pointer pr-1"
+                >
+                  <option value="all">Sep 21, 2026 (All)</option>
+                  <option value="today">Sep 21, 2026 (Today)</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
+                <ChevronDown size={13} className="text-slate-400" />
+              </label>
+            </div>
 
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="h-9 min-w-[130px] rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none cursor-pointer"
-          >
-            <option value="All statuses">All statuses</option>
-            <option value="Processed">Processed</option>
-            <option value="Needs Review">Needs Review</option>
-            <option value="HIL Review">HIL Review</option>
-            <option value="Duplicate">Duplicate</option>
-            <option value="Routed to IVR">Routed to IVR</option>
-            <option value="Processing">Processing</option>
-            <option value="Queued">Queued</option>
-            <option value="Validation failed">Validation failed</option>
-          </select>
+            {/* COMPACT STATUS DROPDOWN */}
+            <div className="relative">
+              <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 cursor-pointer">
+                <span className="text-slate-400 font-normal">Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-transparent text-[12px] font-bold text-slate-800 outline-none cursor-pointer pr-1"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="processed">Processed</option>
+                  <option value="ivr">Routed to IVR</option>
+                  <option value="duplicate">Duplicate</option>
+                  <option value="review">Needs Review</option>
+                  <option value="failed">Failed</option>
+                </select>
+                <ChevronDown size={13} className="text-slate-400" />
+              </label>
+            </div>
+          </div>
 
-          <button
-            onClick={() => {
-              setQuery("");
-              setStatus("All statuses");
-              setDocType("All Document Types");
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
-          >
-            <Filter size={13} /> Reset
-          </button>
+          {/* RIGHT: SORT BY DROPDOWN, RESET, EXPORT */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12px] font-semibold text-slate-500">Sort by</span>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-[12px] font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="highest_confidence">Highest confidence</option>
+                  <option value="lowest_confidence">Lowest confidence</option>
+                </select>
+                <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
 
-          <button
-            onClick={() => toast("Export queued", { description: `${filtered.length} documents will be included.` })}
-            className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
-          >
-            <Download size={14} /> Export
-          </button>
+            <button
+              onClick={() => {
+                setQuery("");
+                setStatusFilter("all");
+                setDateFilter("all");
+                setSortBy("newest");
+              }}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 shadow-2xs"
+              title="Reset all filters"
+            >
+              <Filter size={13} /> Reset
+            </button>
+
+            <button
+              onClick={() => toast("Export queued", { description: `${filtered.length} documents will be included.` })}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              <Download size={14} /> Export
+            </button>
+          </div>
         </div>
       </section>
 
+      {/* 3. TABLE CARD: ORIGINAL PROD STYLING WITH STATUS & TAGS SPLIT */}
       <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(20,43,75,.025)]">
         <div className="flex items-center justify-between border-b border-slate-100 p-5">
-          <SectionHeading title="All documents" eyebrow={`${filtered.length} shown · ${isLive ? "live Azure pipeline" : poller.loading ? "connecting to Azure…" : "live pipeline"}`} />
+          <SectionHeading
+            title="All documents"
+            eyebrow={`${filtered.length} shown · ${isLive ? "live Azure pipeline" : poller.loading ? "connecting to Azure…" : "live pipeline"}`}
+          />
           <button
             onClick={() => void poller.refresh()}
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 transition"
@@ -342,21 +422,22 @@ export default function DocumentsPage({
           </div>
         ) : filtered.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[940px] border-collapse text-left">
+            <table className="w-full min-w-[980px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
                   <th className="px-5 py-3 font-bold">Document</th>
                   <th className="px-3 py-3 font-bold">Document Type</th>
                   <th className="px-3 py-3 font-bold">Timestamp</th>
                   <th className="px-3 py-3 font-bold">Status</th>
+                  <th className="px-3 py-3 font-bold">Tags</th>
                   <th className="px-3 py-3 font-bold">Confidence</th>
                   <th className="px-3 py-3 font-bold">Pages</th>
                   <th className="px-3 py-3 font-bold">Received</th>
-                  <th className="px-5 py-3 font-bold">Action</th>
+                  <th className="px-5 py-3 font-bold text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((doc) => {
+                {paginatedDocs.map((doc) => {
                   const needsReview = doc.status === "Needs Review" || doc.status === "HIL Review";
                   const handleOpen = () => {
                     if (needsReview && onOpenHil) {
@@ -376,6 +457,7 @@ export default function DocumentsPage({
                       onClick={handleOpen}
                       className="cursor-pointer border-b border-slate-100 transition hover:bg-[#ebf5f7]/40"
                     >
+                      {/* 1. DOCUMENT (PROD FILE ICON + NAME + ID) */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
@@ -387,25 +469,74 @@ export default function DocumentsPage({
                           </div>
                         </div>
                       </td>
+
+                      {/* 2. DOCUMENT TYPE */}
                       <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
+
+                      {/* 3. TIMESTAMP */}
                       <td className="px-3 py-4 text-[10px] font-mono text-slate-600 font-medium">{doc.timestamp}</td>
+
+                      {/* 4. STATUS: DISTINCT DOT PILL */}
                       <td className="px-3 py-4">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <StatusPill status={doc.status} />
-                          {doc.isDuplicate && (
-                            <span
-                              title={doc.duplicateReason || `Duplicate of ${doc.duplicateOf}`}
-                              className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 ring-1 ring-purple-200"
-                            >
-                              Duplicate
+                        <div className="inline-flex items-center gap-1.5">
+                          {doc.status === "Processed" && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-200">
+                              <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                              Processed
+                            </span>
+                          )}
+                          {doc.status === "Routed to IVR" && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-800 ring-1 ring-blue-200">
+                              <span className="h-2 w-2 rounded-full bg-blue-600" />
+                              Routed to IVR
+                            </span>
+                          )}
+                          {(doc.status === "Needs Review" || doc.status === "HIL Review") && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-900 ring-1 ring-amber-200">
+                              <span className="h-2 w-2 rounded-full bg-amber-500" />
+                              Needs Review
+                            </span>
+                          )}
+                          {(doc.status === "Validation failed" || doc.status === "Failed") && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-800 ring-1 ring-rose-200">
+                              <span className="h-2 w-2 rounded-full bg-rose-600" />
+                              Failed
+                            </span>
+                          )}
+                          {(doc.status === "Queued" || doc.status === "Processing") && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-800 ring-1 ring-sky-200">
+                              <span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
+                              {doc.status}
                             </span>
                           )}
                         </div>
                       </td>
+
+                      {/* 5. TAGS: SEPARATE COLUMN, ONLY SHOWS DUPLICATE PILL OR DASH */}
+                      <td className="px-3 py-4">
+                        {doc.isDuplicate ? (
+                          <span
+                            title={doc.duplicateReason || `Duplicate of ${doc.duplicateOf}`}
+                            className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-[11px] font-bold text-purple-700 ring-1 ring-purple-200"
+                          >
+                            Duplicate
+                          </span>
+                        ) : (
+                          <span className="text-[12px] text-slate-300">—</span>
+                        )}
+                      </td>
+
+                      {/* 6. CONFIDENCE (PROD TEXT STYLING) */}
                       <td className="px-3 py-4 text-[10px] text-slate-600 font-semibold">{doc.confidence}</td>
+
+                      {/* 7. PAGES */}
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
+
+                      {/* 8. RECEIVED */}
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
-                      <td className="px-5 py-4">
+
+                      {/* 9. ACTION */}
+                      <td className="px-5 py-4 text-right">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -432,6 +563,71 @@ export default function DocumentsPage({
             />
           </div>
         )}
+
+        {/* 4. PAGINATION: EXACT BOTTOM < 1 2 3 ... > NAVIGATION */}
+        {sorted.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between border-t border-slate-100 px-5 py-3.5 text-[12px] text-slate-500">
+            <div>
+              Showing <span className="font-bold text-slate-700">{(page - 1) * pageSize + 1}</span>-
+              <span className="font-bold text-slate-700">{Math.min(page * pageSize, sorted.length)}</span> of{" "}
+              <span className="font-bold text-slate-700">{sorted.length}</span> results
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Previous page"
+              >
+                <ChevronLeft size={15} />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .slice(0, 5)
+                .map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={cn(
+                      "flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[12px] font-bold transition",
+                      p === page
+                        ? "border border-blue-600 bg-blue-50 text-blue-700"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+              {totalPages > 5 && (
+                <>
+                  <span className="px-1 text-slate-400">…</span>
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    className={cn(
+                      "flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[12px] font-bold transition",
+                      totalPages === page
+                        ? "border border-blue-600 bg-blue-50 text-blue-700"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    )}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Next page"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Upload Document Modal */}
@@ -447,7 +643,7 @@ export default function DocumentsPage({
               const ids = new Set(newDocs.map((n) => n.id));
               return [...newDocs, ...prev.filter((p) => !ids.has(p.id))];
             });
-            setStatus("All statuses");
+            setStatusFilter("all");
             setQuery("");
           }
           void poller.refresh();

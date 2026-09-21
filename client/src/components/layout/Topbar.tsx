@@ -12,7 +12,6 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
   Server,
   X,
 } from "lucide-react";
@@ -102,14 +101,6 @@ export function Topbar({
           </span>
         </div>
         */}
-
-        <label className="hidden h-9 w-[245px] items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 shadow-sm lg:flex focus-within:border-[#47a2b0] focus-within:ring-1 focus-within:ring-[#47a2b0]">
-          <Search size={15} className="text-stone-400" />
-          <input
-            className="w-full bg-transparent text-[11px] outline-none placeholder:text-stone-400"
-            placeholder="Search documents, IDs, fields..."
-          />
-        </label>
 
         {/* NOTIFICATIONS DROPDOWN */}
         <div className="relative" ref={notificationsRef}>
