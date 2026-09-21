@@ -164,18 +164,30 @@ export default function DocumentsPage({
     return ["All Document Types", ...sorted];
   }, [allDocuments]);
 
-  const filtered = useMemo(
-    () =>
-      allDocuments.filter((d) => {
-        const matchesQuery = `${d.id} ${d.file} ${d.type} ${d.source || ""} ${d.timestamp || ""}`
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return allDocuments.filter((d) => {
+      const matchesQuery =
+        !q ||
+        `${d.id} ${d.file} ${d.type} ${d.source || ""} ${d.timestamp || ""} ${d.status || ""} ${d.confidence || ""} ${d.isDuplicate ? "duplicate" : ""}`
           .toLowerCase()
-          .includes(query.toLowerCase());
-        const matchesStatus = status === "All statuses" || d.status === status;
-        const matchesType = docType === "All Document Types" || d.type === docType;
-        return matchesQuery && matchesStatus && matchesType;
-      }),
-    [allDocuments, query, status, docType]
-  );
+          .includes(q);
+
+      const matchesStatus =
+        status === "All statuses" ||
+        (status === "Needs Review" && (d.status === "Needs Review" || d.status === "HIL Review")) ||
+        (status === "HIL Review" && (d.status === "HIL Review" || d.status === "Needs Review")) ||
+        (status === "Duplicate" && (d.isDuplicate || d.status === "Duplicate")) ||
+        (status === "Validation failed" && (d.status === "Validation failed" || d.status === "Failed")) ||
+        (d.status && d.status.toLowerCase().trim() === status.toLowerCase().trim());
+
+      const matchesType =
+        docType === "All Document Types" ||
+        (d.type && d.type.toLowerCase().trim() === docType.toLowerCase().trim());
+
+      return matchesQuery && matchesStatus && matchesType;
+    });
+  }, [allDocuments, query, status, docType]);
 
   return (
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
@@ -202,14 +214,14 @@ export default function DocumentsPage({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400"
-              placeholder="Search by ID, filename, patient/vendor, type, or timestamp"
+              placeholder="Search by ID, filename, status, type, timestamp..."
             />
           </label>
 
           <select
             value={docType}
             onChange={(e) => setDocType(e.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none"
+            className="h-9 min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none cursor-pointer"
           >
             {availableDocTypes.map((t) => (
               <option key={t} value={t}>
@@ -221,15 +233,17 @@ export default function DocumentsPage({
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none"
+            className="h-9 min-w-[130px] rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none cursor-pointer"
           >
-            <option>All statuses</option>
-            <option>Processed</option>
-            <option>Needs Review</option>
-            <option>Routed to IVR</option>
-            <option>Validation failed</option>
-            <option>Processing</option>
-            <option>Queued</option>
+            <option value="All statuses">All statuses</option>
+            <option value="Processed">Processed</option>
+            <option value="Needs Review">Needs Review</option>
+            <option value="HIL Review">HIL Review</option>
+            <option value="Duplicate">Duplicate</option>
+            <option value="Routed to IVR">Routed to IVR</option>
+            <option value="Processing">Processing</option>
+            <option value="Queued">Queued</option>
+            <option value="Validation failed">Validation failed</option>
           </select>
 
           <button
