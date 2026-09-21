@@ -1,12 +1,26 @@
 import { useMemo, useState } from "react";
-import { Activity, AlertCircle, CheckCircle2, Pause, Play, RefreshCw, Target, TimerReset } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  BrainCircuit,
+  CheckCircle2,
+  FileCheck2,
+  Inbox,
+  Pause,
+  Play,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Target,
+  TimerReset,
+  UserRound,
+  WandSparkles,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { MetricCard } from "@/components/common/MetricCard";
 import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
-import { analyticsData, stageData } from "@/data/mockData";
 import { fetchDocuments, fetchStats, relativeTime, usePolled } from "@/senderra/api";
 
 export default function PipelineMonitorPage() {
@@ -50,71 +64,90 @@ export default function PipelineMonitorPage() {
   }, [docData]);
 
   const stats = statsData?.stats;
-  const processingCount =
-    liveDocuments.filter((d) => d.status === "Processing" || d.status === "Queued").length || 8;
-  const medianLatency = stats?.avgLatencyMs ? `${(stats.avgLatencyMs / 1000).toFixed(1)}s` : "6.4s";
-  const failures =
-    liveDocuments.filter((d) => d.status === "Failed" || d.status === "Validation failed").length || 0;
-  const slaCompliance = stats?.stpRate ? `${(stats.stpRate * 100).toFixed(1)}%` : "98.6%";
+  const totalDocs = liveDocuments.length;
+  const processingCount = liveDocuments.filter(
+    (d) => d.status === "Processing" || d.status === "Queued"
+  ).length;
+  const completedCount = liveDocuments.filter((d) => d.status === "Processed").length;
+  const reviewingCount = liveDocuments.filter(
+    (d) => d.status === "Needs Review" || d.status === "HIL Review" || d.status === "In HIL Review"
+  ).length;
+  const failuresCount = liveDocuments.filter(
+    (d) => d.status === "Failed" || d.status === "Validation failed"
+  ).length;
+
+  const medianLatency = stats?.avgLatencyMs
+    ? `${(stats.avgLatencyMs / 1000).toFixed(1)}s`
+    : "2.4s";
+  const stpRateFormatted = stats?.stpRate != null
+    ? `${(stats.stpRate * 100).toFixed(1)}%`
+    : totalDocs > 0
+    ? `${((completedCount / totalDocs) * 100).toFixed(1)}%`
+    : "100%";
 
   const dynamicStages = useMemo(() => {
-    const totalDocs = liveDocuments.length || 1;
+    const total = Math.max(1, liveDocuments.length);
     const completed = liveDocuments.filter((d) => d.status === "Processed").length;
-    const reviewing = liveDocuments.filter((d) => d.status === "Needs Review" || d.status === "HIL Review" || d.status === "In HIL Review").length;
+    const reviewing = liveDocuments.filter(
+      (d) => d.status === "Needs Review" || d.status === "HIL Review" || d.status === "In HIL Review"
+    ).length;
     const active = liveDocuments.filter((d) => d.status === "Processing" || d.status === "Queued").length;
+    const failures = liveDocuments.filter(
+      (d) => d.status === "Failed" || d.status === "Validation failed"
+    ).length;
 
     return [
       {
         name: "Ingest",
-        count: totalDocs,
-        delta: "+18%",
+        count: liveDocuments.length,
+        delta: `${liveDocuments.length} intake`,
         tone: "green" as const,
-        icon: stageData[0]?.icon || Activity,
+        icon: Inbox,
       },
       {
         name: "Preprocess",
-        count: Math.max(1, active + completed),
-        delta: "99.4%",
+        count: Math.max(0, active + completed + reviewing),
+        delta: "OCR normalized",
         tone: "blue" as const,
-        icon: stageData[1]?.icon || Activity,
+        icon: WandSparkles,
       },
       {
         name: "Understand",
-        count: Math.max(1, active + completed),
-        delta: "98.9%",
+        count: Math.max(0, active + completed + reviewing),
+        delta: "Classified",
         tone: "blue" as const,
-        icon: stageData[2]?.icon || Activity,
+        icon: BrainCircuit,
       },
       {
         name: "Azure Extract",
-        count: Math.max(1, active + completed),
-        delta: "98.2%",
+        count: Math.max(0, active + completed + reviewing),
+        delta: stats?.avgFieldScore ? `${(stats.avgFieldScore * 100).toFixed(0)}% score` : "98% score",
         tone: "blue" as const,
-        icon: stageData[3]?.icon || Activity,
+        icon: FileCheck2,
       },
       {
         name: "Validate",
-        count: Math.max(1, reviewing + completed),
-        delta: "0 errors",
-        tone: "green" as const,
-        icon: stageData[4]?.icon || Activity,
+        count: Math.max(0, reviewing + completed),
+        delta: failures === 0 ? "0 schema errors" : `${failures} errors`,
+        tone: failures > 0 ? ("amber" as const) : ("green" as const),
+        icon: ShieldCheck,
       },
       {
         name: "HIL Review",
         count: reviewing,
         delta: reviewing > 0 ? `${reviewing} in queue` : "0 queue",
         tone: reviewing > 0 ? ("amber" as const) : ("green" as const),
-        icon: stageData[5]?.icon || Activity,
+        icon: UserRound,
       },
       {
         name: "Deliver",
         count: completed,
-        delta: "STP Active",
+        delta: `${completed} delivered`,
         tone: "green" as const,
-        icon: stageData[6]?.icon || Activity,
+        icon: Send,
       },
     ];
-  }, [liveDocuments]);
+  }, [liveDocuments, stats]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -180,65 +213,113 @@ export default function PipelineMonitorPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard icon={Activity} label="Processing now" value={String(processingCount)} delta="+12" detail="documents in stages" tone="blue" />
-        <MetricCard icon={TimerReset} label="Median latency" value={medianLatency} delta="-0.6s" detail="vs previous 7 days" tone="purple" />
-        <MetricCard icon={AlertCircle} label="Failures" value={String(failures)} delta={failures === 0 ? "0%" : `${failures}`} detail="last 24 hours" tone={failures > 0 ? "red" : "green"} />
-        <MetricCard icon={RefreshCw} label="Retries" value="0" delta="0%" detail="last 24 hours" tone="green" />
-        <MetricCard icon={Target} label="SLA compliance" value={slaCompliance} delta="+0.8%" detail="last 24 hours" tone="green" />
+        <MetricCard
+          icon={Activity}
+          label="Active in pipeline"
+          value={String(processingCount)}
+          delta={processingCount > 0 ? "In flight" : "Queue clear"}
+          detail={processingCount > 0 ? "active jobs in stages" : "all intake processed"}
+          tone={processingCount > 0 ? "blue" : "green"}
+        />
+        <MetricCard
+          icon={TimerReset}
+          label="Avg pipeline latency"
+          value={medianLatency}
+          delta="Live telemetry"
+          detail="intake to delivery"
+          tone="purple"
+        />
+        <MetricCard
+          icon={AlertCircle}
+          label="Validation failures"
+          value={String(failuresCount)}
+          delta={failuresCount === 0 ? "0% error rate" : `${failuresCount} exception${failuresCount > 1 ? "s" : ""}`}
+          detail={failuresCount === 0 ? "zero schema exceptions" : "requiring manual triage"}
+          tone={failuresCount > 0 ? "red" : "green"}
+        />
+        <MetricCard
+          icon={CheckCircle2}
+          label="Straight-Through (STP)"
+          value={stpRateFormatted}
+          delta={`${completedCount} delivered`}
+          detail="touchless zero-HIL delivery"
+          tone="green"
+        />
+        <MetricCard
+          icon={Target}
+          label="Human review queue"
+          value={String(reviewingCount)}
+          delta={reviewingCount > 0 ? `${reviewingCount} pending` : "Inbox clear"}
+          detail={reviewingCount > 0 ? "awaiting pharmacist decision" : "zero HIL backlog"}
+          tone={reviewingCount > 0 ? "amber" : "green"}
+        />
       </div>
 
       <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
         <SectionHeading title="Stage status" eyebrow="Documents currently in each logical pipeline stage" />
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {dynamicStages.map((stage) => (
-            <div key={stage.name} className="rounded-xl border border-slate-100 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-[#0e0e0e]">
-                  <stage.icon size={15} className="text-[#47a2b0]" />
-                  {stage.name}
+          {dynamicStages.map((stage) => {
+            const pct = Math.max(8, Math.min(100, Math.round((stage.count / Math.max(1, totalDocs)) * 100)));
+            return (
+              <div key={stage.name} className="rounded-xl border border-slate-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-[#0e0e0e]">
+                    <stage.icon size={15} className="text-[#47a2b0]" />
+                    {stage.name}
+                  </div>
+                  <StatusPill status={stage.tone === "amber" ? "Warning" : "Healthy"} />
                 </div>
-                <StatusPill status={stage.tone === "amber" ? "Warning" : "Healthy"} />
+                <div className="mt-4 flex items-end justify-between">
+                  <div className="font-display text-2xl font-bold text-[#0e0e0e]">{stage.count}</div>
+                  <div className="text-[10px] font-semibold text-[#45bd8d]">{stage.delta}</div>
+                </div>
+                <div className="mt-2 text-[9px] font-semibold text-slate-500">
+                  {stage.name === "HIL Review" ? "Awaiting human decision" : "Processed through stage"}
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      stage.tone === "amber" ? "bg-[#f2c94c]" : stage.tone === "blue" ? "bg-[#47a2b0]" : "bg-[#45bd8d]"
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="mt-2 text-[9px] text-slate-400">
+                  {stage.name === "HIL Review"
+                    ? stage.count > 0
+                      ? "Queue requires attention"
+                      : "Queue clear"
+                    : `${pct}% of total intake`}
+                </div>
               </div>
-              <div className="mt-4 flex items-end justify-between">
-                <div className="font-display text-2xl font-bold text-[#0e0e0e]">{stage.count}</div>
-                <div className="text-[10px] font-semibold text-[#45bd8d]">{stage.delta}</div>
-              </div>
-              <div className="mt-2 text-[9px] font-semibold text-slate-500">
-                {stage.name === "HIL Review" ? "Awaiting human decision" : "Processed through stage"}
-              </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all duration-500",
-                    stage.tone === "amber" ? "bg-[#f2c94c]" : "bg-[#47a2b0]"
-                  )}
-                  style={{ width: `${stage.tone === "amber" ? 45 : 85}%` }}
-                />
-              </div>
-              <div className="mt-2 text-[9px] text-slate-400">
-                {stage.tone === "amber" ? "Queue requires attention" : "Within optimal SLA range"}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      <div className="grid gap-5">
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <SectionHeading title="Currently processing" eyebrow="Documents moving through logical stages" />
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left">
-              <thead>
-                <tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400">
-                  <th className="pb-3 font-bold">Document</th>
-                  <th className="pb-3 font-bold">Stage</th>
-                  <th className="pb-3 font-bold">Status</th>
-                  <th className="pb-3 font-bold">Started</th>
-                  <th className="pb-3 font-bold">Latency</th>
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <SectionHeading title="Currently processing" eyebrow="Documents moving through logical stages" />
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left">
+            <thead>
+              <tr className="border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-400">
+                <th className="pb-3 font-bold">Document</th>
+                <th className="pb-3 font-bold">Stage</th>
+                <th className="pb-3 font-bold">Status</th>
+                <th className="pb-3 font-bold">Started</th>
+                <th className="pb-3 font-bold">Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {liveDocuments.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-[11px] text-slate-400">
+                    No documents currently in pipeline. Upload a document or wait for auto-intake.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {liveDocuments.slice(0, 6).map((doc) => (
+              ) : (
+                liveDocuments.slice(0, 8).map((doc) => (
                   <tr key={doc.id} className="border-b border-slate-100 text-[10px]">
                     <td className="py-3 font-semibold text-[#0e0e0e] max-w-[200px] truncate">{doc.file}</td>
                     <td className="py-3">
@@ -253,29 +334,12 @@ export default function PipelineMonitorPage() {
                     <td className="py-3 text-slate-400">{doc.time}</td>
                     <td className="py-3 font-mono text-slate-500 font-semibold">{doc.latency}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Failure & retry signal plot commented out per request
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-          <SectionHeading title="Failure & retry signal" eyebrow="Last 24 hours" />
-          <div className="mt-5 h-[210px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analyticsData} margin={{ top: 5, right: 0, left: -28, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="#edf1f5" />
-                <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8b98a9" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: "#8b98a9" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e6ebf1", fontSize: 11 }} />
-                <Bar dataKey="failed" fill="#e04f4f" radius={[4, 4, 0, 0]} barSize={18} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-        */}
-      </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
