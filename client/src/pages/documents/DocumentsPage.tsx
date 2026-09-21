@@ -329,61 +329,53 @@ export default function DocumentsPage({
             </label>
 
             {/* DATE PICKER DROPDOWN */}
-            <div className="relative">
-              <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 cursor-pointer">
-                <Calendar size={14} className="text-slate-500" />
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="appearance-none bg-transparent text-[12px] font-semibold text-slate-700 outline-none cursor-pointer pr-1"
-                >
-                  <option value="all">Sep 21, 2026 (All)</option>
-                  <option value="today">Sep 21, 2026 (Today)</option>
-                  <option value="7days">Last 7 Days</option>
-                  <option value="30days">Last 30 Days</option>
-                </select>
-                <ChevronDown size={13} className="text-slate-400 pointer-events-none" />
-              </label>
+            <div className="relative flex items-center">
+              <Calendar size={14} className="pointer-events-none absolute left-3 text-slate-500 z-10" />
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="appearance-none h-10 rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-[12px] font-semibold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
+              >
+                <option value="all">Sep 21, 2026 (All)</option>
+                <option value="today">Sep 21, 2026 (Today)</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+              </select>
+              <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
             </div>
 
             {/* COMPACT STATUS DROPDOWN */}
-            <div className="relative">
-              <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 cursor-pointer">
-                <span className="text-slate-400 font-normal">Status:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none bg-transparent text-[12px] font-bold text-slate-800 outline-none cursor-pointer pr-1"
-                >
-                  <option value="all">All statuses</option>
-                  <option value="processed">Processed</option>
-                  <option value="ivr">Routed to IVR</option>
-                  <option value="duplicate">Duplicate</option>
-                  <option value="review">Needs Review</option>
-                  <option value="failed">Failed</option>
-                </select>
-                <ChevronDown size={13} className="text-slate-400 pointer-events-none" />
-              </label>
+            <div className="relative flex items-center">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-7 text-[12px] font-semibold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
+              >
+                <option value="all">Status: All statuses</option>
+                <option value="processed">Status: Processed</option>
+                <option value="ivr">Status: Routed to IVR</option>
+                <option value="duplicate">Status: Duplicate</option>
+                <option value="review">Status: Needs Review</option>
+                <option value="failed">Status: Failed</option>
+              </select>
+              <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
             </div>
           </div>
 
           {/* RIGHT: SORT BY DROPDOWN, RESET, EXPORT */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[12px] font-semibold text-slate-500">Sort by</span>
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-[12px] font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
-                >
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                  <option value="highest_confidence">Highest confidence</option>
-                  <option value="lowest_confidence">Lowest confidence</option>
-                </select>
-                <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              </div>
+            <div className="relative flex items-center">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="appearance-none h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-7 text-[12px] font-semibold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
+              >
+                <option value="newest">Sort by: Newest first</option>
+                <option value="oldest">Sort by: Oldest first</option>
+                <option value="highest_confidence">Sort by: Highest confidence</option>
+                <option value="lowest_confidence">Sort by: Lowest confidence</option>
+              </select>
+              <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
             </div>
 
             <button
