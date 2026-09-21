@@ -1,16 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-  completeChat,
-  fillTemplate,
-  loadSolutionsV2Prompt,
-  type ChatMessage,
-} from "./chatCompletions.js";
-import { commitFilesToGitHub, type ApiResult } from "./solutionsApi.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import yaml from "yaml";
+import { uploadAssetsToFileShare, deleteTypeFromFileShare } from "./azureFileShare.js";
+
+const execFileAsync = promisify(execFile);
 
 const FIELD_TYPES = new Set(["string", "date", "number", "boolean"]);
 const GUIDANCE_FILE = "pacca_guidance.json";
-const ANALYZERS_PREFIX = "analyzers/out";
 
 export type CatalogField = {
   name: string;
@@ -29,26 +27,42 @@ export type CatalogType = {
 
 export type Catalog = { types: CatalogType[] };
 
+export type ApiResult = { status: number; body: Record<string, unknown> };
+
 function jsonError(status: number, message: string, extra?: Record<string, unknown>): ApiResult {
   return { status, body: { ok: false, error: message, ...extra } };
 }
 
-function projectRoot(): string {
-  return process.cwd();
+function getRepoRoot(): string {
+  const cwd = process.cwd();
+  if (fs.existsSync(path.join(cwd, "..", "analyzers", "senderra-analyzers.yaml"))) {
+    return path.resolve(cwd, "..");
+  }
+  return cwd;
 }
 
-function outDir(): string {
+function getYamlPath(): string {
+  return path.join(getRepoRoot(), "analyzers", "senderra-analyzers.yaml");
+}
+
+function getGapYamlPath(): string {
+  return path.join(getRepoRoot(), "analyzers", "ivr_gap_routing.yaml");
+}
+
+function getBuildPromptsPath(): string {
+  return path.join(getRepoRoot(), "analyzers", "build_prompts.py");
+}
+
+function getCanonicalOutDir(): string {
+  return path.join(getRepoRoot(), "analyzers", "out");
+}
+
+function getAppOutDir(): string {
   return path.join(process.cwd(), "analyzers", "out");
 }
 
-function localPath(relative: string): string {
-  const resolved = path.resolve(outDir(), relative);
-  const root = path.resolve(outDir());
-  const rel = path.relative(root, resolved);
-  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
-    throw new Error("Path escaped analyzers/out.");
-  }
-  return resolved;
+function getFaAssetsDir(): string {
+  return path.join(getRepoRoot(), "senderra-idp-fa", "assets");
 }
 
 export function toTypeKey(name: string): string {
@@ -75,49 +89,6 @@ function humanizeKey(key: string): string {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
-function uiTypeFromClass(value: string): string {
-  const lowered = value.toLowerCase();
-  if (lowered === "date" || lowered === "datetime") return "date";
-  if (lowered === "number" || lowered === "integer" || lowered === "money" || lowered === "amount") return "number";
-  if (lowered === "boolean" || lowered === "bool") return "boolean";
-  return "string";
-}
-
-function uiTypeFromSchema(schema: unknown): string {
-  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return "string";
-  const node = schema as { type?: unknown; format?: unknown };
-  const rawType = Array.isArray(node.type) ? String(node.type.find((item) => item !== "null") ?? "string") : String(node.type ?? "string");
-  if (rawType === "number" || rawType === "integer") return "number";
-  if (rawType === "boolean") return "boolean";
-  if (node.format === "date" || node.format === "date-time") return "date";
-  return "string";
-}
-
-function isCatalogField(value: unknown): value is CatalogField {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const field = value as Record<string, unknown>;
-  const type = typeof field.type === "string" ? uiTypeFromClass(field.type) : "string";
-  return (
-    typeof field.name === "string" &&
-    field.name.trim().length > 0 &&
-    FIELD_TYPES.has(type) &&
-    (typeof field.required === "boolean" || field.required === undefined)
-  );
-}
-
-function isCatalogType(value: unknown): value is CatalogType {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const item = value as Record<string, unknown>;
-  return (
-    typeof item.key === "string" &&
-    /^[A-Za-z][A-Za-z0-9]*$/.test(item.key) &&
-    typeof item.name === "string" &&
-    item.name.trim().length > 0 &&
-    Array.isArray(item.fields) &&
-    item.fields.every(isCatalogField)
-  );
-}
-
 function defaultDepartmentForType(key: string): string {
   const k = key.toLowerCase();
   if (k.includes("prescription") || k.includes("rx") || k.includes("pharmacy") || k.includes("pbm")) {
@@ -141,72 +112,27 @@ function defaultDepartmentForType(key: string): string {
   return "General Operations";
 }
 
-function normalizeType(item: CatalogType): CatalogType {
-  return {
-    key: item.key,
-    name: item.name.trim(),
-    department: item.department ? item.department.trim() : defaultDepartmentForType(item.key),
-    guidance: typeof item.guidance === "string" ? item.guidance : "",
-    fields: item.fields.map((field) => ({
-      name: field.name.trim(),
-      type: FIELD_TYPES.has(field.type) ? field.type : uiTypeFromClass(field.type),
-      required: Boolean(field.required),
-      class: typeof field.class === "string" && field.class ? field.class : field.type,
-    })),
-  };
-}
-
-function readLocal(relative: string): string | null {
-  const filePath = localPath(relative);
-  if (!fs.existsSync(filePath)) return null;
-  return fs.readFileSync(filePath, "utf8");
-}
-
-function writeLocal(relative: string, content: string): void {
-  try {
-    const filePath = localPath(relative);
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, content.endsWith("\n") ? content : `${content}\n`, "utf8");
-  } catch (error) {
-    const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
-    if (code === "EROFS" || code === "EACCES" || code === "EPERM") return;
-    throw error;
-  }
-}
-
-function deleteLocal(relative: string): void {
-  try {
-    const filePath = localPath(relative);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  } catch {
-    /* ignore */
-  }
-}
-
-type MetadataEntry = { guidance: string; department?: string };
-
-function readGuidanceMap(): Record<string, MetadataEntry> {
-  const raw = readLocal(GUIDANCE_FILE);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const map: Record<string, MetadataEntry> = {};
-    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof value === "string") {
-        map[key] = { guidance: value, department: defaultDepartmentForType(key) };
-      } else if (value && typeof value === "object" && !Array.isArray(value)) {
-        const obj = value as { guidance?: unknown; department?: unknown };
-        map[key] = {
-          guidance: typeof obj.guidance === "string" ? obj.guidance : "",
-          department:
-            typeof obj.department === "string" && obj.department.trim()
-              ? obj.department.trim()
-              : defaultDepartmentForType(key),
-        };
-      }
+function copyDirRecursive(src: string, dest: string) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
     }
-    return map;
+  }
+}
+
+function readGuidanceMap(): Record<string, { guidance: string; department?: string }> {
+  const guidancePath = path.join(getAppOutDir(), GUIDANCE_FILE);
+  if (!fs.existsSync(guidancePath)) return {};
+  try {
+    const raw = fs.readFileSync(guidancePath, "utf8");
+    return JSON.parse(raw);
   } catch {
     return {};
   }
@@ -222,437 +148,373 @@ function writeGuidanceMap(types: CatalogType[]): void {
       },
     ])
   );
-  writeLocal(GUIDANCE_FILE, JSON.stringify(map, null, 2));
-}
-
-function readSchema(typeKey: string): { properties: Record<string, unknown>; required: string[] } {
-  const raw = readLocal(`schemas/${typeKey}.json`);
-  if (!raw) return { properties: {}, required: [] };
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const schemaObj =
-      parsed.schema && typeof parsed.schema === "object" && !Array.isArray(parsed.schema)
-        ? (parsed.schema as Record<string, unknown>)
-        : parsed;
-    const properties =
-      schemaObj.properties && typeof schemaObj.properties === "object" && !Array.isArray(schemaObj.properties)
-        ? (schemaObj.properties as Record<string, unknown>)
-        : {};
-    const required = Array.isArray(schemaObj.required)
-      ? (schemaObj.required as unknown[]).filter((item): item is string => typeof item === "string")
-      : [];
-    return { properties, required };
-  } catch {
-    return { properties: {}, required: [] };
-  }
-}
-
-function fieldsFromClassMap(typeKey: string, value: unknown): CatalogField[] {
-  const schema = readSchema(typeKey);
-  const fields: CatalogField[] = [];
-  const seen = new Set<string>();
-
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const [name, spec] of Object.entries(value as Record<string, unknown>)) {
-      if (name.startsWith("_")) continue;
-      seen.add(name);
-      const className =
-        typeof spec === "string"
-          ? spec
-          : spec && typeof spec === "object" && !Array.isArray(spec) && typeof (spec as { class?: unknown }).class === "string"
-            ? String((spec as { class: string }).class)
-            : "string";
-      const typeFromSpec =
-        spec && typeof spec === "object" && !Array.isArray(spec) && typeof (spec as { type?: unknown }).type === "string"
-          ? uiTypeFromClass(String((spec as { type: string }).type))
-          : uiTypeFromClass(className);
-      const requiredFromSpec =
-        spec && typeof spec === "object" && !Array.isArray(spec) && typeof (spec as { required?: unknown }).required === "boolean"
-          ? Boolean((spec as { required: boolean }).required)
-          : schema.required.includes(name);
-      fields.push({
-        name,
-        type: schema.properties[name] ? uiTypeFromSchema(schema.properties[name]) : typeFromSpec,
-        required: requiredFromSpec,
-        class: className,
-      });
-    }
-  }
-
-  for (const name of Object.keys(schema.properties)) {
-    if (seen.has(name)) continue;
-    fields.push({
-      name,
-      type: uiTypeFromSchema(schema.properties[name]),
-      required: schema.required.includes(name),
-      class: uiTypeFromSchema(schema.properties[name]),
-    });
-  }
-  return fields;
-}
-
-function catalogFromFieldMeta(raw: string): Catalog | ApiResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw) as unknown;
-  } catch {
-    return jsonError(500, "field_meta.json is not valid JSON.");
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return jsonError(500, "field_meta.json must be a JSON object.");
-  }
-  const guidance = readGuidanceMap();
-  const root = parsed as Record<string, unknown>;
-
-  if (Array.isArray(root.types) && root.types.every(isCatalogType)) {
-    return {
-      types: (root.types as CatalogType[]).map((item) =>
-        normalizeType({
-          ...item,
-          department: item.department || guidance[item.key]?.department || defaultDepartmentForType(item.key),
-          guidance: item.guidance || guidance[item.key]?.guidance || "",
-        })
-      ),
-    };
-  }
-
-  const types: CatalogType[] = [];
-  for (const [key, value] of Object.entries(root)) {
-    if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key)) continue;
-    types.push(
-      normalizeType({
-        key,
-        name: humanizeKey(key),
-        department: guidance[key]?.department || defaultDepartmentForType(key),
-        guidance: guidance[key]?.guidance || "",
-        fields: fieldsFromClassMap(key, value),
-      })
-    );
-  }
-  return { types };
-}
-
-function idpTypeFromUi(type: string, previous?: string): string {
-  if (previous === "object" && type === "string") return "object";
-  if (type === "date") return "date";
-  if (type === "number") return "number";
-  if (type === "boolean") return "boolean";
-  return "string";
-}
-
-function serializeFieldMeta(catalog: Catalog): string {
-  let existing: Record<string, Record<string, unknown>> = {};
-  const raw = readLocal("field_meta.json");
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && !Array.isArray((parsed as { types?: unknown }).types)) {
-        existing = parsed as Record<string, Record<string, unknown>>;
-      }
-    } catch {
-      existing = {};
-    }
-  }
-  const native: Record<string, Record<string, unknown>> = {};
-  for (const item of catalog.types) {
-    const prevType =
-      existing[item.key] && typeof existing[item.key] === "object" && !Array.isArray(existing[item.key])
-        ? (existing[item.key] as Record<string, unknown>)
-        : {};
-    native[item.key] = {};
-    for (const field of item.fields) {
-      const prev = prevType[field.name];
-      const prevObj = prev && typeof prev === "object" && !Array.isArray(prev) ? (prev as Record<string, unknown>) : {};
-      const prevTypeName = typeof prevObj.type === "string" ? prevObj.type : undefined;
-      native[item.key][field.name] = {
-        doc_type: item.key,
-        class:
-          typeof prevObj.class === "string"
-            ? prevObj.class
-            : field.class && /^[A-D]$/.test(field.class)
-              ? field.class
-              : "B",
-        type: idpTypeFromUi(field.type, prevTypeName),
-        method: typeof prevObj.method === "string" ? prevObj.method : "extract",
-        enum: Object.prototype.hasOwnProperty.call(prevObj, "enum") ? prevObj.enum : null,
-        description: typeof prevObj.description === "string" ? prevObj.description : "",
-      };
-    }
-  }
-  return `${JSON.stringify(native, null, 2)}\n`;
-}
-
-function parseCatalogBody(types: unknown): Catalog | ApiResult {
-  if (!Array.isArray(types)) return jsonError(400, "types must be an array.");
-  const catalog: CatalogType[] = [];
-  for (const item of types) {
-    if (!isCatalogType(item)) return jsonError(400, "types must be an array of document types with valid fields.");
-    catalog.push(normalizeType({ ...item, guidance: typeof item.guidance === "string" ? item.guidance : "" }));
-  }
-  return { types: catalog };
-}
-
-async function readFileWithFallback(relative: string): Promise<string> {
-  return readLocal(relative) ?? "";
+  const guidancePath = path.join(getAppOutDir(), GUIDANCE_FILE);
+  fs.mkdirSync(path.dirname(guidancePath), { recursive: true });
+  fs.writeFileSync(guidancePath, JSON.stringify(map, null, 2), "utf8");
 }
 
 export async function getCatalog(): Promise<ApiResult> {
   try {
-    const raw = await readFileWithFallback("field_meta.json");
-    if (!raw.trim()) {
-      writeLocal("field_meta.json", "{}\n");
+    const fieldMetaPath = path.join(getAppOutDir(), "field_meta.json");
+    if (!fs.existsSync(fieldMetaPath)) {
+      const canonicalPath = path.join(getCanonicalOutDir(), "field_meta.json");
+      if (fs.existsSync(canonicalPath)) {
+        copyDirRecursive(getCanonicalOutDir(), getAppOutDir());
+      }
+    }
+
+    if (!fs.existsSync(fieldMetaPath)) {
       return { status: 200, body: { ok: true, types: [] } };
     }
-    const catalog = catalogFromFieldMeta(raw);
-    if ("status" in catalog) return catalog;
-    return { status: 200, body: { ok: true, types: catalog.types } };
-  } catch (error) {
-    return jsonError(500, error instanceof Error ? error.message : "Could not read field_meta.json.");
+
+    const raw = fs.readFileSync(fieldMetaPath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, Record<string, any>>;
+    const guidance = readGuidanceMap();
+    const types: CatalogType[] = [];
+
+    for (const [key, fieldsObj] of Object.entries(parsed)) {
+      if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)) continue;
+      const fields: CatalogField[] = [];
+      for (const [fieldName, fieldData] of Object.entries(fieldsObj)) {
+        if (fieldName.startsWith("_")) continue;
+        fields.push({
+          name: fieldName,
+          type: typeof fieldData.type === "string" ? fieldData.type : "string",
+          required: false,
+          class: typeof fieldData.class === "string" ? fieldData.class : "B",
+        });
+      }
+
+      types.push({
+        key,
+        name: humanizeKey(key),
+        department: guidance[key]?.department || defaultDepartmentForType(key),
+        guidance: guidance[key]?.guidance || "",
+        fields,
+      });
+    }
+
+    return { status: 200, body: { ok: true, types } };
+  } catch (error: any) {
+    return jsonError(500, error?.message || "Could not read field_meta.json");
   }
 }
 
-function persistCatalog(catalog: Catalog): ApiResult {
-  writeLocal("field_meta.json", serializeFieldMeta(catalog));
-  writeGuidanceMap(catalog.types);
-  return { status: 200, body: { ok: true, types: catalog.types } };
+export async function patchCatalog(body: any): Promise<ApiResult> {
+  if (!body || typeof body !== "object" || !Array.isArray(body.types)) {
+    return jsonError(400, "Request body must have a types array.");
+  }
+  const types: CatalogType[] = body.types;
+  writeGuidanceMap(types);
+  return { status: 200, body: { ok: true, types } };
 }
 
-export async function patchCatalog(body: unknown): Promise<ApiResult> {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return jsonError(400, "Request body must be a JSON object.");
-  }
-  const catalog = parseCatalogBody((body as { types?: unknown }).types);
-  if ("status" in catalog) return catalog;
+export async function deleteDocumentType(body: any): Promise<ApiResult> {
+  const typeKey = String(body?.typeKey ?? "").trim();
+  if (!typeKey) return jsonError(400, "typeKey is required.");
+
   try {
-    return persistCatalog(catalog);
-  } catch (error) {
-    return jsonError(500, error instanceof Error ? error.message : "Could not write field_meta.json.");
-  }
-}
+    // 1. Delete local prompt and schema files in all asset directories
+    const localDirs = [getCanonicalOutDir(), getAppOutDir(), getFaAssetsDir()];
+    for (const dir of localDirs) {
+      const promptFile = path.join(dir, "prompts", `${typeKey}.txt`);
+      const schemaFile = path.join(dir, "schemas", `${typeKey}.json`);
+      if (fs.existsSync(promptFile)) fs.unlinkSync(promptFile);
+      if (fs.existsSync(schemaFile)) fs.unlinkSync(schemaFile);
+    }
 
-function stripClassificationEnum(typeKey: string): void {
-  const raw = readLocal("schemas/_classification.json");
-  if (!raw) return;
-  try {
-    const parsed = JSON.parse(raw) as {
-      properties?: { doc_type?: { enum?: unknown } };
-    };
-    const list = parsed.properties?.doc_type?.enum;
-    if (!Array.isArray(list)) return;
-    parsed.properties!.doc_type!.enum = list.filter((item) => item !== typeKey);
-    writeLocal("schemas/_classification.json", JSON.stringify(parsed, null, 2));
-  } catch {
-    /* leave file */
-  }
-}
+    // 2. Remove from senderra-analyzers.yaml
+    const yamlPath = getYamlPath();
+    if (fs.existsSync(yamlPath)) {
+      const doc = yaml.parseDocument(fs.readFileSync(yamlPath, "utf8"));
+      doc.deleteIn(["classification", "categories", typeKey]);
 
-export async function deleteDocumentType(body: unknown): Promise<ApiResult> {
-  const typeKey = String((body as { typeKey?: unknown } | null)?.typeKey ?? "").trim();
-  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(typeKey)) {
-    return jsonError(400, "typeKey must be a camelCase identifier.");
-  }
-  const catalogResult = await getCatalog();
-  if (catalogResult.status !== 200) return catalogResult;
-  const types = ((catalogResult.body.types as CatalogType[]) ?? []).filter((item) => item.key !== typeKey);
-  persistCatalog({ types });
-  deleteLocal(`schemas/${typeKey}.json`);
-  deleteLocal(`prompts/${typeKey}.txt`);
-  stripClassificationEnum(typeKey);
+      const typesNode = doc.get("types") as yaml.YAMLSeq;
+      if (typesNode && Array.isArray(typesNode.items)) {
+        const idx = typesNode.items.findIndex((item: any) => item?.get?.("key") === typeKey || item?.key === typeKey);
+        if (idx >= 0) typesNode.delete(idx);
+      }
+      fs.writeFileSync(yamlPath, doc.toString(), "utf8");
 
-  const committed = await commitFilesToGitHub(
-    [{ path: `${ANALYZERS_PREFIX}/field_meta.json`, content: serializeFieldMeta({ types }) }],
-    `chore(analyzers): remove ${typeKey} from PACCA Solutions V2`,
-    [`${ANALYZERS_PREFIX}/schemas/${typeKey}.json`, `${ANALYZERS_PREFIX}/prompts/${typeKey}.txt`]
-  );
-  if (committed.status >= 400) {
+      const appYamlPath = path.join(process.cwd(), "analyzers", "senderra-analyzers.yaml");
+      if (appYamlPath !== yamlPath) {
+        fs.mkdirSync(path.dirname(appYamlPath), { recursive: true });
+        fs.writeFileSync(appYamlPath, doc.toString(), "utf8");
+      }
+    }
+
+    // 3. Remove from ivr_gap_routing.yaml
+    const gapYamlPath = getGapYamlPath();
+    if (fs.existsSync(gapYamlPath)) {
+      const gapDoc = yaml.parseDocument(fs.readFileSync(gapYamlPath, "utf8"));
+      gapDoc.deleteIn(["call_flows", typeKey]);
+      fs.writeFileSync(gapYamlPath, gapDoc.toString(), "utf8");
+    }
+
+    // 4. Run build_prompts.py to recompile type_catalog, _classification, field_meta, manifest
+    await execFileAsync("python", [getBuildPromptsPath()], { cwd: getRepoRoot() });
+
+    // 5. Sync out dirs
+    copyDirRecursive(getCanonicalOutDir(), getAppOutDir());
+    copyDirRecursive(getCanonicalOutDir(), getFaAssetsDir());
+
+    // 6. Delete specific prompt/schema files from Azure File Share
+    await deleteTypeFromFileShare(typeKey);
+
+    // 7. Push refreshed catalog, manifest, field_meta, and schemas to Azure Files
+    await uploadAssetsToFileShare(getCanonicalOutDir());
+
+    const catalog = await getCatalog();
     return {
       status: 200,
       body: {
         ok: true,
-        types,
-        warning: String(committed.body.error ?? "Type removed locally. GitHub delete failed."),
-        github: committed.body,
+        typeKey,
+        steps: [
+          "local_files_deleted",
+          "senderra_analyzers_yaml_updated",
+          "ivr_gap_routing_yaml_updated",
+          "build_prompts_recompiled",
+          "fileshare_type_files_deleted",
+          "fileshare_assets_synced",
+        ],
+        types: catalog.body.types,
       },
     };
+  } catch (error: any) {
+    return jsonError(500, `Delete failed: ${error?.message || error}`);
   }
-  return { status: 200, body: { ok: true, types, ...committed.body } };
 }
 
-function loadStepPrompt(name: string): { template: string } | ApiResult {
-  const loaded = loadSolutionsV2Prompt(name);
-  if ("ok" in loaded) return jsonError(loaded.status, loaded.error);
-  return loaded;
+// LLM Generator using Azure OpenAI gpt-5.6-luna
+async function generateYamlWithLLM(selected: CatalogType): Promise<{
+  categoryDescription: string;
+  signals: string[];
+  typeDescription: string;
+  fieldDescriptions: Record<string, { class: string; type: string; method: string; description: string }>;
+}> {
+  const apiKey = process.env.OPENAI_API_KEY || "8dLKEYt2vwjNLSXetbfN2d0ddEPel8nD2GmyDYw0G3Cwb66SBDSGJQQJ99CHACYeBjFXJ3w3AAAAACOGJ5Ep";
+  const baseUrl = process.env.OPENAI_BASE_URL || "https://senderra-idp-fr.openai.azure.com/openai/deployments/gpt-5.6-luna";
+  const apiVersion = process.env.OPENAI_API_VERSION || "2024-06-01";
+
+  const prompt = `You are an expert compiler for the Senderra IDP YAML document analyzer specification.
+Given the following document type and field schema configured in PACCA Vision:
+
+Document Type Name: ${selected.name}
+Type Key: ${selected.key}
+Department: ${selected.department || "Clinical Operations"}
+Extraction Guidance & Rules: ${selected.guidance || "Extract accurate metadata adhering to standard clinical guidelines."}
+
+Fields:
+${JSON.stringify(selected.fields, null, 2)}
+
+Generate the exact specification components in JSON format:
+{
+  "categoryDescription": "Clear 2-4 sentence description for document classification (LLM call 1).",
+  "signals": ["5 to 7 specific text patterns or visual section headers to detect this document type."],
+  "typeDescription": "Comprehensive extraction instructions for LLM call 2.",
+  "fieldDescriptions": {
+    "<fieldName>": {
+      "class": "A|B|C|D",
+      "type": "string|date|number|boolean",
+      "method": "extract|classify|generate",
+      "description": "Precise instruction on where this field appears, label variations, and how to format the extracted value."
+    }
+  }
+}`;
+
+  try {
+    const url = `${baseUrl.replace(/\/+$/, "")}/chat/completions?api-version=${apiVersion}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: "You generate strict JSON specifications for the Senderra IDP YAML compiler. Only return valid JSON with no markdown wrap.",
+          },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content || "{}";
+      const parsed = JSON.parse(text);
+      if (parsed.categoryDescription && parsed.fieldDescriptions) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn("LLM generation failed, using deterministic fallback:", err);
+  }
+
+  // Robust Fallback
+  const fieldDescriptions: Record<string, any> = {};
+  for (const f of selected.fields) {
+    fieldDescriptions[f.name] = {
+      class: f.class || "A",
+      type: f.type || "string",
+      method: f.class === "D" ? "classify" : "extract",
+      description: `Extract ${humanizeKey(f.name)} as printed on the document.`,
+    };
+  }
+
+  return {
+    categoryDescription: selected.guidance || `A ${selected.name} document arriving in ${selected.department || "Clinical Operations"}.`,
+    signals: [
+      `"${selected.name}" title or header`,
+      ...selected.fields.slice(0, 5).map((f) => `"${humanizeKey(f.name)}" label or block`),
+    ],
+    typeDescription: selected.guidance || `Extracts fields from ${selected.name}.`,
+    fieldDescriptions,
+  };
 }
 
-async function runStep(
-  messages: ChatMessage[],
-  userText: string
-): Promise<{ text: string; model: string } | ApiResult> {
-  messages.push({ role: "user", content: userText });
-  const result = await completeChat(messages);
-  if (!result.ok) return jsonError(result.status, result.error);
-  messages.push({ role: "assistant", content: result.text });
-  return { text: result.text, model: result.model };
-}
-
-export async function saveDocumentType(body: unknown): Promise<ApiResult> {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return jsonError(400, "Request body must be a JSON object.");
-  }
-  const typeKey = String((body as { typeKey?: unknown }).typeKey ?? "").trim();
-  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(typeKey)) {
-    return jsonError(400, "typeKey must be a camelCase identifier.");
-  }
+export async function saveDocumentType(body: any): Promise<ApiResult> {
+  const typeKey = String(body?.typeKey ?? "").trim();
+  if (!typeKey) return jsonError(400, "typeKey is required.");
 
   const catalogResult = await getCatalog();
   if (catalogResult.status !== 200) return catalogResult;
   const types = (catalogResult.body.types as CatalogType[]) ?? [];
   const selected = types.find((item) => item.key === typeKey);
-  if (!selected) return jsonError(404, `Document type ${typeKey} was not found in field_meta.json.`);
-  if (!selected.fields.length) return jsonError(400, "Add at least one field before saving.");
+  if (!selected) return jsonError(404, `Document type ${typeKey} was not found in catalog.`);
 
-  const system = loadStepPrompt("system.txt");
-  if ("status" in system) return system;
-  const typeCatalogPrompt = loadStepPrompt("type-catalog.txt");
-  if ("status" in typeCatalogPrompt) return typeCatalogPrompt;
-  const classificationPrompt = loadStepPrompt("classification.txt");
-  if ("status" in classificationPrompt) return classificationPrompt;
-  const schemaPrompt = loadStepPrompt("schema.txt");
-  if ("status" in schemaPrompt) return schemaPrompt;
-  const promptPrompt = loadStepPrompt("prompt.txt");
-  if ("status" in promptPrompt) return promptPrompt;
-  const fieldMetaPrompt = loadStepPrompt("field-meta.txt");
-  if ("status" in fieldMetaPrompt) return fieldMetaPrompt;
-  const manifestPrompt = loadStepPrompt("manifest.txt");
-  if ("status" in manifestPrompt) return manifestPrompt;
+  try {
+    const yamlPath = getYamlPath();
+    if (!fs.existsSync(yamlPath)) {
+      return jsonError(500, `senderra-analyzers.yaml not found at ${yamlPath}`);
+    }
 
-  const fieldsJson = JSON.stringify(selected.fields, null, 2);
-  const vars = {
-    typeKey,
-    typeName: selected.name,
-    fieldsJson,
-    guidance: selected.guidance || "(none provided)",
-  };
-  const messages: ChatMessage[] = [{ role: "system", content: system.template }];
-  const changed: Array<{ path: string; relative: string; content: string }> = [];
-  let model = "";
+    // Step 1: Generate YAML content using Azure OpenAI gpt-5.6-luna
+    const generated = await generateYamlWithLLM(selected);
 
-  const typeCatalog = await readFileWithFallback("type_catalog.txt");
-  const catalogOut = await runStep(
-    messages,
-    fillTemplate(typeCatalogPrompt.template, { ...vars, file: typeCatalog })
-  );
-  if ("status" in catalogOut) return catalogOut;
-  model = catalogOut.model;
-  writeLocal("type_catalog.txt", catalogOut.text);
-  changed.push({ path: `${ANALYZERS_PREFIX}/type_catalog.txt`, relative: "type_catalog.txt", content: catalogOut.text });
+    // Step 2: Read and update senderra-analyzers.yaml using parseDocument (preserves existing formatting and quotes)
+    const doc = yaml.parseDocument(fs.readFileSync(yamlPath, "utf8"));
 
-  const classification = await readFileWithFallback("schemas/_classification.json");
-  const classOut = await runStep(
-    messages,
-    fillTemplate(classificationPrompt.template, { ...vars, file: classification })
-  );
-  if ("status" in classOut) return classOut;
-  writeLocal("schemas/_classification.json", classOut.text);
-  changed.push({
-    path: `${ANALYZERS_PREFIX}/schemas/_classification.json`,
-    relative: "schemas/_classification.json",
-    content: classOut.text,
-  });
-
-  const schemaFile = await readFileWithFallback(`schemas/${typeKey}.json`);
-  const schemaOut = await runStep(
-    messages,
-    fillTemplate(schemaPrompt.template, { ...vars, file: schemaFile })
-  );
-  if ("status" in schemaOut) return schemaOut;
-  writeLocal(`schemas/${typeKey}.json`, schemaOut.text);
-  changed.push({
-    path: `${ANALYZERS_PREFIX}/schemas/${typeKey}.json`,
-    relative: `schemas/${typeKey}.json`,
-    content: schemaOut.text,
-  });
-
-  const promptFile = await readFileWithFallback(`prompts/${typeKey}.txt`);
-  const promptOut = await runStep(
-    messages,
-    fillTemplate(promptPrompt.template, { ...vars, file: promptFile })
-  );
-  if ("status" in promptOut) return promptOut;
-  writeLocal(`prompts/${typeKey}.txt`, promptOut.text);
-  changed.push({
-    path: `${ANALYZERS_PREFIX}/prompts/${typeKey}.txt`,
-    relative: `prompts/${typeKey}.txt`,
-    content: promptOut.text,
-  });
-
-  const fieldMeta = await readFileWithFallback("field_meta.json");
-  const metaOut = await runStep(
-    messages,
-    fillTemplate(fieldMetaPrompt.template, { ...vars, file: fieldMeta })
-  );
-  if ("status" in metaOut) return metaOut;
-  const parsedMeta = catalogFromFieldMeta(metaOut.text);
-  if ("status" in parsedMeta) {
-    return jsonError(502, "Chat Completions returned invalid field_meta.json.", {
-      detail: parsedMeta.body.error,
+    doc.setIn(["classification", "categories", typeKey], {
+      description: generated.categoryDescription,
+      signals: generated.signals,
     });
+
+    const fieldsMap: Record<string, any> = {};
+    for (const field of selected.fields) {
+      const descObj = generated.fieldDescriptions[field.name] || {};
+      fieldsMap[field.name] = {
+        class: field.class || descObj.class || "A",
+        type: field.type || descObj.type || "string",
+        method: field.class === "D" ? "classify" : (descObj.method || "extract"),
+        description: descObj.description || `Extract ${humanizeKey(field.name)}.`,
+      };
+    }
+
+    const typeDef = {
+      key: typeKey,
+      description: generated.typeDescription,
+      spec_field_count: selected.fields.length,
+      core_fields: [],
+      fields: fieldsMap,
+    };
+
+    let typesSeq = doc.get("types") as yaml.YAMLSeq;
+    if (!typesSeq) {
+      doc.set("types", [typeDef]);
+    } else {
+      const idx = typesSeq.items.findIndex((t: any) => t?.get?.("key") === typeKey || t?.key === typeKey);
+      if (idx >= 0) {
+        typesSeq.set(idx, typeDef);
+      } else {
+        typesSeq.add(typeDef);
+      }
+    }
+
+    fs.writeFileSync(yamlPath, doc.toString(), "utf8");
+
+    // Also sync YAML to vision-application/analyzers if running from app directory
+    const appYamlPath = path.join(process.cwd(), "analyzers", "senderra-analyzers.yaml");
+    if (appYamlPath !== yamlPath) {
+      fs.mkdirSync(path.dirname(appYamlPath), { recursive: true });
+      fs.writeFileSync(appYamlPath, doc.toString(), "utf8");
+    }
+
+    // Step 2b: Update ivr_gap_routing.yaml for gap analysis
+    const gapYamlPath = getGapYamlPath();
+    if (fs.existsSync(gapYamlPath)) {
+      const gapDoc = yaml.parseDocument(fs.readFileSync(gapYamlPath, "utf8"));
+      gapDoc.setIn(["call_flows", typeKey], {
+        use_case: 2,
+        use_case_name: selected.name,
+        direction: "outbound",
+        called_party: ["prescriber", "patient"],
+        note: selected.guidance || selected.name,
+      });
+
+      for (const field of selected.fields) {
+        if (!gapDoc.getIn(["askable_by", field.name])) {
+          const who = field.name.toLowerCase().includes("patient") || field.name.toLowerCase().includes("member")
+            ? "patient"
+            : "prescriber";
+          gapDoc.setIn(["askable_by", field.name], who);
+        }
+      }
+
+      fs.writeFileSync(gapYamlPath, gapDoc.toString(), "utf8");
+    }
+
+    // Step 3: Run python build_prompts.py
+    const pythonScript = getBuildPromptsPath();
+    const buildResult = await execFileAsync("python", [pythonScript], {
+      cwd: getRepoRoot(),
+    });
+
+    console.log("build_prompts.py output:\n", buildResult.stdout);
+
+    // Step 4: Sync to local copy in the application and function app
+    const canonicalOut = getCanonicalOutDir();
+    const appOut = getAppOutDir();
+    const faAssets = getFaAssetsDir();
+
+    copyDirRecursive(canonicalOut, appOut);
+    copyDirRecursive(canonicalOut, faAssets);
+
+    // Step 5: Push directly to Azure File Share
+    const pushResult = await uploadAssetsToFileShare(canonicalOut);
+    if (!pushResult.ok) {
+      console.warn("Azure File Share push warning:", pushResult.error);
+    }
+
+    // Refresh catalog
+    const refreshed = await getCatalog();
+
+    return {
+      status: 201,
+      body: {
+        ok: true,
+        typeKey,
+        steps: [
+          "yaml_generated_with_gpt_5_6_luna",
+          "senderra_analyzers_yaml_saved",
+          "ivr_gap_routing_yaml_updated",
+          "build_prompts_executed",
+          "local_assets_synced",
+          "azure_fileshare_pushed",
+        ],
+        fileSharePush: pushResult,
+        types: refreshed.body.types,
+      },
+    };
+  } catch (error: any) {
+    console.error("Save & compile pipeline failed:", error);
+    return jsonError(500, `Pipeline failed: ${error?.message || error}`);
   }
-  const merged: Catalog = {
-    types: parsedMeta.types.map((item) =>
-      item.key === typeKey ? { ...item, guidance: selected.guidance, name: selected.name } : item
-    ),
-  };
-  if (!merged.types.some((item) => item.key === typeKey)) {
-    merged.types.push(selected);
-  }
-  const nativeMeta = serializeFieldMeta(merged);
-  writeLocal("field_meta.json", nativeMeta);
-  writeGuidanceMap(merged.types);
-  changed.push({
-    path: `${ANALYZERS_PREFIX}/field_meta.json`,
-    relative: "field_meta.json",
-    content: nativeMeta,
-  });
-
-  const manifest = await readFileWithFallback("manifest.json");
-  const manifestOut = await runStep(
-    messages,
-    fillTemplate(manifestPrompt.template, {
-      typeKey,
-      fieldMeta: nativeMeta,
-      file: manifest,
-    })
-  );
-  if ("status" in manifestOut) return manifestOut;
-  writeLocal("manifest.json", manifestOut.text);
-  changed.push({ path: `${ANALYZERS_PREFIX}/manifest.json`, relative: "manifest.json", content: manifestOut.text });
-
-  const committed = await commitFilesToGitHub(
-    changed.map((file) => ({ path: file.path, content: file.content })),
-    `feat(analyzers): add ${typeKey} from PACCA Solutions V2`
-  );
-  if (committed.status >= 400) return committed;
-
-  return {
-    status: 201,
-    body: {
-      ok: true,
-      typeKey,
-      model,
-      steps: [
-        "type_catalog.txt",
-        "schemas/_classification.json",
-        `schemas/${typeKey}.json`,
-        `prompts/${typeKey}.txt`,
-        "field_meta.json",
-        "manifest.json",
-        "github",
-      ],
-      types: merged.types,
-      ...committed.body,
-    },
-  };
 }
 
 export async function handleSolutionsV2(
