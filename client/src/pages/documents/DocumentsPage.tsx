@@ -283,6 +283,61 @@ export default function DocumentsPage({
     setPage(1);
   }, [query, statusFilter, dateFilter, sortBy]);
 
+  const handleExportCsv = () => {
+    if (filtered.length === 0) {
+      toast.error("No documents to export", { description: "Adjust your filters to see documents." });
+      return;
+    }
+
+    const headers = [
+      "Document ID",
+      "File Name",
+      "Type",
+      "Status",
+      "Is Duplicate",
+      "Duplicate Reason",
+      "Confidence",
+      "Timestamp",
+      "PDF Link",
+    ];
+
+    const escapeCsv = (val: string | number | boolean | null | undefined) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+    const rows = filtered.map((d) => [
+      escapeCsv(d.id),
+      escapeCsv(d.file),
+      escapeCsv(d.type),
+      escapeCsv(d.status),
+      escapeCsv(d.isDuplicate ? "Yes" : "No"),
+      escapeCsv(d.duplicateReason || ""),
+      escapeCsv(d.confidence),
+      escapeCsv(d.timestamp),
+      escapeCsv(d.pdfUrl ? `${origin}${d.pdfUrl}` : ""),
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().split("T")[0];
+    link.setAttribute("href", url);
+    link.setAttribute("download", `pacca_documents_export_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("Export downloaded", {
+      description: `Saved ${filtered.length} documents as pacca_documents_export_${dateStr}.csv`,
+    });
+  };
+
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const paginatedDocs = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -392,8 +447,9 @@ export default function DocumentsPage({
             </button>
 
             <button
-              onClick={() => toast("Export queued", { description: `${filtered.length} documents will be included.` })}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+              onClick={handleExportCsv}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 transition active:scale-[0.98]"
+              title={`Export ${filtered.length} documents as CSV`}
             >
               <Download size={14} /> Export
             </button>

@@ -6,7 +6,6 @@ import {
   Bell,
   CheckCircle2,
   ChevronRight,
-  CircleHelp,
   Cloud,
   Globe2,
   Menu,
@@ -45,10 +44,7 @@ export function Topbar({
   const [, navigate] = useLocation();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const helpRef = useRef<HTMLDivElement>(null);
 
   // Close menus on outside click
   useEffect(() => {
@@ -58,9 +54,6 @@ export function Topbar({
         !notificationsRef.current.contains(event.target as Node)
       ) {
         setNotificationsOpen(false);
-      }
-      if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
-        setHelpOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -229,48 +222,6 @@ export function Topbar({
                 >
                   View full telemetry in Pipeline Monitor <ArrowRight size={12} />
                 </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* HELP DROPDOWN */}
-        <div className="relative" ref={helpRef}>
-          <button
-            aria-label="Help"
-            onClick={() => {
-              setHelpOpen(!helpOpen);
-              setNotificationsOpen(false);
-            }}
-            className={cn(
-              "hidden rounded-xl p-2 text-stone-500 transition hover:bg-white sm:block",
-              helpOpen && "bg-white text-[#47a2b0] shadow-xs"
-            )}
-          >
-            <CircleHelp size={18} />
-          </button>
-
-          {helpOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <span className="font-display text-[13px] font-bold text-[#0e0e0e]">Support & Runbooks</span>
-                <button onClick={() => setHelpOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
-                  <X size={13} />
-                </button>
-              </div>
-              <div className="mt-2.5 space-y-1.5 text-[11px]">
-                <div className="rounded-xl p-2 hover:bg-slate-50 cursor-pointer">
-                  <div className="font-bold text-slate-800">Workspace Runbook</div>
-                  <div className="text-[10px] text-slate-400">Azure deployment guidelines & SLA policies</div>
-                </div>
-                <div className="rounded-xl p-2 hover:bg-slate-50 cursor-pointer">
-                  <div className="font-bold text-slate-800">Document Type Schemas</div>
-                  <div className="text-[10px] text-slate-400">Class A-D field guidance and rules</div>
-                </div>
-                <div className="rounded-xl p-2 hover:bg-slate-50 cursor-pointer">
-                  <div className="font-bold text-slate-800">Security & Compliance</div>
-                  <div className="text-[10px] text-slate-400">FedRAMP High & HIPAA architecture on Azure</div>
-                </div>
               </div>
             </div>
           )}
