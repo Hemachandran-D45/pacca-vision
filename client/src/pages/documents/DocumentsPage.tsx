@@ -446,7 +446,6 @@ export default function DocumentsPage({
                   <th className="px-3 py-3 font-bold">Tags</th>
                   <th className="px-3 py-3 font-bold">Confidence</th>
                   <th className="px-3 py-3 font-bold">Pages</th>
-                  <th className="px-3 py-3 font-bold">Received</th>
                   <th className="px-5 py-3 font-bold text-right">Action</th>
                 </tr>
               </thead>
@@ -546,10 +545,7 @@ export default function DocumentsPage({
                       {/* 7. PAGES */}
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
 
-                      {/* 8. RECEIVED */}
-                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
-
-                      {/* 9. ACTION */}
+                      {/* 8. ACTION */}
                       <td className="px-5 py-4 text-right">
                         <button
                           onClick={(e) => {
