@@ -3,7 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import yaml from "yaml";
-import { uploadAssetsToFileShare } from "./azureFileShare.js";
+import { uploadAssetsToFileShare, deleteTypeFromFileShare } from "./azureFileShare.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -214,6 +214,16 @@ export async function deleteDocumentType(body: any): Promise<ApiResult> {
   if (!typeKey) return jsonError(400, "typeKey is required.");
 
   try {
+    // 1. Delete local prompt and schema files in all asset directories
+    const localDirs = [getCanonicalOutDir(), getAppOutDir(), getFaAssetsDir()];
+    for (const dir of localDirs) {
+      const promptFile = path.join(dir, "prompts", `${typeKey}.txt`);
+      const schemaFile = path.join(dir, "schemas", `${typeKey}.json`);
+      if (fs.existsSync(promptFile)) fs.unlinkSync(promptFile);
+      if (fs.existsSync(schemaFile)) fs.unlinkSync(schemaFile);
+    }
+
+    // 2. Remove from senderra-analyzers.yaml
     const yamlPath = getYamlPath();
     if (fs.existsSync(yamlPath)) {
       const doc = yaml.parseDocument(fs.readFileSync(yamlPath, "utf8"));
@@ -225,9 +235,15 @@ export async function deleteDocumentType(body: any): Promise<ApiResult> {
         if (idx >= 0) typesNode.delete(idx);
       }
       fs.writeFileSync(yamlPath, doc.toString(), "utf8");
+
+      const appYamlPath = path.join(process.cwd(), "analyzers", "senderra-analyzers.yaml");
+      if (appYamlPath !== yamlPath) {
+        fs.mkdirSync(path.dirname(appYamlPath), { recursive: true });
+        fs.writeFileSync(appYamlPath, doc.toString(), "utf8");
+      }
     }
 
-    // Also update ivr_gap_routing.yaml
+    // 3. Remove from ivr_gap_routing.yaml
     const gapYamlPath = getGapYamlPath();
     if (fs.existsSync(gapYamlPath)) {
       const gapDoc = yaml.parseDocument(fs.readFileSync(gapYamlPath, "utf8"));
@@ -235,14 +251,17 @@ export async function deleteDocumentType(body: any): Promise<ApiResult> {
       fs.writeFileSync(gapYamlPath, gapDoc.toString(), "utf8");
     }
 
-    // Run build_prompts.py
+    // 4. Run build_prompts.py to recompile type_catalog, _classification, field_meta, manifest
     await execFileAsync("python", [getBuildPromptsPath()], { cwd: getRepoRoot() });
 
-    // Sync out dirs
+    // 5. Sync out dirs
     copyDirRecursive(getCanonicalOutDir(), getAppOutDir());
     copyDirRecursive(getCanonicalOutDir(), getFaAssetsDir());
 
-    // Push to Azure Files
+    // 6. Delete specific prompt/schema files from Azure File Share
+    await deleteTypeFromFileShare(typeKey);
+
+    // 7. Push refreshed catalog, manifest, field_meta, and schemas to Azure Files
     await uploadAssetsToFileShare(getCanonicalOutDir());
 
     const catalog = await getCatalog();
@@ -251,6 +270,14 @@ export async function deleteDocumentType(body: any): Promise<ApiResult> {
       body: {
         ok: true,
         typeKey,
+        steps: [
+          "local_files_deleted",
+          "senderra_analyzers_yaml_updated",
+          "ivr_gap_routing_yaml_updated",
+          "build_prompts_recompiled",
+          "fileshare_type_files_deleted",
+          "fileshare_assets_synced",
+        ],
         types: catalog.body.types,
       },
     };

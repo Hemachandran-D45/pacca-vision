@@ -604,11 +604,6 @@ classification:
         - unreadable, blank, upside-down, or non-English content
         - copay card, foundation grant or patient assistance enrolment
         - a genuine document type absent from this list
-    testType:
-      description: test description .
-      signals:
-        - '"Test Type" title or header'
-        - '"F1" label or block'
   tell_apart:
     - pair: [ referralForm, prescriptionOrder ]
       guidance: >-
@@ -2183,13 +2178,3 @@ types:
         method: extract
         description: >-
           Year-to-date out-of-pocket accumulator, as printed. Null when absent.
-  - key: testType
-    description: test description .
-    spec_field_count: 1
-    core_fields: []
-    fields:
-      f1:
-        class: C
-        type: date
-        method: extract
-        description: Extract F1 as printed on the document.
