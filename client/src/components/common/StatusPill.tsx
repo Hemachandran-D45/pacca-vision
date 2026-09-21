@@ -30,6 +30,11 @@ export function StatusPill({ status }: { status: DocumentRow["status"] | string 
 
     // Neutral
     Draft: "bg-stone-200/60 text-stone-700 ring-stone-300",
+
+    // Violet / Purple - Duplicate / Already Processed
+    Duplicate: "bg-purple-50 text-purple-700 ring-purple-200",
+    "Already Processed": "bg-purple-50 text-purple-700 ring-purple-200",
+    "Duplicate Detected": "bg-purple-50 text-purple-700 ring-purple-200",
   };
 
   return (

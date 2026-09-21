@@ -219,7 +219,7 @@ export type DocumentSummary = {
   file: string;
   docType: string | null;
   pipelineStatus: string;
-  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR";
+  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR" | "Duplicate";
   confidence: number | null;
   classifyConfidence: number | null;
   pages: number | null;
@@ -238,4 +238,8 @@ export type DocumentSummary = {
   reviewedBy: string | null;
   claimedBy: string | null;
   correctionCount: number;
+  isDuplicate?: boolean;
+  duplicateOf?: string | null;
+  duplicateOriginalReceivedAt?: string | null;
+  duplicateReason?: string | null;
 };

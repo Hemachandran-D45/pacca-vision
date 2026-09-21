@@ -193,7 +193,17 @@ function DocumentRow({ doc, onOpen }: { doc: DocumentSummary; onOpen: (id: strin
       </td>
       <td className="px-4 py-3 text-[11px] text-slate-600">{humanize(doc.docType)}</td>
       <td className="px-4 py-3">
-        <StatusPill status={doc.uiStatus} />
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <StatusPill status={doc.uiStatus} />
+          {doc.isDuplicate && (
+            <span
+              title={doc.duplicateReason || `Duplicate of ${doc.duplicateOf}`}
+              className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 ring-1 ring-purple-200"
+            >
+              Duplicate
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3">
         <ConfidenceBar value={doc.confidence} />

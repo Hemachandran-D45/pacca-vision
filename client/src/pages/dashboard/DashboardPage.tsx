@@ -380,32 +380,41 @@ function HILQueueCard({
   onNavigate: (path: string) => void;
   pendingDocs: any[];
 }) {
-  const displayItems = pendingDocs.length > 0 ? pendingDocs.slice(0, 4) : mockHilQueue.slice(0, 3);
   const count = pendingDocs.length;
 
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(20,43,75,.025)] sm:p-6">
       <SectionHeading title="HIL Queue" action="View all" onAction={() => onNavigate("/hil-review")} />
-      <div className="mt-4 space-y-1">
-        {displayItems.map((item) => (
-          <button
-            key={item.id || item.file}
-            onClick={() => onNavigate("/hil-review")}
-            className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50"
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ebf5f7] text-[#47a2b0]">
-              <FileText size={16} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-semibold text-[#0e0e0e]">{item.file}</div>
-              <div className="mt-0.5 truncate text-[10px] text-slate-400">{item.type || item.docType} · {item.received || "Pending"}</div>
-            </div>
-            <span className="rounded-md bg-amber-50 px-2 py-1 text-[9px] font-bold text-[#b28e28]">
-              Needs Review
-            </span>
-          </button>
-        ))}
-      </div>
+      {count === 0 ? (
+        <div className="mt-6 flex flex-col items-center justify-center py-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2">
+            <CheckCircle2 size={20} />
+          </div>
+          <div className="text-[12px] font-bold text-[#0e0e0e]">Queue is clear</div>
+          <div className="mt-1 text-[10px] text-slate-400">All documents processed straight-through (STP). No human intervention needed.</div>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-1">
+          {pendingDocs.slice(0, 4).map((item) => (
+            <button
+              key={item.id || item.file}
+              onClick={() => onNavigate("/hil-review")}
+              className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ebf5f7] text-[#47a2b0]">
+                <FileText size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] font-semibold text-[#0e0e0e]">{item.file}</div>
+                <div className="mt-0.5 truncate text-[10px] text-slate-400">{item.type || item.docType} · {item.received || "Pending"}</div>
+              </div>
+              <span className="rounded-md bg-amber-50 px-2 py-1 text-[9px] font-bold text-[#b28e28]">
+                Needs Review
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-3 rounded-xl bg-[#ebf5f7] px-3 py-2 text-center text-[10px] text-slate-600">
         {count} {count === 1 ? "item needs" : "items need"} a human decision{" "}
         <button onClick={() => onNavigate("/hil-review")} className="ml-1 font-bold text-[#47a2b0] hover:text-[#37828e]">
@@ -608,7 +617,7 @@ export default function DashboardPage({
 
   const costBreakdown = useMemo(() => {
     return [
-      { label: "Azure Document Intelligence", value: totalCost * 0.42, percent: 42, color: "#47a2b0" },
+      { label: "Azure CU", value: totalCost * 0.42, percent: 42, color: "#47a2b0" },
       { label: "Azure OpenAI Service", value: totalCost * 0.28, percent: 28, color: "#b89dcb" },
       { label: "Compute orchestration", value: totalCost * 0.18, percent: 18, color: "#00b0f0" },
       { label: "Azure Blob Storage", value: totalCost * 0.07, percent: 7, color: "#606b72" },

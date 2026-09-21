@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Download, FileText, MoreHorizontal, Pencil } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { ArrowLeft, Copy, Download, FileText, MoreHorizontal, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/common/SectionHeading";
@@ -15,6 +15,53 @@ import {
 import { ErrorBlock, LoadingBlock, StatusPill } from "./parts";
 import { FieldProvenanceBadge } from "./FieldProvenance";
 import { IvrOutreachButton } from "./IvrOutreachButton";
+
+/**
+ * Freezes the iframe src per documentId so the browser never reloads or flickers the PDF
+ * during 5-second live polling ticks.
+ */
+const MemoizedPdfViewer = memo(
+  function MemoizedPdfViewer({
+    documentId,
+    url,
+    title,
+    className,
+  }: {
+    documentId: string;
+    url: string | null;
+    title: string;
+    className?: string;
+  }) {
+    const frozenUrlRef = useRef<{ id: string; url: string }>({ id: "", url: "" });
+
+    if (url && frozenUrlRef.current.id !== documentId) {
+      const clean = url.split("#")[0];
+      frozenUrlRef.current = {
+        id: documentId,
+        url: `${clean}#toolbar=0&navpanes=0&view=FitH`,
+      };
+    }
+
+    const currentFrozenUrl = frozenUrlRef.current.id === documentId ? frozenUrlRef.current.url : "";
+
+    if (!currentFrozenUrl) {
+      return (
+        <div className="flex h-full w-full items-center justify-center text-slate-400 text-xs">
+          Source document streaming
+        </div>
+      );
+    }
+
+    return (
+      <iframe
+        src={currentFrozenUrl}
+        title={title}
+        className={className || "h-full w-full max-w-[430px] rounded-md bg-white shadow-sm"}
+      />
+    );
+  },
+  (prev, next) => prev.documentId === next.documentId && Boolean(prev.url) === Boolean(next.url)
+);
 
 export function DocumentDetailLive({
   documentId,
@@ -173,6 +220,35 @@ export function DocumentDetailLive({
         </div>
       </div>
 
+      {/* Duplicate Document Alert Banner */}
+      {summary.isDuplicate && (
+        <div className="flex items-start gap-3 rounded-2xl border border-purple-200 bg-purple-50/70 p-4 text-purple-900 shadow-xs">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 mt-0.5">
+            <Copy size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[13px] font-bold">Duplicate Document Detected</span>
+              <span className="rounded-full bg-purple-200/80 px-2 py-0.5 text-[9px] font-bold text-purple-800">
+                Already Processed
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-purple-800">
+              {summary.duplicateReason ||
+                `This document matches identical extracted patient and clinical signatures to ${summary.duplicateOf || "an earlier record"}, which was already processed on ${summary.duplicateOriginalReceivedAt ? new Date(summary.duplicateOriginalReceivedAt).toLocaleDateString() : "a previous run"}.`}
+            </p>
+            {summary.duplicateOf && (
+              <div className="mt-2 flex items-center gap-2 text-[10px]">
+                <span className="font-semibold text-purple-700">Original record:</span>
+                <span className="font-mono font-bold text-purple-900 bg-white/80 px-2 py-0.5 rounded-md border border-purple-200">
+                  {summary.duplicateOf}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Top 2-Column Grid: Left Document Preview + Right Summary & Timeline (Image 5 style) */}
       <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
         {/* Document Preview */}
@@ -198,17 +274,11 @@ export function DocumentDetailLive({
               )}
             </div>
             <div className="flex h-[470px] items-start justify-center overflow-auto rounded-lg bg-slate-100 p-4">
-              {pdfUrl ? (
-                <iframe
-                  src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
-                  title={`Source document ${summary.file}`}
-                  className="h-full w-full max-w-[430px] rounded-md bg-white shadow-sm"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-slate-400 text-xs">
-                  Source document streaming
-                </div>
-              )}
+              <MemoizedPdfViewer
+                documentId={documentId}
+                url={pdfUrl}
+                title={`Source document ${summary.file}`}
+              />
             </div>
           </div>
         </section>

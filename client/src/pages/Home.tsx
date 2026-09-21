@@ -16,8 +16,22 @@ import { pageMeta } from "@/routes/pageMeta";
 
 export default function Home() {
   const [path, navigate] = useLocation();
-  const [authenticatedUser, setAuthenticatedUser] = useState<MockUser | null>(null);
-  const [activeUser, setActiveUser] = useState<MockUser | null>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<MockUser | null>(() => {
+    try {
+      const saved = localStorage.getItem("pacca_auth_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeUser, setActiveUser] = useState<MockUser | null>(() => {
+    try {
+      const saved = localStorage.getItem("pacca_active_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(false);
 
   const user = activeUser;
@@ -39,8 +53,13 @@ export default function Home() {
     return (
       <LoginScreen
         onLogin={(nextUser) => {
+          const nextActive = { ...nextUser, experience: "client" as const, tenant: "Client", tenantCode: "CLIENT" };
           setAuthenticatedUser(nextUser);
-          setActiveUser({ ...nextUser, experience: "client", tenant: "Client", tenantCode: "CLIENT" });
+          setActiveUser(nextActive);
+          try {
+            localStorage.setItem("pacca_auth_user", JSON.stringify(nextUser));
+            localStorage.setItem("pacca_active_user", JSON.stringify(nextActive));
+          } catch {}
           navigate("/documents");
         }}
       />
@@ -72,6 +91,9 @@ export default function Home() {
       experience: "client",
     };
     setActiveUser(next);
+    try {
+      localStorage.setItem("pacca_active_user", JSON.stringify(next));
+    } catch {}
     const nextAllowed = demoAllowedPaths(role);
     if (!nextAllowed.includes(basePath) || basePath === "/central-admin") {
       if (role === "PACCA Solution Developer") {
@@ -104,6 +126,10 @@ export default function Home() {
       onLogout={() => {
         setAuthenticatedUser(null);
         setActiveUser(null);
+        try {
+          localStorage.removeItem("pacca_auth_user");
+          localStorage.removeItem("pacca_active_user");
+        } catch {}
       }}
       onRoleSwitch={switchRole}
     >

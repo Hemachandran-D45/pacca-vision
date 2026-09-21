@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileText, Loader2, RotateCcw, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,53 @@ import {
   type ExtractedField,
 } from "./api";
 import { ConfidenceBar, EmptyBlock, ErrorBlock, LiveBadge, LoadingBlock, ReasonChips } from "./parts";
+
+/**
+ * Freezes the iframe src per documentId so the browser never reloads the PDF
+ * during HIL live polling.
+ */
+const MemoizedPdfViewer = memo(
+  function MemoizedPdfViewer({
+    documentId,
+    url,
+    title,
+    className,
+  }: {
+    documentId: string;
+    url: string | null;
+    title: string;
+    className?: string;
+  }) {
+    const frozenUrlRef = useRef<{ id: string; url: string }>({ id: "", url: "" });
+
+    if (url && frozenUrlRef.current.id !== documentId) {
+      const clean = url.split("#")[0];
+      frozenUrlRef.current = {
+        id: documentId,
+        url: `${clean}#toolbar=0&navpanes=0&view=FitH`,
+      };
+    }
+
+    const currentFrozenUrl = frozenUrlRef.current.id === documentId ? frozenUrlRef.current.url : "";
+
+    if (!currentFrozenUrl) {
+      return (
+        <div className="flex h-[620px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-[11px] text-slate-400">
+          Source PDF streaming or no longer in intake container.
+        </div>
+      );
+    }
+
+    return (
+      <iframe
+        src={currentFrozenUrl}
+        title={title}
+        className={className || "h-[620px] w-full rounded-xl border border-slate-200"}
+      />
+    );
+  },
+  (prev, next) => prev.documentId === next.documentId && Boolean(prev.url) === Boolean(next.url)
+);
 
 /**
  * The HIL workbench.
@@ -302,17 +349,11 @@ function Workbench({
           <h3 className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
             <FileText size={13} /> Source document
           </h3>
-          {pdfUrl ? (
-            <iframe
-              src={pdfUrl}
-              title={`Source PDF for ${summary.file}`}
-              className="h-[620px] w-full rounded-xl border border-slate-200"
-            />
-          ) : (
-            <div className="flex h-[620px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-[11px] text-slate-400">
-              Source PDF is no longer in the intake container.
-            </div>
-          )}
+          <MemoizedPdfViewer
+            documentId={documentId}
+            url={pdfUrl}
+            title={`Source PDF for ${summary.file}`}
+          />
         </div>
 
         <div className="space-y-3">

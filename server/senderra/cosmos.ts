@@ -204,20 +204,65 @@ function toSummary(
 
 export type FetchedRecords = Awaited<ReturnType<typeof fetchRecords>>;
 
-/**
- * Pass `records` when the caller has already fetched them. `/stats` needs both
- * the joined summaries and the raw extract rows, and fetching twice doubled the
- * RU and the wall-clock on the single slowest thing either endpoint does.
- */
+function normalizeDocStem(docId: string): string {
+  return docId.toLowerCase().replace(/\.pdf$/i, "").replace(/[-_]?(t\d+|\d+)$/i, "");
+}
+
+export function detectDuplicates(docs: DocumentSummary[]): DocumentSummary[] {
+  // Sort chronologically ascending (earliest first) to determine the original baseline
+  const chronological = [...docs].sort((a, b) => (a.receivedAt ?? "").localeCompare(b.receivedAt ?? ""));
+
+  const seenBytes = new Map<string, DocumentSummary>();
+  const seenStem = new Map<string, DocumentSummary>();
+  const duplicateMap = new Map<string, { duplicateOf: string; duplicateOriginalReceivedAt: string; duplicateReason: string }>();
+
+  for (const doc of chronological) {
+    const stem = normalizeDocStem(doc.docId || doc.file);
+    const byteKey =
+      doc.fileBytes && doc.fileBytes > 0 && doc.pages
+        ? `${doc.fileBytes}_${doc.pages}_${doc.docType || ""}`
+        : null;
+    const stemKey = doc.docType ? `${stem}_${doc.docType}` : stem;
+
+    const existingMatch =
+      (byteKey ? seenBytes.get(byteKey) : null) || (stemKey ? seenStem.get(stemKey) : null);
+
+    if (existingMatch && existingMatch.documentId !== doc.documentId) {
+      duplicateMap.set(doc.documentId, {
+        duplicateOf: existingMatch.documentId,
+        duplicateOriginalReceivedAt: existingMatch.receivedAt ?? "",
+        duplicateReason: `Identical case & file footprint previously processed in ${existingMatch.docId || existingMatch.documentId} on ${existingMatch.receivedAt ? new Date(existingMatch.receivedAt).toLocaleDateString() : "prior run"}.`,
+      });
+    } else {
+      if (byteKey) seenBytes.set(byteKey, doc);
+      if (stemKey) seenStem.set(stemKey, doc);
+    }
+  }
+
+  return docs.map((doc) => {
+    const dup = duplicateMap.get(doc.documentId);
+    if (!dup) return doc;
+    return {
+      ...doc,
+      isDuplicate: true,
+      duplicateOf: dup.duplicateOf,
+      duplicateOriginalReceivedAt: dup.duplicateOriginalReceivedAt,
+      duplicateReason: dup.duplicateReason,
+    };
+  });
+}
+
 export async function listDocuments(
   c: Container,
   records?: FetchedRecords
 ): Promise<DocumentSummary[]> {
   const { ocr, extract, review, gaps } = records ?? (await fetchRecords(c));
   const ids = new Set([...ocr.keys(), ...extract.keys(), ...review.keys(), ...gaps.keys()]);
-  return [...ids]
-    .map((id) => toSummary(id, ocr.get(id), extract.get(id), review.get(id), gaps.get(id)))
-    .sort((a, b) => (b.receivedAt ?? "").localeCompare(a.receivedAt ?? ""));
+  const summaries = [...ids].map((id) =>
+    toSummary(id, ocr.get(id), extract.get(id), review.get(id), gaps.get(id))
+  );
+  const flagged = detectDuplicates(summaries);
+  return flagged.sort((a, b) => (b.receivedAt ?? "").localeCompare(a.receivedAt ?? ""));
 }
 
 /**
@@ -366,8 +411,39 @@ export async function readDocument(c: Container, documentId: string) {
     };
   }
 
+  const rawSummary = toSummary(documentId, ocr, extract, review, gaps);
+  let summary = rawSummary;
+  try {
+    const byteCount = ocr?.file_bytes;
+    if (byteCount) {
+      const { resources: dupMatches } = await c.items
+        .query<{ documentId: string; recorded_at?: string; docId: string }>({
+          query:
+            "SELECT c.documentId, c.recorded_at, c.docId FROM c WHERE c.itemType = 'ocr' AND c.file_bytes = @bytes AND c.documentId != @currentDocId",
+          parameters: [
+            { name: "@bytes", value: byteCount },
+            { name: "@currentDocId", value: documentId },
+          ],
+        })
+        .fetchAll();
+      if (dupMatches && dupMatches.length > 0) {
+        const sortedDups = dupMatches.sort((a, b) => (a.recorded_at ?? "").localeCompare(b.recorded_at ?? ""));
+        const earliest = sortedDups[0];
+        if (earliest && (earliest.recorded_at ?? "") < (summary.receivedAt ?? "9999")) {
+          summary = {
+            ...summary,
+            isDuplicate: true,
+            duplicateOf: earliest.documentId,
+            duplicateOriginalReceivedAt: earliest.recorded_at ?? null,
+            duplicateReason: `This document is a duplicate of ${earliest.docId || earliest.documentId}, originally processed on ${earliest.recorded_at ? new Date(earliest.recorded_at).toLocaleDateString() : "prior run"}.`,
+          };
+        }
+      }
+    }
+  } catch {}
+
   return {
-    summary: toSummary(documentId, ocr, extract, review, gaps),
+    summary,
     ocr: ocr ?? null,
     extract: extract ?? null,
     fields: mergedFields,

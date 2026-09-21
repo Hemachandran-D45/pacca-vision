@@ -86,7 +86,8 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Dedicated Single-Client Workspace Badge */}
+        {/* Dedicated Single-Client Workspace & Pipeline Badges commented out per request */}
+        {/*
         <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[10px] shadow-sm md:flex">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="font-bold text-[#0e0e0e]">Client</span>
@@ -100,6 +101,7 @@ export function Topbar({
             Azure Production
           </span>
         </div>
+        */}
 
         <label className="hidden h-9 w-[245px] items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 shadow-sm lg:flex focus-within:border-[#47a2b0] focus-within:ring-1 focus-within:ring-[#47a2b0]">
           <Search size={15} className="text-stone-400" />

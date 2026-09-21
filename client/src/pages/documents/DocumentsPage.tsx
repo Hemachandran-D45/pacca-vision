@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
-import { fetchDocuments, humanize, relativeTime, percent, usePolled } from "@/senderra/api";
+import { fetchDocuments, humanize, relativeTime, formatTimestamp, percent, usePolled } from "@/senderra/api";
 import { ErrorBlock } from "@/senderra/parts";
 import {
   UploadDocumentModal,
@@ -56,6 +56,7 @@ function toOptimisticRow(item: UploadedDocInfo) {
     file: item.file,
     type: item.docType || resolveUploadDocType("", item.department, item.file),
     source: `Upload · ${item.department}`,
+    timestamp: formatTimestamp(item.uploadedAt || new Date().toISOString()),
     status: "Queued" as const,
     confidence: "—",
     pages: "—" as const,
@@ -63,6 +64,9 @@ function toOptimisticRow(item: UploadedDocInfo) {
     color: "#8496ad",
     pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(item.documentId)}`,
     previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(item.documentId)}`,
+    isDuplicate: false,
+    duplicateOf: undefined as string | undefined,
+    duplicateReason: undefined as string | undefined,
   };
 }
 
@@ -112,6 +116,7 @@ export default function DocumentsPage({
       file: d.file,
       type: inferDocType(d.docType, d.file, d.source),
       source: d.source || "Auto-intake",
+      timestamp: formatTimestamp(d.receivedAt),
       status: listStatus(d.uiStatus),
       confidence: percent(d.confidence, 1),
       pages: d.pages ?? "—",
@@ -126,6 +131,9 @@ export default function DocumentsPage({
           : "#f2c94c",
       pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
       previewUrl: `/api/senderra/document?documentId=${encodeURIComponent(d.documentId)}`,
+      isDuplicate: Boolean(d.isDuplicate),
+      duplicateOf: d.duplicateOf,
+      duplicateReason: d.duplicateReason,
     }));
 
     const liveIdSet = new Set(baseDocs.flatMap((row) => [row.id, row.id.replace(/\.pdf$/i, "")]));
@@ -159,7 +167,7 @@ export default function DocumentsPage({
   const filtered = useMemo(
     () =>
       allDocuments.filter((d) => {
-        const matchesQuery = `${d.id} ${d.file} ${d.type} ${d.source}`
+        const matchesQuery = `${d.id} ${d.file} ${d.type} ${d.source || ""} ${d.timestamp || ""}`
           .toLowerCase()
           .includes(query.toLowerCase());
         const matchesStatus = status === "All statuses" || d.status === status;
@@ -194,7 +202,7 @@ export default function DocumentsPage({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400"
-              placeholder="Search by ID, filename, patient/vendor, type, or source"
+              placeholder="Search by ID, filename, patient/vendor, type, or timestamp"
             />
           </label>
 
@@ -271,7 +279,7 @@ export default function DocumentsPage({
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
                   <th className="px-5 py-3 font-bold">Document</th>
                   <th className="px-3 py-3 font-bold">Document Type</th>
-                  <th className="px-3 py-3 font-bold">Source</th>
+                  <th className="px-3 py-3 font-bold">Timestamp</th>
                   <th className="px-3 py-3 font-bold">Status</th>
                   <th className="px-3 py-3 font-bold">Confidence</th>
                   <th className="px-3 py-3 font-bold">Pages</th>
@@ -312,8 +320,20 @@ export default function DocumentsPage({
                         </div>
                       </td>
                       <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
-                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.source}</td>
-                      <td className="px-3 py-4"><StatusPill status={doc.status} /></td>
+                      <td className="px-3 py-4 text-[10px] font-mono text-slate-600 font-medium">{doc.timestamp}</td>
+                      <td className="px-3 py-4">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <StatusPill status={doc.status} />
+                          {doc.isDuplicate && (
+                            <span
+                              title={doc.duplicateReason || `Duplicate of ${doc.duplicateOf}`}
+                              className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 ring-1 ring-purple-200"
+                            >
+                              Duplicate
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-3 py-4 text-[10px] text-slate-600 font-semibold">{doc.confidence}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>

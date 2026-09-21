@@ -9,7 +9,7 @@ export type DocumentSummary = {
   file: string;
   docType: string | null;
   pipelineStatus: string;
-  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR";
+  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR" | "Duplicate";
   confidence: number | null;
   classifyConfidence: number | null;
   pages: number | null;
@@ -28,6 +28,10 @@ export type DocumentSummary = {
   reviewedBy: string | null;
   claimedBy: string | null;
   correctionCount: number;
+  isDuplicate?: boolean;
+  duplicateOf?: string | null;
+  duplicateOriginalReceivedAt?: string | null;
+  duplicateReason?: string | null;
 };
 
 /**
@@ -380,6 +384,7 @@ export const STATUS_COLOR: Record<DocumentSummary["uiStatus"], string> = {
   Queued: "#8496ad",
   Triage: "#c2761c",
   Failed: "#d6455d",
+  Duplicate: "#8b5cf6",
 };
 
 export const STATUS_INK: Record<DocumentSummary["uiStatus"], string> = {
@@ -391,6 +396,7 @@ export const STATUS_INK: Record<DocumentSummary["uiStatus"], string> = {
   Queued: "#495a70",
   Triage: "#8a5209",
   Failed: "#a3213a",
+  Duplicate: "#6d28d9",
 };
 
 /** Human labels for the pipeline's reason codes. The codes stay authoritative. */
@@ -443,6 +449,20 @@ export function relativeTime(iso: string | null | undefined): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function formatTimestamp(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 /** Prettifies `doc_type_predicted` / field names without hiding the real token. */

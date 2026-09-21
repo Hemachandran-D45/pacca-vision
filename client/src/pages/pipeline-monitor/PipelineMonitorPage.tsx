@@ -194,7 +194,7 @@ export default function PipelineMonitorPage() {
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
+      <div className="grid gap-5">
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <SectionHeading title="Currently processing" eyebrow="Documents moving through logical stages" />
           <div className="mt-4 overflow-x-auto">
@@ -230,6 +230,7 @@ export default function PipelineMonitorPage() {
           </div>
         </section>
 
+        {/* Failure & retry signal plot commented out per request
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <SectionHeading title="Failure & retry signal" eyebrow="Last 24 hours" />
           <div className="mt-5 h-[210px]">
@@ -244,6 +245,7 @@ export default function PipelineMonitorPage() {
             </ResponsiveContainer>
           </div>
         </section>
+        */}
       </div>
     </div>
   );
