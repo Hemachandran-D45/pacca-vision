@@ -165,14 +165,67 @@ export default function DocumentsPage({
   }, [allDocuments]);
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    return allDocuments.filter((d) => {
-      const matchesQuery =
-        !q ||
-        `${d.id} ${d.file} ${d.type} ${d.source || ""} ${d.timestamp || ""} ${d.status || ""} ${d.confidence || ""} ${d.isDuplicate ? "duplicate" : ""}`
-          .toLowerCase()
-          .includes(q);
+    const rawQuery = query.toLowerCase().trim();
+    if (!rawQuery && status === "All statuses" && docType === "All Document Types") {
+      return allDocuments;
+    }
 
+    const tokens = rawQuery
+      .replace(/[,/\\#$%=?_]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return allDocuments.filter((d) => {
+      // 1. Search Query Matching (Multi-token + loose matching)
+      let matchesQuery = true;
+      if (tokens.length > 0) {
+        // Expand row text with synonyms and stripped punctuation
+        const baseRow = `${d.id} ${d.file} ${d.type} ${d.source || ""} ${d.timestamp || ""} ${d.status || ""} ${d.confidence || ""} ${d.isDuplicate ? "duplicate duplicate-detected already-processed" : ""} ${d.received || ""}`
+          .toLowerCase();
+        const cleanRow = baseRow.replace(/[,/\\#$%=?_.-]/g, " ");
+        const rowWords = cleanRow.split(/\s+/).filter(Boolean);
+
+        matchesQuery = tokens.every((token) => {
+          // Direct substring match anywhere in row
+          if (baseRow.includes(token) || cleanRow.includes(token)) return true;
+
+          // Special month aliases (e.g. "september" matches "sep", "august" matches "aug")
+          if (token === "september" && cleanRow.includes("sep")) return true;
+          if (token === "october" && cleanRow.includes("oct")) return true;
+          if (token === "november" && cleanRow.includes("nov")) return true;
+          if (token === "december" && cleanRow.includes("dec")) return true;
+
+          // Typo tolerance for words 4+ chars (e.g., "clincal" -> "clinical", "referal" -> "referral")
+          if (token.length >= 4) {
+            for (const word of rowWords) {
+              if (Math.abs(word.length - token.length) <= 1) {
+                let diffs = 0;
+                let i = 0;
+                let j = 0;
+                while (i < token.length && j < word.length) {
+                  if (token[i] !== word[j]) {
+                    diffs++;
+                    if (diffs > 1) break;
+                    if (token.length > word.length) i++;
+                    else if (word.length > token.length) j++;
+                    else {
+                      i++;
+                      j++;
+                    }
+                  } else {
+                    i++;
+                    j++;
+                  }
+                }
+                if (diffs <= 1) return true;
+              }
+            }
+          }
+          return false;
+        });
+      }
+
+      // 2. Status Matching
       const matchesStatus =
         status === "All statuses" ||
         (status === "Needs Review" && (d.status === "Needs Review" || d.status === "HIL Review")) ||
@@ -181,6 +234,7 @@ export default function DocumentsPage({
         (status === "Validation failed" && (d.status === "Validation failed" || d.status === "Failed")) ||
         (d.status && d.status.toLowerCase().trim() === status.toLowerCase().trim());
 
+      // 3. Document Type Matching
       const matchesType =
         docType === "All Document Types" ||
         (d.type && d.type.toLowerCase().trim() === docType.toLowerCase().trim());
