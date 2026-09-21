@@ -1,0 +1,42 @@
+{
+  "referralForm": {
+    "guidance": "",
+    "department": "Patient Intake"
+  },
+  "prescriptionOrder": {
+    "guidance": "",
+    "department": "Pharmacy Operations"
+  },
+  "insuranceCard": {
+    "guidance": "",
+    "department": "Billing & Claims"
+  },
+  "clinicalNote": {
+    "guidance": "",
+    "department": "Clinical Operations"
+  },
+  "labReport": {
+    "guidance": "",
+    "department": "Clinical Operations"
+  },
+  "letterOfMedicalNecessity": {
+    "guidance": "",
+    "department": "Clinical Operations"
+  },
+  "paDeterminationLetter": {
+    "guidance": "",
+    "department": "Prior Authorization"
+  },
+  "paResponseFax": {
+    "guidance": "",
+    "department": "Prior Authorization"
+  },
+  "explanationOfBenefits": {
+    "guidance": "",
+    "department": "Billing & Claims"
+  },
+  "testType": {
+    "guidance": "test description .",
+    "department": "Clinical Operations"
+  }
+}
