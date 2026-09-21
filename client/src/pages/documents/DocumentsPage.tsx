@@ -126,6 +126,19 @@ export default function DocumentsPage({
   const poller = usePolled(() => fetchDocuments(), 6000);
   const liveDocs = poller.data?.documents ?? [];
   const isLive = Boolean(poller.data);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await poller.refresh();
+      toast.success("Documents refreshed", { description: "Updated pipeline inventory from Azure." });
+    } catch {
+      toast.error("Failed to refresh documents");
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   // Prune local uploads once Azure Cosmos returns them
   useEffect(() => {
@@ -322,14 +335,14 @@ export default function DocumentsPage({
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  className="bg-transparent text-[12px] font-semibold text-slate-700 outline-none cursor-pointer pr-1"
+                  className="appearance-none bg-transparent text-[12px] font-semibold text-slate-700 outline-none cursor-pointer pr-1"
                 >
                   <option value="all">Sep 21, 2026 (All)</option>
                   <option value="today">Sep 21, 2026 (Today)</option>
                   <option value="7days">Last 7 Days</option>
                   <option value="30days">Last 30 Days</option>
                 </select>
-                <ChevronDown size={13} className="text-slate-400" />
+                <ChevronDown size={13} className="text-slate-400 pointer-events-none" />
               </label>
             </div>
 
@@ -340,7 +353,7 @@ export default function DocumentsPage({
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-transparent text-[12px] font-bold text-slate-800 outline-none cursor-pointer pr-1"
+                  className="appearance-none bg-transparent text-[12px] font-bold text-slate-800 outline-none cursor-pointer pr-1"
                 >
                   <option value="all">All statuses</option>
                   <option value="processed">Processed</option>
@@ -349,7 +362,7 @@ export default function DocumentsPage({
                   <option value="review">Needs Review</option>
                   <option value="failed">Failed</option>
                 </select>
-                <ChevronDown size={13} className="text-slate-400" />
+                <ChevronDown size={13} className="text-slate-400 pointer-events-none" />
               </label>
             </div>
           </div>
@@ -362,7 +375,7 @@ export default function DocumentsPage({
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-[12px] font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
+                  className="appearance-none h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-[12px] font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 shadow-2xs"
                 >
                   <option value="newest">Newest first</option>
                   <option value="oldest">Oldest first</option>
@@ -404,11 +417,12 @@ export default function DocumentsPage({
             eyebrow={`${filtered.length} shown · ${isLive ? "live Azure pipeline" : poller.loading ? "connecting to Azure…" : "live pipeline"}`}
           />
           <button
-            onClick={() => void poller.refresh()}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 transition"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-[#47a2b0] transition disabled:opacity-50"
             title="Refresh documents from pipeline"
           >
-            <RefreshCw size={15} className={poller.loading ? "animate-spin text-[#47a2b0]" : undefined} />
+            <RefreshCw size={15} className={cn(isRefreshing && "animate-spin text-[#47a2b0]")} />
           </button>
         </div>
         {poller.error && (
