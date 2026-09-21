@@ -1,51 +1,70 @@
 import { cn } from "@/lib/utils";
 import type { DocumentRow } from "@/data/mockData";
+import { Check, Clock, Copy, AlertTriangle, Loader2, PhoneCall, CircleDot } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+type StatusConfig = {
+  style: string;
+  icon: LucideIcon;
+  iconClass?: string;
+};
+
+const CONFIGS: Record<string, StatusConfig> = {
+  // Processed / Active (High contrast emerald)
+  Active: { style: "bg-emerald-50 text-emerald-800 ring-emerald-300 font-bold", icon: Check },
+  Processed: { style: "bg-emerald-50 text-emerald-800 ring-emerald-300 font-bold", icon: Check },
+  Healthy: { style: "bg-emerald-50 text-emerald-800 ring-emerald-300 font-bold", icon: Check },
+
+  // Human in the loop review (High contrast amber/gold)
+  "Needs Review": { style: "bg-amber-50 text-amber-900 ring-amber-300 font-bold", icon: Clock },
+  "HIL Review": { style: "bg-amber-50 text-amber-900 ring-amber-300 font-bold", icon: Clock },
+  Attention: { style: "bg-amber-50 text-amber-900 ring-amber-300 font-bold", icon: Clock },
+
+  // Failures (High contrast rose/red)
+  "Validation failed": { style: "bg-rose-50 text-rose-900 ring-rose-300 font-bold", icon: AlertTriangle },
+  Failed: { style: "bg-rose-50 text-rose-900 ring-rose-300 font-bold", icon: AlertTriangle },
+  Degraded: { style: "bg-rose-50 text-rose-900 ring-rose-300 font-bold", icon: AlertTriangle },
+
+  // Processing (Sky blue with spinner)
+  Processing: {
+    style: "bg-sky-50 text-sky-900 ring-sky-300 font-bold",
+    icon: Loader2,
+    iconClass: "animate-spin",
+  },
+  Queued: { style: "bg-slate-100 text-slate-700 ring-slate-300 font-semibold", icon: CircleDot },
+
+  // IVR Outreach (Indigo with phone)
+  "Routed to IVR": { style: "bg-indigo-50 text-indigo-900 ring-indigo-300 font-bold", icon: PhoneCall },
+  "Route to IVR": { style: "bg-indigo-50 text-indigo-900 ring-indigo-300 font-bold", icon: PhoneCall },
+
+  // Live indicator
+  Live: { style: "bg-teal-50 text-teal-900 ring-teal-300 font-bold", icon: Check },
+
+  // Duplicate / Already Processed (Purple with copy icon)
+  Duplicate: { style: "bg-purple-100 text-purple-900 ring-purple-300 font-bold", icon: Copy },
+  "Already Processed": { style: "bg-purple-100 text-purple-900 ring-purple-300 font-bold", icon: Copy },
+  "Duplicate Detected": { style: "bg-purple-100 text-purple-900 ring-purple-300 font-bold", icon: Copy },
+
+  // Neutral
+  Draft: { style: "bg-stone-100 text-stone-700 ring-stone-300 font-medium", icon: CircleDot },
+};
 
 export function StatusPill({ status }: { status: DocumentRow["status"] | string }) {
-  const styles: Record<string, string> = {
-    // Surgeon Green (#45BD8D)
-    Active: "bg-[#45bd8d]/15 text-[#1f845d] ring-[#45bd8d]/30",
-    Processed: "bg-[#45bd8d]/15 text-[#1f845d] ring-[#45bd8d]/30",
-    Healthy: "bg-[#45bd8d]/15 text-[#1f845d] ring-[#45bd8d]/30",
-
-    // Emids Yellow (#F2C94C)
-    "Needs Review": "bg-[#f2c94c]/20 text-[#8a6800] ring-[#f2c94c]/40",
-    "HIL Review": "bg-[#f2c94c]/20 text-[#8a6800] ring-[#f2c94c]/40",
-    Attention: "bg-[#f2c94c]/20 text-[#8a6800] ring-[#f2c94c]/40",
-
-    // Signal Red (#E04F4F)
-    "Validation failed": "bg-[#e04f4f]/15 text-[#b92828] ring-[#e04f4f]/30",
-    Degraded: "bg-[#e04f4f]/15 text-[#b92828] ring-[#e04f4f]/30",
-
-    // Sterile Blue (#00B0F0)
-    Processing: "bg-[#00b0f0]/15 text-[#027ea9] ring-[#00b0f0]/30",
-    Queued: "bg-slate-200/70 text-slate-600 ring-slate-300",
-
-    // Indigo - Routed to IVR
-    "Routed to IVR": "bg-indigo-50 text-indigo-700 ring-indigo-200",
-    "Route to IVR": "bg-indigo-50 text-indigo-700 ring-indigo-200",
-
-    // Emids Teal (#47A2B0)
-    Live: "bg-[#47a2b0]/15 text-[#256c77] ring-[#47a2b0]/30",
-
-    // Neutral
-    Draft: "bg-stone-200/60 text-stone-700 ring-stone-300",
-
-    // Violet / Purple - Duplicate / Already Processed
-    Duplicate: "bg-purple-50 text-purple-700 ring-purple-200",
-    "Already Processed": "bg-purple-50 text-purple-700 ring-purple-200",
-    "Duplicate Detected": "bg-purple-50 text-purple-700 ring-purple-200",
+  const config = CONFIGS[status] ?? {
+    style: "bg-slate-100 text-slate-700 ring-slate-200 font-medium",
+    icon: CircleDot,
   };
+  const Icon = config.icon;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ring-1",
-        styles[status] ?? "bg-slate-100 text-slate-600 ring-slate-200"
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] tracking-[0.01em] ring-1 shadow-xs transition-all",
+        config.style
       )}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {status}
+      <Icon size={11} className={cn("shrink-0 stroke-[2.2]", config.iconClass)} />
+      <span>{status}</span>
     </span>
   );
 }

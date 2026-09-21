@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { UploadedDocInfo } from "@/components/documents/UploadDocumentModal";
-import { Download, Eye, FileSearch, FileText, Filter, RefreshCw, Search, Upload } from "lucide-react";
+import { Copy, Download, Eye, FileSearch, FileText, Filter, RefreshCw, Search, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { SectionHeading } from "@/components/common/SectionHeading";
@@ -247,35 +247,45 @@ export default function DocumentsPage({
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] text-slate-500">Operational document inventory</div>
-          <div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-[#0e0e0e]">
-            <span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Client Workspace · {filtered.length} documents
+          <div className="text-[12px] font-medium text-slate-600">Operational document inventory</div>
+          <div className="mt-1 flex items-center gap-2 text-[13px] font-bold text-[#0e0e0e]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#45bd8d]" /> Client Workspace · {filtered.length} documents
           </div>
         </div>
         <button
           onClick={() => setUploadModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.18)] transition hover:bg-[#37828e] active:scale-[.98]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(71,162,176,.2)] transition hover:bg-[#37828e] active:scale-[.98]"
         >
           <Upload size={15} /> Upload document
         </button>
       </div>
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(20,43,75,.025)]">
-        <div className="flex flex-wrap gap-2">
-          <label className="flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3">
-            <Search size={15} className="text-slate-400" />
+      {/* Prominent Search & Filters Card */}
+      <section className="rounded-2xl border border-slate-300/80 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="flex h-11 min-w-[260px] flex-1 items-center gap-2.5 rounded-xl border border-slate-300 bg-white px-3.5 shadow-xs transition focus-within:border-[#47a2b0] focus-within:ring-2 focus-within:ring-[#47a2b0]/20">
+            <Search size={17} className="shrink-0 text-slate-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-transparent text-[11px] outline-none placeholder:text-slate-400"
+              className="w-full bg-transparent text-[12px] font-medium text-slate-900 outline-none placeholder:text-slate-500"
               placeholder="Search by ID, filename, status, type, timestamp..."
             />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </label>
 
           <select
             value={docType}
             onChange={(e) => setDocType(e.target.value)}
-            className="h-9 min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none cursor-pointer"
+            className="h-11 min-w-[160px] rounded-xl border border-slate-300 bg-white px-3.5 text-[12px] font-semibold text-slate-800 shadow-xs outline-none cursor-pointer transition hover:border-slate-400 focus:border-[#47a2b0] focus:ring-2 focus:ring-[#47a2b0]/20"
           >
             {availableDocTypes.map((t) => (
               <option key={t} value={t}>
@@ -287,7 +297,7 @@ export default function DocumentsPage({
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="h-9 min-w-[130px] rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 outline-none cursor-pointer"
+            className="h-11 min-w-[150px] rounded-xl border border-slate-300 bg-white px-3.5 text-[12px] font-semibold text-slate-800 shadow-xs outline-none cursor-pointer transition hover:border-slate-400 focus:border-[#47a2b0] focus:ring-2 focus:ring-[#47a2b0]/20"
           >
             <option value="All statuses">All statuses</option>
             <option value="Processed">Processed</option>
@@ -306,26 +316,30 @@ export default function DocumentsPage({
               setStatus("All statuses");
               setDocType("All Document Types");
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-3.5 text-[12px] font-semibold text-slate-700 shadow-xs hover:bg-slate-100 transition active:scale-[.98]"
           >
             <Filter size={13} /> Reset
           </button>
 
           <button
             onClick={() => toast("Export queued", { description: `${filtered.length} documents will be included.` })}
-            className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            className="ml-auto inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 px-4 text-[12px] font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition active:scale-[.98]"
           >
             <Download size={14} /> Export
           </button>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(20,43,75,.025)]">
-        <div className="flex items-center justify-between border-b border-slate-100 p-5">
-          <SectionHeading title="All documents" eyebrow={`${filtered.length} shown · ${isLive ? "live Azure pipeline" : poller.loading ? "connecting to Azure…" : "live pipeline"}`} />
+      {/* Documents Table Section */}
+      <section className="rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200/80 p-5">
+          <SectionHeading
+            title="All documents"
+            eyebrow={`${filtered.length} shown · ${isLive ? "live Azure pipeline" : poller.loading ? "connecting to Azure…" : "live pipeline"}`}
+          />
           <button
             onClick={() => void poller.refresh()}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-50 transition"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 transition"
             title="Refresh documents from pipeline"
           >
             <RefreshCw size={15} className={poller.loading ? "animate-spin text-[#47a2b0]" : undefined} />
@@ -337,22 +351,22 @@ export default function DocumentsPage({
           </div>
         )}
         {poller.loading && !isLive && filtered.length === 0 && !poller.error ? (
-          <div className="p-8 text-center text-[12px] font-semibold text-slate-500">
+          <div className="p-8 text-center text-[12px] font-semibold text-slate-600">
             Loading documents from Azure…
           </div>
         ) : filtered.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[940px] border-collapse text-left">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                  <th className="px-5 py-3 font-bold">Document</th>
-                  <th className="px-3 py-3 font-bold">Document Type</th>
-                  <th className="px-3 py-3 font-bold">Timestamp</th>
-                  <th className="px-3 py-3 font-bold">Status</th>
-                  <th className="px-3 py-3 font-bold">Confidence</th>
-                  <th className="px-3 py-3 font-bold">Pages</th>
-                  <th className="px-3 py-3 font-bold">Received</th>
-                  <th className="px-5 py-3 font-bold">Action</th>
+                <tr className="border-b border-slate-200 bg-slate-100/90 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-700">
+                  <th className="px-5 py-3.5">Document</th>
+                  <th className="px-3 py-3.5">Document Type</th>
+                  <th className="px-3 py-3.5">Timestamp</th>
+                  <th className="px-3 py-3.5">Status</th>
+                  <th className="px-3 py-3.5">Confidence</th>
+                  <th className="px-3 py-3.5">Pages</th>
+                  <th className="px-3 py-3.5">Received</th>
+                  <th className="px-5 py-3.5">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,47 +388,48 @@ export default function DocumentsPage({
                     <tr
                       key={doc.id}
                       onClick={handleOpen}
-                      className="cursor-pointer border-b border-slate-100 transition hover:bg-[#ebf5f7]/40"
+                      className="cursor-pointer border-b border-slate-100 transition hover:bg-[#ebf5f7]/50"
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
-                            <FileText size={16} />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <FileText size={17} />
                           </div>
-                          <div>
-                            <div className="text-[11px] font-bold text-[#0e0e0e]">{doc.file}</div>
-                            <div className="mt-1 font-mono text-[9px] font-bold text-[#47a2b0]">{doc.id}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-[12px] font-bold text-[#0e0e0e]">{doc.file}</div>
+                            <div className="mt-1 truncate font-mono text-[10px] font-bold text-[#1b6b77]">{doc.id}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[10px] font-medium text-slate-700">{doc.type}</td>
-                      <td className="px-3 py-4 text-[10px] font-mono text-slate-600 font-medium">{doc.timestamp}</td>
+                      <td className="px-3 py-4 text-[11px] font-bold text-slate-800">{doc.type}</td>
+                      <td className="px-3 py-4 font-mono text-[11px] font-semibold text-slate-700">{doc.timestamp}</td>
                       <td className="px-3 py-4">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <StatusPill status={doc.status} />
                           {doc.isDuplicate && (
                             <span
                               title={doc.duplicateReason || `Duplicate of ${doc.duplicateOf}`}
-                              className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 ring-1 ring-purple-200"
+                              className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[9px] font-extrabold text-purple-900 ring-1 ring-purple-300 shadow-xs"
                             >
+                              <Copy size={9} className="shrink-0 stroke-[2.5]" />
                               Duplicate
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[10px] text-slate-600 font-semibold">{doc.confidence}</td>
-                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
-                      <td className="px-3 py-4 text-[10px] text-slate-500">{doc.received}</td>
+                      <td className="px-3 py-4 text-[11px] font-bold text-slate-900">{doc.confidence}</td>
+                      <td className="px-3 py-4 text-[11px] font-semibold text-slate-700">{doc.pages}</td>
+                      <td className="px-3 py-4 text-[11px] font-semibold text-slate-700">{doc.received}</td>
                       <td className="px-5 py-4">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpen();
                           }}
-                          className="rounded-lg p-2 text-slate-400 hover:bg-[#ebf5f7] hover:text-[#47a2b0]"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-[#ebf5f7] hover:text-[#1b6b77] transition"
                           title={needsReview ? "Open in HIL Review" : "View Document Details"}
                         >
-                          <Eye size={15} />
+                          <Eye size={16} />
                         </button>
                       </td>
                     </tr>
