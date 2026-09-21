@@ -11,6 +11,7 @@ import { fetchDocuments, fetchStats, relativeTime, usePolled } from "@/senderra/
 
 export default function PipelineMonitorPage() {
   const [paused, setPaused] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: docData, refresh: refreshDocs } = usePolled(
     () => fetchDocuments(),
@@ -115,37 +116,65 @@ export default function PipelineMonitorPage() {
     ];
   }, [liveDocuments]);
 
-  const handleRefresh = () => {
-    refreshDocs();
-    refreshStats();
-    toast.success("Monitor refreshed with latest Azure telemetry");
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refreshDocs(), refreshStats()]);
+      toast.success("Monitor refreshed", { description: "Updated with latest Azure telemetry." });
+    } catch {
+      toast.error("Failed to refresh telemetry");
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
   };
 
   return (
     <div className="space-y-5 p-4 sm:p-7 lg:p-9">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-emerald-600">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live Azure Pipeline Telemetry · Real-time feed
-          </div>
+          {paused ? (
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-amber-600">
+              <span className="h-2 w-2 rounded-full bg-amber-500" /> Azure Telemetry · Polling Paused
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-emerald-600">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live Azure Pipeline Telemetry · Real-time feed
+            </div>
+          )}
           <p className="mt-1 text-[11px] text-slate-500">Stage health, throughput, and currently processing jobs across the workspace.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              setPaused(!paused);
-              toast(paused ? "Live polling resumed" : "Live polling paused");
+              const next = !paused;
+              setPaused(next);
+              if (next) {
+                toast("Live polling paused", { description: "Screen telemetry frozen for inspection." });
+              } else {
+                toast("Live polling resumed", { description: "Streaming updates every 6 seconds." });
+              }
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-bold transition active:scale-[0.98]",
+              paused
+                ? "border-amber-300 bg-amber-50 text-amber-800 shadow-xs hover:bg-amber-100/80"
+                : "border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50"
+            )}
+            title={paused ? "Click to resume live updates" : "Click to pause telemetry feed"}
           >
-            {paused ? <Play size={14} /> : <Pause size={14} />} {paused ? "Resume live" : "Pause live"}
+            {paused ? <Play size={14} className="text-amber-700" /> : <Pause size={14} className="text-slate-500" />}
+            {paused ? "Resume live" : "Pause live"}
           </button>
           <button
             onClick={handleRefresh}
+            disabled={isRefreshing}
             title="Refresh now"
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50 transition"
+            className={cn(
+              "rounded-xl border border-slate-200 bg-white p-2 text-slate-500 shadow-2xs hover:bg-slate-50 transition active:scale-[0.95]",
+              isRefreshing && "opacity-75 cursor-not-allowed"
+            )}
           >
-            <RefreshCw size={15} />
+            <RefreshCw size={15} className={cn("transition", isRefreshing && "animate-spin text-[#47a2b0]")} />
           </button>
         </div>
       </div>
