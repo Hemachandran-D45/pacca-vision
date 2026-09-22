@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Coins, FileStack, Gauge, PiggyBank, Timer } from "lucide-react";
+import { Coins, FileStack, Gauge, PiggyBank, Timer } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchAnalytics, duration, humanize, percent, usd, usePolled } from "./api";
 import { ErrorBlock, LiveBadge, LoadingBlock } from "./parts";
@@ -150,23 +150,6 @@ function BarList({
   );
 }
 
-function Guard({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
-  return (
-    <div className="flex items-start gap-2.5">
-      {ok ? (
-        <Check size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-      ) : (
-        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
-      )}
-      <div className="min-w-0">
-        <div className={ok ? "text-[10px] font-bold text-[#0e0e0e]" : "text-[10px] font-bold text-amber-800"}>
-          {label}
-        </div>
-        <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">{detail}</div>
-      </div>
-    </div>
-  );
-}
 
 export function AnalyticsLive() {
   const { data, error, loading, refresh } = usePolled(() => fetchAnalytics(), 15000);
@@ -367,7 +350,7 @@ export function AnalyticsLive() {
         </Card>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div>
         <Card title="Spend by day" hint="Days on which documents were actually processed.">
           <BarList
             rows={a.costTrend.map((row) => ({
@@ -378,45 +361,6 @@ export function AnalyticsLive() {
             format={(value) => usd(value, 4)}
             labelWidth="150px"
           />
-        </Card>
-
-        <Card
-          title="Cost guards"
-          hint="Three settings that cost money silently — none of them produce an error when they drift."
-        >
-          <div className="space-y-3.5">
-            <Guard
-              ok={a.guards.contextualizationUsd === 0}
-              label={
-                a.guards.contextualizationUsd === 0
-                  ? "Contextualisation is off"
-                  : `Contextualisation billed ${usd(a.guards.contextualizationUsd, 4)}`
-              }
-              detail={`${a.guards.contextualizationTokens} tokens. A non-empty fieldSchema on either analyzer turns this meter back on — it is the single largest accidental cost.`}
-            />
-            <Guard
-              ok={a.guards.pagesBasic === 0}
-              label={`Layout analyzer on all ${a.guards.pagesStandard} pages`}
-              detail={`${a.guards.pagesBasic} pages ran without layout. Layout on/off is the biggest deliberate cost lever in the pipeline.`}
-            />
-            <Guard
-              ok={a.guards.throttleCount === 0}
-              label={
-                a.guards.throttleCount === 0 ? "No model throttling" : `${a.guards.throttleCount} throttle events`
-              }
-              detail="Throttling inflates latency and retries, and shows up as a cost outlier before it shows up as an error."
-            />
-          </div>
-          <dl className="mt-4 space-y-1.5 border-t border-slate-100 pt-3.5 text-[10px]">
-            <div className="flex justify-between gap-3">
-              <dt className="text-slate-400">Analyzer</dt>
-              <dd className="truncate font-semibold text-slate-700">{a.guards.analyzers.join(", ") || "—"}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-slate-400">Model</dt>
-              <dd className="truncate font-semibold text-slate-700">{a.guards.models.join(", ") || "—"}</dd>
-            </div>
-          </dl>
         </Card>
       </div>
     </div>
