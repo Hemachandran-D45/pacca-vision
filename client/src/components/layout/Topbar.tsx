@@ -101,7 +101,6 @@ export function Topbar({
             aria-label="Notifications"
             onClick={() => {
               setNotificationsOpen(!notificationsOpen);
-              setHelpOpen(false);
             }}
             className={cn(
               "relative rounded-xl p-2 text-stone-500 transition hover:bg-white",

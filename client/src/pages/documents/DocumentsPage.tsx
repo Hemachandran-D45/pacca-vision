@@ -31,6 +31,7 @@ import {
   saveStoredUploadedDocs,
   pruneStoredUploadedDocs,
   PACCA_UPLOADED_DOCS_EVENT,
+  type StoredUploadedDoc,
 } from "@/senderra/localDocs";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +41,8 @@ function listStatus(uiStatus: string) {
   if (uiStatus === "In HIL Review") return "HIL Review" as const;
   if (uiStatus === "Processing") return "Processing" as const;
   if (uiStatus === "Queued") return "Queued" as const;
-  if (uiStatus === "Failed") return "Validation failed" as const;
+  if (uiStatus === "Failed") return "Failed" as const;
+  if (uiStatus === "Duplicate") return "Duplicate" as const;
   return "Needs Review" as const;
 }
 
@@ -70,15 +72,16 @@ function getConfidenceNumber(confStr: string): number {
   return isNaN(num) ? 95 : num;
 }
 
-function toOptimisticRow(item: UploadedDocInfo) {
-  const ts = item.uploadedAt || new Date().toISOString();
+function toOptimisticRow(item: UploadedDocInfo & { timestamp?: number }) {
+  const rawTs = item.timestamp || Date.now();
+  const ts = new Date(rawTs).toISOString();
   return {
     id: item.documentId,
     file: item.file,
     type: item.docType || resolveUploadDocType("", item.department, item.file),
     source: `Upload · ${item.department}`,
     timestamp: formatTimestamp(ts),
-    rawTimestamp: new Date(ts).getTime(),
+    rawTimestamp: rawTs,
     status: "Queued" as const,
     confidence: "—",
     pages: "—" as const,
@@ -246,7 +249,7 @@ export default function DocumentsPage({
       if (statusFilter === "processed" && d.status !== "Processed") return false;
       if (statusFilter === "ivr" && d.status !== "Routed to IVR") return false;
       if (statusFilter === "duplicate" && !d.isDuplicate && d.status !== "Duplicate") return false;
-      if (statusFilter === "failed" && d.status !== "Validation failed" && d.status !== "Failed") return false;
+      if (statusFilter === "failed" && d.status !== "Failed") return false;
       if (statusFilter === "review" && d.status !== "Needs Review" && d.status !== "HIL Review") return false;
 
       // 3. Date Filter
@@ -558,7 +561,7 @@ export default function DocumentsPage({
                               Needs Review
                             </span>
                           )}
-                          {(doc.status === "Validation failed" || doc.status === "Failed") && (
+                          {doc.status === "Failed" && (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-800 ring-1 ring-rose-200">
                               <span className="h-2 w-2 rounded-full bg-rose-600" />
                               Failed
