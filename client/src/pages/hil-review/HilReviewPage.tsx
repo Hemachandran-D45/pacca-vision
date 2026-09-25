@@ -138,6 +138,22 @@ export default function HilReviewPage({
     return 0;
   });
 
+  const [isQueueRefreshing, setIsQueueRefreshing] = useState(false);
+
+  const handleQueueRefresh = async () => {
+    setIsQueueRefreshing(true);
+    try {
+      await queuePoller.refresh();
+      toast.success("Review queue refreshed", {
+        description: "Synchronized review queue with latest Azure Cosmos DB intake.",
+      });
+    } catch {
+      toast.error("Failed to refresh review queue");
+    } finally {
+      setTimeout(() => setIsQueueRefreshing(false), 500);
+    }
+  };
+
   /*
    * A document opened by id is shown whether or not it is in the queue.
    *
@@ -257,11 +273,18 @@ export default function HilReviewPage({
 
           <button
             type="button"
-            onClick={() => void queuePoller.refresh()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition"
-            title="Refresh queue"
+            onClick={handleQueueRefresh}
+            disabled={isQueueRefreshing}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition active:scale-[0.98] cursor-pointer"
+            title="Refresh review queue"
           >
-            <RefreshCw size={13} className={queuePoller.loading ? "animate-spin text-[#47a2b0]" : "text-slate-400"} />
+            <RefreshCw
+              size={13}
+              className={cn(
+                "transition",
+                isQueueRefreshing || queuePoller.loading ? "animate-spin text-[#47a2b0]" : "text-slate-400"
+              )}
+            />
             <span className="hidden sm:inline">Refresh</span>
           </button>
 
@@ -631,22 +654,13 @@ function StandardWorkbench({
             {currentDoc.status === "Approved" ? "Approved" : "Approve & deliver"}
           </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => toast("Reprocessing requested")}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition"
-            >
-              <RefreshCw size={11} /> Reprocess
-            </button>
-            <button
-              type="button"
-              onClick={handleReject}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-rose-200 bg-rose-50/70 py-2 text-[10px] font-bold text-rose-700 hover:bg-rose-100 transition"
-            >
-              <XCircle size={11} /> Reject
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleReject}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 py-2.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition active:scale-[0.98] cursor-pointer"
+          >
+            <XCircle size={13} /> Reject document
+          </button>
         </div>
       </section>
     </div>
@@ -1095,24 +1109,14 @@ function LiveWorkbench({
             <CheckCircle2 size={14} /> Approve &amp; deliver
           </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              disabled={busy !== null}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
-            >
-              <RefreshCw size={11} /> Reprocess
-            </button>
-            <button
-              type="button"
-              onClick={() => void act("reject")}
-              disabled={busy !== null}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-rose-200 bg-rose-50/70 py-2 text-[10px] font-bold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50"
-            >
-              <XCircle size={11} /> Reject
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => void act("reject")}
+            disabled={busy !== null}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/70 py-2.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+          >
+            <XCircle size={13} /> Reject document
+          </button>
         </div>
       </section>
     </div>
