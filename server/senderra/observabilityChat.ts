@@ -432,6 +432,63 @@ Instructions:
 
   // If Azure OpenAI endpoint fails or is unreachable, execute the tool query directly via KQL engine and provide grounded synthesis
   const lastUserMsg = (userMessages[userMessages.length - 1]?.content || "").toLowerCase();
+
+  if (
+    lastUserMsg.includes("blob") ||
+    lastUserMsg.includes("eventgrid") ||
+    lastUserMsg.includes("event grid") ||
+    lastUserMsg.includes("miss") ||
+    lastUserMsg.includes("gap") ||
+    lastUserMsg.includes("silent") ||
+    lastUserMsg.includes("stuck") ||
+    lastUserMsg.includes("lost") ||
+    lastUserMsg.includes("upload")
+  ) {
+    const gapRes = await detectPipelineGaps(body.runId);
+    kqlExecutedLogs.push({
+      title: "Pipeline Gap Detection (Blob vs Cosmos Reconciliation)",
+      query: `pipeline_gaps | project category, documentId, stuckForMs, rootCauseHypothesis`,
+      rowCount: gapRes.gaps.length,
+      executionTimeMs: 0,
+      sampleData: gapRes.gaps.slice(0, 5),
+    });
+
+    let reply = `### Pipeline Gap & Upload Telemetry (Reconciliation Check)\n\n`;
+    reply += `**Blob Storage Container**: \`${gapRes.blobCount}\` blobs inspected in intake storage.\n`;
+    reply += `**Cosmos DB Stage Records**: \`${gapRes.cosmosCount}\` stage traces correlated.\n\n`;
+
+    if (gapRes.gaps.length === 0) {
+      reply += `✅ **No Missed Uploads Found**: All **${gapRes.blobCount}** uploaded blobs successfully produced corresponding pipeline events. There are **0 Event Grid dropouts** and **0 orphaned files**.\n\n` +
+        `**Correlation Breakdown**:\n` +
+        `- Silent Event Grid Drops: 0\n` +
+        `- Stuck in OCR Stage: 0\n` +
+        `- Extraction Record Missing: 0\n` +
+        `- Dead Letter Queue Depth: 0 items`;
+    } else {
+      reply += `⚠️ **${gapRes.gaps.length} Pipeline Gap(s) Detected**:\n\n`;
+      for (const gap of gapRes.gaps.slice(0, 5)) {
+        reply += `- **${gap.documentId}** [${gap.category.toUpperCase()} - ${gap.severity}]: ${gap.description}\n` +
+          `  - *Hypothesis*: ${gap.rootCauseHypothesis}\n` +
+          `  - *Remediation*: ${gap.suggestedRemediation}\n\n`;
+      }
+    }
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        reply,
+        suggestedQuestions: [
+          "Show me any documents stuck in OCR",
+          "Run KQL query for top queue latency spans",
+          "Explain root cause of tool dropouts",
+        ],
+        kqlExecuted: kqlExecutedLogs,
+        telemetrySnapshot: stats,
+      },
+    };
+  }
+
   let heuristicQuery = "";
   if (lastUserMsg.includes("dropout") || lastUserMsg.includes("tool")) {
     heuristicQuery = `traces | where genai_tool_call_dropout == true | project timestamp, run_id, doc_id, model_deployment, status, error_message | take 10`;

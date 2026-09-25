@@ -170,12 +170,20 @@ export async function completeChatWithTools(
 
   for (let turn = 0; turn < maxTurns; turn++) {
     try {
+      const useMaxCompletionTokens =
+        /^(gpt-5|o1|o3)/i.test(config.model) || /gpt-5/i.test(config.baseUrl);
+
       const requestPayload: Record<string, unknown> = {
         model: config.model,
-        temperature: Number(process.env.OPENAI_TEMPERATURE || 0.2),
-        max_tokens: config.maxTokens,
         messages,
       };
+
+      if (useMaxCompletionTokens) {
+        requestPayload.max_completion_tokens = config.maxTokens;
+      } else {
+        requestPayload.max_tokens = config.maxTokens;
+        requestPayload.temperature = Number(process.env.OPENAI_TEMPERATURE || 0.2);
+      }
 
       if (tools && tools.length > 0) {
         requestPayload.tools = tools;
