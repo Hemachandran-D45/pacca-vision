@@ -2,6 +2,7 @@ import { Coins, FileStack, Gauge, PiggyBank, Timer } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchAnalytics, duration, humanize, percent, usd, usePolled } from "./api";
 import { ErrorBlock, LiveBadge, LoadingBlock } from "./parts";
+import { cn } from "@/lib/utils";
 
 /**
  * Categorical slots, light mode, from the validated reference palette.
@@ -151,12 +152,12 @@ function BarList({
 }
 
 
-export function AnalyticsLive() {
+export function AnalyticsLive({ embedded = false }: { embedded?: boolean }) {
   const { data, error, loading, refresh } = usePolled(() => fetchAnalytics(), 15000);
   const a = data?.analytics;
 
-  if (loading && !a) return <div className="p-4 sm:p-7 lg:p-9"><LoadingBlock /></div>;
-  if (error) return <div className="p-4 sm:p-7 lg:p-9"><ErrorBlock error={error} onRetry={() => void refresh()} /></div>;
+  if (loading && !a) return <div className={embedded ? "py-4" : "p-4 sm:p-7 lg:p-9"}><LoadingBlock /></div>;
+  if (error) return <div className={embedded ? "py-4" : "p-4 sm:p-7 lg:p-9"}><ErrorBlock error={error} onRetry={() => void refresh()} /></div>;
   if (!a) return null;
 
   const cacheSavingPct =
@@ -166,24 +167,39 @@ export function AnalyticsLive() {
   const gatedDocs = a.gates.documentReasons.reduce((sum, r) => sum + r.count, 0);
 
   return (
-    <div className="space-y-5 p-4 sm:p-7 lg:p-9">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
-              Client 1 · Prior Auth Processing
+    <div className={cn("space-y-5", !embedded && "p-4 sm:p-7 lg:p-9")}>
+      {!embedded && (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-[.16em] text-[#47a2b0]">
+                Client 1 · Prior Auth Processing
+              </div>
+              <LiveBadge />
             </div>
+            <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#0e0e0e]">
+              Azure Infrastructure Telemetry
+            </h1>
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              Measured per document by the pipeline — Content Understanding and the model both report
+              actual usage. Nothing on this page is a modelled rate.
+            </p>
+          </div>
+        </div>
+      )}
+      {embedded && (
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-[.14em] text-slate-600">
+              Azure Container Runtime Telemetry
+            </span>
             <LiveBadge />
           </div>
-          <h1 className="mt-2 font-display text-[26px] font-bold tracking-[-.05em] text-[#0e0e0e]">
-            Analytics &amp; Cost
-          </h1>
-          <p className="mt-1.5 text-[11px] text-slate-500">
-            Measured per document by the pipeline — Content Understanding and the model both report
-            actual usage. Nothing on this page is a modelled rate.
-          </p>
+          <span className="text-[11px] text-slate-400">
+            Real-time pipeline token meters &amp; OCR compute
+          </span>
         </div>
-      </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric
