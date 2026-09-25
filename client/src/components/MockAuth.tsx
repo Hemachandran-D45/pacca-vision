@@ -1,11 +1,26 @@
 import { useState } from "react";
-import { ArrowRight, Check, ChevronDown, LockKeyhole, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 
-type Role = "PACCA Platform Admin" | "PACCA Solution Developer" | "Client Staff";
-export type MockUser = { name: string; initials: string; email: string; role: Role; tenant: string; tenantCode: string; experience?: "central" | "client" };
+type Role =
+  "PACCA Platform Admin" | "PACCA Solution Developer" | "Client Staff";
+export type MockUser = {
+  name: string;
+  initials: string;
+  email: string;
+  role: Role;
+  tenant: string;
+  tenantCode: string;
+  experience?: "central" | "client";
+};
 
 export const demoUsers: MockUser[] = [
   {
@@ -64,7 +79,8 @@ export const DEMO_HIDDEN_PATHS = new Set([
   "/settings",
 ]);
 
-export const demoAllowedPaths = (role: Role): string[] => rolePermissions[role].filter((path) => !DEMO_HIDDEN_PATHS.has(path));
+export const demoAllowedPaths = (role: Role): string[] =>
+  rolePermissions[role].filter(path => !DEMO_HIDDEN_PATHS.has(path));
 
 export const rolePermissions: Record<Role, string[]> = {
   // Client Staff: Operates the client's published workspace and solutions
@@ -73,6 +89,7 @@ export const rolePermissions: Record<Role, string[]> = {
     "/documents",
     "/hil-review",
     "/monitor",
+    "/observability",
     "/analytics",
     "/solutions-v2",
     "/solutions",
@@ -83,6 +100,7 @@ export const rolePermissions: Record<Role, string[]> = {
     "/documents",
     "/hil-review",
     "/monitor",
+    "/observability",
     "/analytics",
     "/solutions",
     "/solutions-v2",
@@ -100,6 +118,7 @@ export const rolePermissions: Record<Role, string[]> = {
     "/documents",
     "/hil-review",
     "/monitor",
+    "/observability",
     "/analytics",
     "/solutions",
     "/solutions-v2",
@@ -130,7 +149,7 @@ export function LoginScreen({ onLogin }: LoginProps) {
   const [email, setEmail] = useState("suresh.kiran@pacca.demo");
   const [password, setPassword] = useState("••••••••");
   const [showDemo, setShowDemo] = useState(true);
-  const selected = demoUsers.find((user) => user.email === email) ?? demoUsers[0];
+  const selected = demoUsers.find(user => user.email === email) ?? demoUsers[0];
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-[#0e0e0e] text-white">
@@ -145,17 +164,21 @@ export function LoginScreen({ onLogin }: LoginProps) {
         <Logo size="lg" />
         <div className="max-w-md">
           <div className="mb-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-[#47a2b0]">
-            <span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Platform access
+            <span className="h-2 w-2 rounded-full bg-[#45bd8d]" /> Platform
+            access
           </div>
           <h1 className="font-display text-5xl font-bold leading-[1.06] tracking-[-.06em]">
-            Operate every document with <span className="text-[#47a2b0]">confidence.</span>
+            Operate every document with{" "}
+            <span className="text-[#47a2b0]">confidence.</span>
           </h1>
           <p className="mt-6 max-w-sm text-sm leading-relaxed text-slate-300">
-            A reusable, cloud-agnostic operations layer for document intake, processing, human review, and trusted final metadata.
+            A reusable, cloud-agnostic operations layer for document intake,
+            processing, human review, and trusted final metadata.
           </p>
         </div>
         <div className="text-[10px] text-slate-500">
-          PACCA Vision · Reusable Intelligent Document Processing Operations Platform
+          PACCA Vision · Reusable Intelligent Document Processing Operations
+          Platform
         </div>
       </div>
 
@@ -174,7 +197,8 @@ export function LoginScreen({ onLogin }: LoginProps) {
                   Sign in to PACCA
                 </h2>
                 <p className="mt-2 text-[11px] text-slate-500">
-                  Dedicated intelligent document processing operations workspace.
+                  Dedicated intelligent document processing operations
+                  workspace.
                 </p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ebf5f7] text-[#47a2b0]">
@@ -189,31 +213,43 @@ export function LoginScreen({ onLogin }: LoginProps) {
                 </span>
                 <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-slate-700">
                   <span>Client</span>
-                  <span className="text-[9px] font-bold text-[#45bd8d]">Authorized</span>
+                  <span className="text-[9px] font-bold text-[#45bd8d]">
+                    Authorized
+                  </span>
                 </div>
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-[10px] font-bold text-slate-500">Email</span>
+                <span className="mb-2 block text-[10px] font-bold text-slate-500">
+                  Email
+                </span>
                 <input
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-[10px] font-bold text-slate-500">Password</span>
+                <span className="mb-2 block text-[10px] font-bold text-slate-500">
+                  Password
+                </span>
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
                 />
               </label>
 
               <button
-                onClick={() => onLogin({ ...selected, tenant: "Client", tenantCode: "CLIENT" })}
+                onClick={() =>
+                  onLogin({
+                    ...selected,
+                    tenant: "Client",
+                    tenantCode: "CLIENT",
+                  })
+                }
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] text-[11px] font-bold text-white shadow-[0_9px_20px_rgba(71,162,176,.22)] hover:bg-[#37828e]"
               >
                 Continue to workspace <ArrowRight size={15} />
@@ -226,11 +262,14 @@ export function LoginScreen({ onLogin }: LoginProps) {
                 className="flex w-full items-center justify-between text-left text-[10px] font-bold text-slate-500"
               >
                 <span>Authorized Team Member</span>
-                <ChevronDown size={14} className={cn("transition", showDemo && "rotate-180")} />
+                <ChevronDown
+                  size={14}
+                  className={cn("transition", showDemo && "rotate-180")}
+                />
               </button>
               {showDemo && (
                 <div className="mt-3 grid gap-2">
-                  {demoUsers.map((user) => (
+                  {demoUsers.map(user => (
                     <button
                       key={user.email}
                       onClick={() => {
@@ -247,12 +286,16 @@ export function LoginScreen({ onLogin }: LoginProps) {
                         {user.initials}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[10px] font-bold text-[#0e0e0e]">{user.name}</div>
+                        <div className="text-[10px] font-bold text-[#0e0e0e]">
+                          {user.name}
+                        </div>
                         <div className="mt-0.5 text-[9px] text-slate-500 font-medium">
                           Operations Lead · Authorized User
                         </div>
                       </div>
-                      {email === user.email && <Check size={14} className="text-[#47a2b0]" />}
+                      {email === user.email && (
+                        <Check size={14} className="text-[#47a2b0]" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -260,7 +303,8 @@ export function LoginScreen({ onLogin }: LoginProps) {
             </div>
           </div>
           <div className="mt-5 flex items-center justify-center gap-2 text-[9px] text-slate-500">
-            <LockKeyhole size={12} /> Mock authentication · single client workspace
+            <LockKeyhole size={12} /> Mock authentication · single client
+            workspace
           </div>
         </div>
       </div>
@@ -269,11 +313,66 @@ export function LoginScreen({ onLogin }: LoginProps) {
 }
 
 export function SkeletonPage() {
-  return <div className="animate-pulse space-y-6 p-4 sm:p-7 lg:p-9"><div className="flex items-end justify-between"><div><div className="h-3 w-40 rounded bg-slate-200" /><div className="mt-3 h-7 w-64 rounded-lg bg-slate-200" /></div><div className="h-9 w-28 rounded-xl bg-slate-200" /></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[1,2,3,4,5].map((item) => <div key={item} className="h-[176px] rounded-2xl border border-slate-200/80 bg-white p-5"><div className="h-9 w-9 rounded-xl bg-slate-100" /><div className="mt-6 h-3 w-24 rounded bg-slate-100" /><div className="mt-3 h-7 w-20 rounded bg-slate-200" /><div className="mt-8 h-8 w-full rounded bg-slate-100" /></div>)}</div><div className="grid gap-5 lg:grid-cols-2"><div className="h-[310px] rounded-2xl border border-slate-200/80 bg-white" /><div className="h-[310px] rounded-2xl border border-slate-200/80 bg-white" /></div></div>;
+  return (
+    <div className="animate-pulse space-y-6 p-4 sm:p-7 lg:p-9">
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="h-3 w-40 rounded bg-slate-200" />
+          <div className="mt-3 h-7 w-64 rounded-lg bg-slate-200" />
+        </div>
+        <div className="h-9 w-28 rounded-xl bg-slate-200" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {[1, 2, 3, 4, 5].map(item => (
+          <div
+            key={item}
+            className="h-[176px] rounded-2xl border border-slate-200/80 bg-white p-5"
+          >
+            <div className="h-9 w-9 rounded-xl bg-slate-100" />
+            <div className="mt-6 h-3 w-24 rounded bg-slate-100" />
+            <div className="mt-3 h-7 w-20 rounded bg-slate-200" />
+            <div className="mt-8 h-8 w-full rounded bg-slate-100" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="h-[310px] rounded-2xl border border-slate-200/80 bg-white" />
+        <div className="h-[310px] rounded-2xl border border-slate-200/80 bg-white" />
+      </div>
+    </div>
+  );
 }
 
-export function AccessDenied({ role, onNavigate }: { role: Role; onNavigate: (path: string) => void }) {
-  return <div className="flex min-h-[calc(100vh-76px)] items-center justify-center p-6"><div className="max-w-md rounded-2xl border border-amber-200 bg-white p-7 text-center shadow-sm"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><LockKeyhole size={21} /></div><h2 className="mt-5 font-display text-xl font-bold text-[#0e0e0e]">Permission required</h2><p className="mt-2 text-[11px] leading-relaxed text-slate-500">Your current persona, <strong>{role}</strong>, does not have access to this workspace. Choose another allowed area or sign in as a different demo user.</p><button onClick={() => onNavigate("/")} className="mt-5 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]">Return to Command Center</button></div></div>;
+export function AccessDenied({
+  role,
+  onNavigate,
+}: {
+  role: Role;
+  onNavigate: (path: string) => void;
+}) {
+  return (
+    <div className="flex min-h-[calc(100vh-76px)] items-center justify-center p-6">
+      <div className="max-w-md rounded-2xl border border-amber-200 bg-white p-7 text-center shadow-sm">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+          <LockKeyhole size={21} />
+        </div>
+        <h2 className="mt-5 font-display text-xl font-bold text-[#0e0e0e]">
+          Permission required
+        </h2>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          Your current persona, <strong>{role}</strong>, does not have access to
+          this workspace. Choose another allowed area or sign in as a different
+          demo user.
+        </p>
+        <button
+          onClick={() => onNavigate("/")}
+          className="mt-5 rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]"
+        >
+          Return to Command Center
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export type { Role };

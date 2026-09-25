@@ -24,7 +24,10 @@ import {
 import { listRecentUploads, mintReadSas, mintUploadSas } from "./blob.js";
 import { computeAnalytics } from "./analytics.js";
 import { getDynamicSchema, syncSchemasToBlob } from "./schemaLoader.js";
-import type { DocumentSummary, ExtractItem } from "./types.js";
+import type { DocumentSummary, ExtractItem, OcrItem } from "./types.js";
+import { handleObservabilityChat } from "./observabilityChat.js";
+import { executeKql } from "./kqlEngine.js";
+import { detectPipelineGaps } from "./pipelineGaps.js";
 
 export type ApiResult = { status: number; body: unknown };
 
@@ -672,11 +675,138 @@ async function handleHealth(): Promise<ApiResult> {
   }
 }
 
-/**
- * One dispatcher, mounted twice: as Vite dev middleware in `vite.config.ts` and
- * as a Vercel serverless function in `api/senderra.ts`. Keeping the routing here
- * rather than in either host is what stops dev and production drifting apart.
- */
+async function getObservabilityFromCosmos(limitNum: number, runIdFilter?: string): Promise<ApiResult> {
+  const handle = await requireContainer();
+  if (isFail(handle)) return handle;
+
+  let queryText = "SELECT * FROM c WHERE (c.itemType = 'ocr' OR c.itemType = 'extract')";
+  const parameters: { name: string; value: string }[] = [];
+  if (runIdFilter) {
+    queryText += " AND c.runId = @runId";
+    parameters.push({ name: "@runId", value: runIdFilter });
+  }
+
+  let resources: (OcrItem | ExtractItem)[] = [];
+  try {
+    const res = await handle.container.items
+      .query<OcrItem | ExtractItem>({ query: queryText, parameters })
+      .fetchAll();
+    resources = res.resources;
+  } catch (error) {
+    return fail(502, `Cosmos observability query failed: ${String(error)}`);
+  }
+
+  resources.sort((a, b) => {
+    const ta = a.recorded_at || "";
+    const tb = b.recorded_at || "";
+    return String(tb).localeCompare(String(ta));
+  });
+
+  const sliced = resources.slice(0, limitNum);
+  const records = sliced.map((r) => {
+    const anyR = r as Record<string, unknown>;
+    return {
+      run_id: r.runId || (anyR.run_id as string) || "prod",
+      doc_id: r.docId || (anyR.doc_id as string) || r.documentId || "",
+      stage: r.itemType === "ocr" ? "ocr" : "extract",
+      status: r.status,
+      trace_id: anyR.trace_id as string | undefined,
+      span_id: anyR.span_id as string | undefined,
+      trace_context: anyR.trace_context as Record<string, string> | undefined,
+      business_baggage: (anyR.business_baggage as { run_id?: string; doc_id?: string }) || { run_id: r.runId, doc_id: r.docId },
+      queue_wait_ms: typeof anyR.queue_wait_ms === "number" ? anyR.queue_wait_ms : null,
+      genai_tool_call_dropout: Boolean(anyR.genai_tool_call_dropout),
+      error_message: anyR.error_message as string | undefined,
+      recorded_at: anyR.recorded_at,
+      model_deployment: (r as ExtractItem).model_deployment,
+      cu_latency_ms: (r as OcrItem).cu_latency_ms,
+      ivr_trigger_status: anyR.ivr_trigger_status as string | undefined,
+    };
+  });
+
+  const queueWaits = records
+    .map((r) => r.queue_wait_ms)
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  const dropoutCount = records.filter((r) => r.genai_tool_call_dropout).length;
+  const failureCount = records.filter(
+    (r) => Boolean(r.error_message) || ["Failed", "ContentFiltered", "PollTimeout"].includes(r.status ?? "")
+  ).length;
+
+  const cuRecords = records.filter((r) => r.stage === "ocr" && r.cu_latency_ms != null);
+  const llmRecords = records.filter((r) => r.stage === "extract" && r.model_deployment);
+  const ivrRecords = records.filter((r) => r.stage === "extract" && r.ivr_trigger_status);
+
+  const avgQueueWait = queueWaits.length ? Math.round((queueWaits.reduce((a, b) => a + b, 0) / queueWaits.length) * 100) / 100 : null;
+  const maxQueueWait = queueWaits.length ? Math.max(...queueWaits) : null;
+
+  const dependencyTelemetry = {
+    service_bus: {
+      available: true,
+      queue_wait_samples: queueWaits.length,
+      queue_wait_avg_ms: avgQueueWait,
+      queue_wait_max_ms: maxQueueWait,
+    },
+    content_understanding: {
+      available: cuRecords.length > 0,
+      observed: cuRecords.length,
+      failures: cuRecords.filter((r) => ["Failed", "SubmitFailed", "PollTimeout"].includes(r.status ?? "")).length,
+    },
+    azure_openai: {
+      available: llmRecords.length > 0,
+      observed: llmRecords.length,
+      dropouts: dropoutCount,
+    },
+    ivr: {
+      available: ivrRecords.length > 0,
+      observed: ivrRecords.length,
+      failures: ivrRecords.filter((r) => ["failed", "rejected", "unauthorized"].includes(r.ivr_trigger_status ?? "")).length,
+    },
+  };
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      live: true,
+      records,
+      sampling: { sampler: "parentbased_traceidratio", ratio: 0.1 },
+      retention_days: 30,
+      aggregates: {
+        record_count: records.length,
+        failure_count: failureCount,
+        genai_dropout_count: dropoutCount,
+        queue_wait_avg_ms: avgQueueWait,
+        queue_wait_max_ms: maxQueueWait,
+      },
+      dependency_telemetry: dependencyTelemetry,
+    },
+  };
+}
+
+async function handleObservability(query: URLSearchParams): Promise<ApiResult> {
+  const config = readConfig();
+  if (isConfigError(config)) return fail(503, config.error, { missing: config.missing });
+  const limit = Math.min(Math.max(parseInt(query.get("limit") || "50", 10) || 50, 1), 200);
+  const runId = query.get("runId") || "";
+
+  if (config.functionUrl && config.functionKey) {
+    try {
+      const endpoint = new URL("/api/observability", config.functionUrl);
+      endpoint.searchParams.set("limit", String(limit));
+      if (runId) endpoint.searchParams.set("run_id", runId);
+      endpoint.searchParams.set("code", config.functionKey);
+
+      const response = await fetch(endpoint, { cache: "no-store" });
+      const body = await response.json();
+      if (response.ok) return { status: 200, body: { ok: true, live: true, ...body } };
+    } catch {
+      // Fall through to Cosmos DB computation
+    }
+  }
+
+  return getObservabilityFromCosmos(limit, runId);
+}
+
 export async function handleSenderra(
   method: string,
   path: string,
@@ -690,7 +820,9 @@ export async function handleSenderra(
     if (method === "GET" && route === "/documents") return await handleDocuments(query);
     if (method === "GET" && route === "/document") return await handleDocument(query);
     if (method === "GET" && route === "/stats") return await handleStats();
-    if (method === "GET" && route === "/analytics") return await handleAnalytics();
+     if (method === "GET" && route === "/analytics") return await handleAnalytics();
+     if (method === "GET" && route === "/observability") return await handleObservability(query);
+
     if (method === "POST" && route === "/upload-sas") return await handleUploadSas(body);
     if (method === "POST" && route === "/review") return await handleReview(body);
     if (method === "POST" && route === "/ivr-trigger") return await handleIvrTrigger(body);
@@ -704,6 +836,59 @@ export async function handleSenderra(
     if (method === "POST" && route === "/schemas/sync") {
       const res = await syncSchemasToBlob();
       return { status: res.ok ? 200 : 500, body: res };
+    }
+    if (method === "POST" && (route === "/observability/chat" || route === "/observability-chat")) {
+      return await handleObservabilityChat(body as any);
+    }
+    if (method === "POST" && route === "/kql") {
+      const queryStr = String(body.query || "");
+      const res = await executeKql(queryStr);
+      return { status: res.ok ? 200 : 400, body: res };
+    }
+    if (method === "GET" && route === "/observability/gaps") {
+      const runIdFilter = query.get("runId") || undefined;
+      const result = await detectPipelineGaps(runIdFilter);
+      return { status: result.ok ? 200 : 503, body: result };
+    }
+    if (method === "POST" && route === "/observability/diagnose") {
+      // Targeted document diagnosis: run gap detection + KQL for a specific doc
+      const docId = String(body.docId || "");
+      const runId = String(body.runId || "");
+      const [gapResult, traceResult, exceptionResult] = await Promise.all([
+        detectPipelineGaps(runId || undefined),
+        executeKql(
+          docId
+            ? `traces | where doc_id contains "${docId}" | order by timestamp desc | take 20`
+            : `traces | order by timestamp desc | take 20`
+        ),
+        executeKql(
+          docId
+            ? `exceptions | where doc_id contains "${docId}" | take 10`
+            : `exceptions | take 10`
+        ),
+      ]);
+      const docGaps = gapResult.gaps.filter(
+        (g) => !docId || g.docId.includes(docId) || g.documentId.includes(docId)
+      );
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          docId,
+          runId,
+          gaps: docGaps,
+          traces: traceResult.rows,
+          exceptions: exceptionResult.rows,
+          pipelineSummary: {
+            blobCount: gapResult.blobCount,
+            cosmosCount: gapResult.cosmosCount,
+            eventGridGaps: gapResult.eventGridGaps,
+            ocrStuck: gapResult.ocrStuck,
+            extractMissing: gapResult.extractMissing,
+            estimatedDlqDepth: gapResult.estimatedDlqDepth,
+          },
+        },
+      };
     }
     return fail(404, `No Senderra route ${method} ${route}.`);
   } catch (error) {

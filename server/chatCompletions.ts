@@ -128,76 +128,181 @@ function completionsUrl(config: ChatConfig): string {
   return url.toString();
 }
 
-export async function completeChat(messages: ChatMessage[]): Promise<ChatResult> {
+export type ChatToolDefinition = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+};
+
+export type ChatToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+export type ChatResultWithTools =
+  | {
+      ok: true;
+      text: string;
+      model: string;
+      toolCallsExecuted?: Array<{ name: string; args: Record<string, unknown>; result: unknown }>;
+    }
+  | ChatFailure;
+
+export async function completeChatWithTools(
+  initialMessages: any[],
+  tools?: ChatToolDefinition[],
+  toolExecutor?: (name: string, args: Record<string, unknown>) => Promise<unknown>,
+  maxTurns: number = 3
+): Promise<ChatResultWithTools> {
   const config = readChatConfig();
   if ("ok" in config) return config;
-  if (!messages.length) return jsonFail(400, "Chat Completions requires at least one message.");
+  if (!initialMessages.length) return jsonFail(400, "Chat Completions requires at least one message.");
 
-  try {
-    const response = await fetch(completionsUrl(config), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(config.useApiKeyHeader
-          ? { "api-key": config.apiKey }
-          : { Authorization: `Bearer ${config.apiKey}` }),
-      },
-      body: JSON.stringify({
+  const messages = [...initialMessages];
+  const executedLogs: Array<{ name: string; args: Record<string, unknown>; result: unknown }> = [];
+
+  for (let turn = 0; turn < maxTurns; turn++) {
+    try {
+      const requestPayload: Record<string, unknown> = {
         model: config.model,
         temperature: Number(process.env.OPENAI_TEMPERATURE || 0.2),
         max_tokens: config.maxTokens,
         messages,
-      }),
-      signal: AbortSignal.timeout(config.timeoutMs),
-    });
+      };
 
-    const text = await response.text();
-    let json: {
-      error?: { message?: string };
-      choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
-    } = {};
-    if (text) {
-      try {
-        json = JSON.parse(text) as typeof json;
-      } catch {
-        return jsonFail(502, "Chat Completions returned a non-JSON response.");
+      if (tools && tools.length > 0) {
+        requestPayload.tools = tools;
+        requestPayload.tool_choice = "auto";
       }
-    }
 
-    if (!response.ok) {
-      const message = json.error?.message || "Chat Completions request failed.";
-      if (response.status === 401 || response.status === 403) {
-        return jsonFail(502, "Chat Completions authentication failed. Check OPENAI_API_KEY.");
+      const response = await fetch(completionsUrl(config), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(config.useApiKeyHeader
+            ? { "api-key": config.apiKey }
+            : { Authorization: `Bearer ${config.apiKey}` }),
+        },
+        body: JSON.stringify(requestPayload),
+        signal: AbortSignal.timeout(config.timeoutMs),
+      });
+
+      const text = await response.text();
+      let json: {
+        error?: { message?: string };
+        choices?: Array<{
+          message?: {
+            content?: string | Array<{ type?: string; text?: string }>;
+            tool_calls?: ChatToolCall[];
+          };
+        }>;
+      } = {};
+
+      if (text) {
+        try {
+          json = JSON.parse(text) as typeof json;
+        } catch {
+          return jsonFail(502, "Chat Completions returned a non-JSON response.");
+        }
       }
-      return jsonFail(502, message);
-    }
 
-    const content = json.choices?.[0]?.message?.content;
-    const output =
-      typeof content === "string"
-        ? content
-        : Array.isArray(content)
-          ? content.map((part) => part.text ?? "").join("")
-          : "";
-    const trimmed = output.replace(/\u0000/g, "").trim();
-    if (!trimmed) {
-      return jsonFail(502, "Chat Completions returned empty output.");
+      if (!response.ok) {
+        const message = json.error?.message || "Chat Completions request failed.";
+        if (response.status === 401 || response.status === 403) {
+          return jsonFail(502, "Chat Completions authentication failed. Check OPENAI_API_KEY.");
+        }
+        return jsonFail(502, message);
+      }
+
+      const choiceMsg = json.choices?.[0]?.message;
+      if (!choiceMsg) {
+        return jsonFail(502, "Chat Completions returned no choices.");
+      }
+
+      // Check if model emitted tool calls
+      if (choiceMsg.tool_calls && choiceMsg.tool_calls.length > 0 && toolExecutor) {
+        messages.push(choiceMsg);
+
+        for (const toolCall of choiceMsg.tool_calls) {
+          let parsedArgs: Record<string, unknown> = {};
+          try {
+            parsedArgs = JSON.parse(toolCall.function.arguments || "{}");
+          } catch {
+            parsedArgs = {};
+          }
+
+          let toolResult: unknown = null;
+          try {
+            toolResult = await toolExecutor(toolCall.function.name, parsedArgs);
+          } catch (e: any) {
+            toolResult = { error: String(e?.message || e) };
+          }
+
+          executedLogs.push({
+            name: toolCall.function.name,
+            args: parsedArgs,
+            result: toolResult,
+          });
+
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult),
+          });
+        }
+
+        // Loop to next turn so model can inspect tool results and write final answer
+        continue;
+      }
+
+      // Final textual response
+      const content = choiceMsg.content;
+      const output =
+        typeof content === "string"
+          ? content
+          : Array.isArray(content)
+            ? content.map((part) => part.text ?? "").join("")
+            : "";
+
+      const trimmed = output.replace(/\u0000/g, "").trim();
+      if (!trimmed) {
+        return jsonFail(502, "Chat Completions returned empty output.");
+      }
+
+      return {
+        ok: true,
+        text: stripFence(trimmed),
+        model: config.model,
+        toolCallsExecuted: executedLogs,
+      };
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      return jsonFail(
+        502,
+        timedOut
+          ? "Chat Completions timed out."
+          : "Could not reach Chat Completions. Check OPENAI_BASE_URL and network connectivity."
+      );
     }
-    if (Buffer.byteLength(trimmed, "utf8") > MAX_OUTPUT_BYTES) {
-      return jsonFail(502, "Chat Completions output exceeded the file size limit.");
-    }
-    return { ok: true, text: stripFence(trimmed), model: config.model };
-  } catch (error) {
-    const timedOut = error instanceof Error && error.name === "TimeoutError";
-    return jsonFail(
-      502,
-      timedOut
-        ? "Chat Completions timed out."
-        : "Could not reach Chat Completions. Check OPENAI_BASE_URL and network connectivity."
-    );
   }
+
+  return jsonFail(502, "Exceeded maximum tool execution turns.");
+}
+
+export async function completeChat(messages: any[]): Promise<ChatResult> {
+  const res = await completeChatWithTools(messages);
+  if (!res.ok) return res;
+  return { ok: true, text: res.text, model: res.model };
 }
 
 export async function completeSolutionPrompt(prompt: string): Promise<ChatResult> {
   return completeChat([{ role: "user", content: prompt }]);
 }
+
