@@ -72,9 +72,9 @@ function getConfidenceNumber(confStr: string): number {
   return isNaN(num) ? 95 : num;
 }
 
-function toOptimisticRow(item: UploadedDocInfo & { timestamp?: number }) {
-  const rawTs = item.timestamp || Date.now();
-  const ts = new Date(rawTs).toISOString();
+function toOptimisticRow(item: UploadedDocInfo & { timestamp?: number; uploadedAt?: string }) {
+  const rawTs = (item as any).timestamp || ((item as any).uploadedAt ? new Date((item as any).uploadedAt).getTime() : Date.now());
+  const ts = (item as any).uploadedAt || new Date(rawTs).toISOString();
   return {
     id: item.documentId,
     file: item.file,
@@ -248,9 +248,9 @@ export default function DocumentsPage({
       // 2. Status Dropdown Filter
       if (statusFilter === "processed" && d.status !== "Processed") return false;
       if (statusFilter === "ivr" && d.status !== "Routed to IVR") return false;
-      if (statusFilter === "duplicate" && !d.isDuplicate && d.status !== "Duplicate") return false;
-      if (statusFilter === "failed" && d.status !== "Failed") return false;
-      if (statusFilter === "review" && d.status !== "Needs Review" && d.status !== "HIL Review") return false;
+      if (statusFilter === "duplicate" && !d.isDuplicate && (d.status as string) !== "Duplicate") return false;
+      if (statusFilter === "failed" && d.status !== "Failed" && (d.status as string) !== "Validation failed") return false;
+      if (statusFilter === "review" && d.status !== "Needs Review" && (d.status as string) !== "HIL Review") return false;
 
       // 3. Date Filter
       if (dateFilter === "today") {
@@ -561,7 +561,7 @@ export default function DocumentsPage({
                               Needs Review
                             </span>
                           )}
-                          {doc.status === "Failed" && (
+                          {(doc.status === "Failed" || (doc.status as string) === "Validation failed") && (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-800 ring-1 ring-rose-200">
                               <span className="h-2 w-2 rounded-full bg-rose-600" />
                               Failed

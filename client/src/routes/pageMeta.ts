@@ -3,6 +3,7 @@ export const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/documents": { title: "Documents", subtitle: "Search, investigate, and trace every document through the platform" },
   "/hil-review": { title: "HIL Review", subtitle: "Resolve low-confidence fields before they reach your downstream systems" },
   "/monitor": { title: "Pipeline Monitor", subtitle: "Monitor processing stages, latency, failures, and jobs in flight" },
+  "/observability": { title: "Observability", subtitle: "Correlate business journeys to infrastructure and AI causes" },
   "/analytics": { title: "IDP Program Intelligence", subtitle: "Executive ROI, Technical Diagnostics & Real-time Azure Infrastructure" },
   "/audit": { title: "Audit Trail", subtitle: "Chronological operational history across your document estate" },
   "/solutions-v2": { title: "Solutions", subtitle: "Configure document extraction schemas, field rules, and AI model prioritization" },

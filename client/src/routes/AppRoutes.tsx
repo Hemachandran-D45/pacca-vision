@@ -4,14 +4,25 @@ import type { MockUser } from "@/components/MockAuth";
 
 const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"));
 const DocumentsPage = lazy(() => import("@/pages/documents/DocumentsPage"));
-const DocumentDetailPage = lazy(() => import("@/pages/documents/DocumentDetailPage"));
+const DocumentDetailPage = lazy(
+  () => import("@/pages/documents/DocumentDetailPage")
+);
 const HilReviewPage = lazy(() => import("@/pages/hil-review/HilReviewPage"));
-const PipelineMonitorPage = lazy(() => import("@/pages/pipeline-monitor/PipelineMonitorPage"));
+const PipelineMonitorPage = lazy(
+  () => import("@/pages/pipeline-monitor/PipelineMonitorPage")
+);
 const AnalyticsPage = lazy(() => import("@/pages/analytics/AnalyticsPage"));
+const ObservabilityPage = lazy(
+  () => import("@/pages/observability/ObservabilityPage")
+);
 const AuditPage = lazy(() => import("@/pages/audit/AuditPage"));
 const SolutionsPage = lazy(() => import("@/pages/solutions/SolutionsPage"));
-const PipelineStudioPage = lazy(() => import("@/pages/studios/PipelineStudioPage"));
-const MetadataStudioPage = lazy(() => import("@/pages/studios/MetadataStudioPage"));
+const PipelineStudioPage = lazy(
+  () => import("@/pages/studios/PipelineStudioPage")
+);
+const MetadataStudioPage = lazy(
+  () => import("@/pages/studios/MetadataStudioPage")
+);
 const ConfigListPage = lazy(() => import("@/pages/config/ConfigListPage"));
 const DeployPage = lazy(() => import("@/pages/deploy/DeployPage"));
 const AdminPage = lazy(() => import("@/pages/admin/AdminPage"));
@@ -47,10 +58,21 @@ export function AppRoutes({
           );
         }
         if (path === "/") {
-          return <DashboardPage onNavigate={onNavigate} onOpenDocument={onOpenDocument} />;
+          return (
+            <DashboardPage
+              onNavigate={onNavigate}
+              onOpenDocument={onOpenDocument}
+            />
+          );
         }
         if (path === "/documents") {
-          return <DocumentsPage onNavigate={onNavigate} onOpenDocument={onOpenDocument} onOpenHil={onOpenHil} />;
+          return (
+            <DocumentsPage
+              onNavigate={onNavigate}
+              onOpenDocument={onOpenDocument}
+              onOpenHil={onOpenHil}
+            />
+          );
         }
         if (path === "/hil-review") {
           return (
@@ -66,6 +88,9 @@ export function AppRoutes({
         }
         if (path === "/analytics") {
           return <AnalyticsPage />;
+        }
+        if (path === "/observability") {
+          return <ObservabilityPage />;
         }
         if (path === "/audit") {
           return <AuditPage />;
@@ -100,7 +125,12 @@ export function AppRoutes({
         if (path === "/settings") {
           return <AdminPage kind="settings" />;
         }
-        return <DashboardPage onNavigate={onNavigate} onOpenDocument={onOpenDocument} />;
+        return (
+          <DashboardPage
+            onNavigate={onNavigate}
+            onOpenDocument={onOpenDocument}
+          />
+        );
       })()}
     </Suspense>
   );

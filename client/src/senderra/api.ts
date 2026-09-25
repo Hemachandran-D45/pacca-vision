@@ -200,6 +200,183 @@ export function fetchAnalytics() {
   return request<{ analytics: SenderraAnalytics }>("/analytics");
 }
 
+export type ObservabilityRecord = {
+  run_id: string;
+  doc_id: string;
+  stage: string;
+  status?: string;
+  trace_id?: string;
+  span_id?: string;
+  trace_context?: Record<string, string>;
+  business_baggage?: { run_id?: string; doc_id?: string };
+  queue_wait_ms?: number | null;
+  genai_tool_call_dropout?: boolean;
+  error_message?: string;
+  recorded_at?: string;
+  model_deployment?: string;
+  cu_latency_ms?: number;
+  ivr_trigger_status?: string;
+};
+
+export function fetchObservability(params: { limit?: string; runId?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.set("limit", params.limit);
+  if (params.runId) query.set("runId", params.runId);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<{
+    live: true;
+    records: ObservabilityRecord[];
+    sampling: { sampler: string; ratio: number };
+    retention_days: number;
+    aggregates: {
+      record_count: number;
+      failure_count: number;
+      genai_dropout_count: number;
+      queue_wait_avg_ms: number | null;
+      queue_wait_max_ms: number | null;
+    };
+    dependency_telemetry: Record<string, {
+      available: boolean;
+      observed?: number;
+      failures?: number;
+      dropouts?: number;
+      queue_wait_samples?: number;
+      queue_wait_avg_ms?: number | null;
+      queue_wait_max_ms?: number | null;
+    }>;
+  }>(`/observability${suffix}`);
+}
+
+export type ToolCallExecutedLog = {
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+};
+
+export type ObservabilityChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+  kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: ToolCallExecutedLog[];
+};
+
+export type ExecutedKqlLog = {
+  title: string;
+  query: string;
+  rowCount: number;
+  executionTimeMs: number;
+  sampleData?: Array<Record<string, unknown>>;
+};
+
+export type ObservabilityChatResponse = {
+  ok: boolean;
+  reply: string;
+  suggestedQuestions?: string[];
+  kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: ToolCallExecutedLog[];
+  telemetrySnapshot?: {
+    recordCount: number;
+    failureCount: number;
+    dropoutCount: number;
+    avgQueueWaitMs: number | null;
+  };
+};
+
+export function postObservabilityChat(payload: {
+  messages: ObservabilityChatMessage[];
+  contextIncident?: Record<string, unknown>;
+  runId?: string;
+}) {
+  return request<ObservabilityChatResponse>("/observability/chat", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type KqlQueryResult = {
+  ok: boolean;
+  query: string;
+  executionTimeMs: number;
+  totalRows: number;
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  summary?: string;
+  error?: string;
+};
+
+export function runKqlQuery(query: string) {
+  return request<KqlQueryResult>("/kql", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+}
+
+export type PipelineGapEvent = {
+  gapId: string;
+  severity: "critical" | "warning" | "info";
+  category:
+    | "event_grid_gap"
+    | "ocr_stuck"
+    | "extract_missing"
+    | "dlq_overflow"
+    | "long_running"
+    | "duplicate_orphan";
+  documentId: string;
+  runId: string;
+  docId: string;
+  blobPath: string | null;
+  uploadedAt: string | null;
+  stuckForMs: number | null;
+  ocrStatus: string | null;
+  extractStatus: string | null;
+  lastCosmosTs: string | null;
+  investigateKql: string;
+  rootCauseHypothesis: string;
+  remediation: string;
+};
+
+export type PipelineGapSummary = {
+  ok: boolean;
+  checkedAt: string;
+  blobCount: number;
+  cosmosCount: number;
+  gaps: PipelineGapEvent[];
+  eventGridGaps: number;
+  ocrStuck: number;
+  extractMissing: number;
+  longRunning: number;
+  estimatedDlqDepth: number;
+};
+
+export function fetchPipelineGaps(runId?: string) {
+  const query = runId ? `?runId=${encodeURIComponent(runId)}` : "";
+  return request<PipelineGapSummary>(`/observability/gaps${query}`);
+}
+
+export type DiagnoseResult = {
+  ok: boolean;
+  docId: string;
+  runId: string;
+  gaps: PipelineGapEvent[];
+  traces: Array<Record<string, unknown>>;
+  exceptions: Array<Record<string, unknown>>;
+  pipelineSummary: {
+    blobCount: number;
+    cosmosCount: number;
+    eventGridGaps: number;
+    ocrStuck: number;
+    extractMissing: number;
+    estimatedDlqDepth: number;
+  };
+};
+
+export function diagnoseDocument(payload: { docId?: string; runId?: string }) {
+  return request<DiagnoseResult>("/observability/diagnose", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchHealth() {
   return request<{
     configured: boolean;

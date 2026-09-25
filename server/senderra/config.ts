@@ -14,6 +14,8 @@ export type SenderraConfig = {
   storageKey: string;
   docsContainer: string;
   uploadRunId: string;
+  functionUrl: string;
+  functionKey: string;
 };
 
 export type ConfigError = { ok: false; error: string; missing: string[] };
@@ -57,6 +59,8 @@ export function readConfig(): SenderraConfig | ConfigError {
     storageKey,
     docsContainer: get("SENDERRA_DOCS_CONTAINER") || "docs-in",
     uploadRunId: get("SENDERRA_UPLOAD_RUN_ID") || "ui",
+    functionUrl: get("SENDERRA_FUNCTION_URL"),
+    functionKey: get("SENDERRA_FUNCTION_KEY"),
   };
 }
 
