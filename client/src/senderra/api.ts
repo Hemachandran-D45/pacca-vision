@@ -247,9 +247,17 @@ export function fetchObservability(params: { limit?: string; runId?: string } = 
   }>(`/observability${suffix}`);
 }
 
+export type ToolCallExecutedLog = {
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+};
+
 export type ObservabilityChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
+  kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: ToolCallExecutedLog[];
 };
 
 export type ExecutedKqlLog = {
@@ -265,6 +273,7 @@ export type ObservabilityChatResponse = {
   reply: string;
   suggestedQuestions?: string[];
   kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: ToolCallExecutedLog[];
   telemetrySnapshot?: {
     recordCount: number;
     failureCount: number;

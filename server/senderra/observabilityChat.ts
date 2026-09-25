@@ -23,6 +23,7 @@ export type ObservabilityChatResponse = {
   reply: string;
   suggestedQuestions?: string[];
   kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: Array<{ name: string; args: Record<string, unknown>; result?: unknown }>;
   telemetrySnapshot?: {
     recordCount: number;
     failureCount: number;
@@ -425,6 +426,7 @@ Instructions:
           "What is the average queue wait across document batches?",
         ],
         kqlExecuted: kqlExecutedLogs,
+        toolCallsExecuted: chatResult.toolCallsExecuted,
         telemetrySnapshot: stats,
       },
     };
@@ -467,9 +469,9 @@ Instructions:
     } else {
       reply += `⚠️ **${gapRes.gaps.length} Pipeline Gap(s) Detected**:\n\n`;
       for (const gap of gapRes.gaps.slice(0, 5)) {
-        reply += `- **${gap.documentId}** [${gap.category.toUpperCase()} - ${gap.severity}]: ${gap.description}\n` +
+        reply += `- **${gap.documentId}** [${gap.category.toUpperCase()} - ${gap.severity}]: ${gap.category} on ${gap.blobPath ?? gap.documentId}\n` +
           `  - *Hypothesis*: ${gap.rootCauseHypothesis}\n` +
-          `  - *Remediation*: ${gap.suggestedRemediation}\n\n`;
+          `  - *Remediation*: ${gap.remediation}\n\n`;
       }
     }
 

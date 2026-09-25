@@ -1,6 +1,8 @@
 import { container } from "./cosmos.js";
 import type { ExtractItem, OcrItem } from "./types.js";
 import { detectPipelineGaps } from "./pipelineGaps.js";
+import { isConfigError, readConfig } from "./config.js";
+import { listRecentUploads } from "./blob.js";
 
 export type KqlQueryResult = {
   ok: boolean;
@@ -187,19 +189,29 @@ export async function executeKql(rawQuery: string): Promise<KqlQueryResult> {
         investigateKql: g.investigateKql,
       }));
     } else if (firstToken.startsWith("blobs")) {
-      // Virtual table: raw blob listing
-      const gapSummary = await detectPipelineGaps();
-      currentRows = gapSummary.gaps.map((g) => ({
-        timestamp: g.uploadedAt ?? new Date().toISOString(),
-        documentId: g.documentId,
-        run_id: g.runId,
-        doc_id: g.docId,
-        blobPath: g.blobPath,
-        uploadedAt: g.uploadedAt,
-        stuckForMs: g.stuckForMs,
-        ocrStatus: g.ocrStatus ?? "not_seen",
-        category: g.category,
-      }));
+      // Virtual table: raw blob listing from docs-in blob container
+      const config = readConfig();
+      if (!isConfigError(config)) {
+        try {
+          const rawBlobs = await listRecentUploads(config);
+          currentRows = rawBlobs.map((b) => ({
+            timestamp: b.uploadedAt ?? new Date().toISOString(),
+            documentId: b.documentId,
+            runId: b.documentId.includes("/") ? b.documentId.split("/")[0] : config.uploadRunId || "prod",
+            docId: b.documentId.includes("/") ? b.documentId.split("/").slice(1).join("/") : b.documentId,
+            name: b.documentId.split("/").pop() || b.documentId,
+            blobPath: b.blobPath,
+            container: config.docsContainer,
+            size: b.size,
+            uploadedAt: b.uploadedAt,
+            createdAt: b.uploadedAt,
+          }));
+        } catch {
+          currentRows = [];
+        }
+      } else {
+        currentRows = [];
+      }
     } else if (firstToken.startsWith("exceptions")) {
       currentRows = [...dataset.exceptions];
     } else if (firstToken.startsWith("dependencies")) {

@@ -812,7 +812,15 @@ function ObservabilityCopilotModal({
       });
 
       if (res.ok && res.reply) {
-        setMessages((prev) => [...prev, { role: "assistant", content: res.reply }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: res.reply,
+            kqlExecuted: res.kqlExecuted,
+            toolCallsExecuted: res.toolCallsExecuted,
+          },
+        ]);
         if (res.kqlExecuted && res.kqlExecuted.length > 0) {
           setKqlHistory((prev) => [...prev, ...res.kqlExecuted!]);
         }
@@ -917,16 +925,36 @@ function ObservabilityCopilotModal({
               >
                 <div className="whitespace-pre-wrap font-sans">{m.content}</div>
 
-                {/* If assistant used KQL queries in this turn, display executed query button */}
-                {m.role === "assistant" && kqlHistory[idx - 1] && (
-                  <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-900 p-2.5 text-[9px] font-mono text-emerald-400">
+                {/* Executed Agent Tools */}
+                {m.role === "assistant" && m.toolCallsExecuted && m.toolCallsExecuted.length > 0 && (
+                  <div className="mt-2.5 rounded-xl border border-teal-200/80 bg-[#f0f9fa] p-2.5 text-[9px] text-slate-800">
+                    <div className="flex items-center gap-1 font-bold text-[#2b6872] pb-1 border-b border-teal-100">
+                      <Wrench size={11} className="text-[#37828e]" /> Executed Agent Tools ({m.toolCallsExecuted.length})
+                    </div>
+                    <div className="space-y-1.5 mt-2">
+                      {m.toolCallsExecuted.map((t, tidx) => (
+                        <div key={tidx} className="flex flex-col gap-0.5 bg-white/90 p-2 rounded-lg border border-teal-100/80 shadow-2xs font-mono text-[9px]">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-[#37828e]">{t.name}</span>
+                            <span className="text-[8px] bg-teal-50 text-teal-700 px-1.5 py-0.2 rounded font-sans font-medium">function_call</span>
+                          </div>
+                          <pre className="text-slate-600 overflow-x-auto text-[8px] leading-tight mt-0.5">{JSON.stringify(t.args || {}, null, 2)}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Executed KQL Queries */}
+                {m.role === "assistant" && (m.kqlExecuted ?? (kqlHistory[idx - 1] ? [kqlHistory[idx - 1]] : []))?.map((kql, kidx) => (
+                  <div key={kidx} className="mt-2 rounded-xl border border-slate-200 bg-slate-900 p-2.5 text-[9px] font-mono text-emerald-400">
                     <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 text-[9px] text-slate-400 font-sans">
                       <span className="flex items-center gap-1 font-bold text-emerald-400">
-                        <Terminal size={11} /> KQL Correlated ({kqlHistory[idx - 1].rowCount} rows)
+                        <Terminal size={11} /> {kql.title || "KQL Correlated"} ({kql.rowCount} rows)
                       </span>
                       <button
                         onClick={() => {
-                          onOpenKqlQuery(kqlHistory[idx - 1].query);
+                          onOpenKqlQuery(kql.query);
                           onClose();
                         }}
                         className="text-[#5fc2d1] hover:underline font-bold flex items-center gap-1"
@@ -934,9 +962,9 @@ function ObservabilityCopilotModal({
                         Run in KQL Console <ChevronRight size={10} />
                       </button>
                     </div>
-                    <pre className="mt-1.5 overflow-x-auto text-[9px] leading-relaxed">{kqlHistory[idx - 1].query}</pre>
+                    <pre className="mt-1.5 overflow-x-auto text-[9px] leading-relaxed">{kql.query}</pre>
                   </div>
-                )}
+                ))}
 
                 {m.role === "assistant" && (
                   <button
