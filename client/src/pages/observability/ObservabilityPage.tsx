@@ -1297,7 +1297,7 @@ function LiveObservability({
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-7 lg:p-9 max-w-7xl mx-auto">
+    <div className="space-y-6 p-4 sm:p-7 lg:p-9">
       {/* 1. Page Header & Live Telemetry Controls */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-200/80 pb-5">
         <div>
