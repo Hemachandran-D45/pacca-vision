@@ -263,24 +263,24 @@ function PipelineGapsPanel({
       </div>
 
       {/* Diagnostic buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => onOpenKqlQuery(`pipeline_gaps\n| project severity, category, doc_id, ocrStatus, stuckForMs, rootCauseHypothesis\n| order by stuckForMs desc`)}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
         >
-          <Terminal size={12} className="text-[#37828e]" /> Query pipeline_gaps in KQL
+          <Terminal size={12} className="text-[#47a2b0]" /> Query pipeline_gaps in KQL
         </button>
         <button
           onClick={() => onDiagnoseWithCopilot("Run a full diagnostic playbook for event_grid_silent scenario and report all stuck documents.")}
-          className="flex items-center gap-1.5 rounded-xl border border-[#37828e]/30 bg-[#ebf5f7] px-3 py-1.5 text-[10px] font-bold text-[#37828e] hover:bg-[#dff0f3] transition-colors"
+          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-[#47a2b0]/30 bg-[#47a2b0]/10 px-3 text-[11px] font-bold text-[#2d6b75] hover:bg-[#47a2b0]/20 transition cursor-pointer"
         >
-          <Sparkles size={12} /> Ask Copilot: Full gap playbook
+          <Sparkles size={12} className="text-[#47a2b0]" /> Ask Copilot: Full gap playbook
         </button>
         <button
           onClick={() => void refresh()}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-500 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
         >
-          <RefreshCw size={11} /> Refresh reconciliation
+          <RefreshCw size={12} /> Refresh reconciliation
         </button>
       </div>
 
@@ -626,9 +626,9 @@ function KqlExplorerConsole({
               handleExecute(p.query);
             }}
             className={cn(
-              "shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-colors border",
+              "shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-colors border cursor-pointer",
               query === p.query
-                ? "bg-[#37828e] text-white border-[#37828e]"
+                ? "bg-[#47a2b0] text-white border-[#47a2b0] shadow-2xs"
                 : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
             )}
             title={p.description}
@@ -852,7 +852,7 @@ function ObservabilityCopilotModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-[#f8fbfb]">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#37828e] to-[#5fc2d1] text-white shadow-md shadow-[#37828e]/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#47a2b0] to-[#68c1ce] text-white shadow-md shadow-[#47a2b0]/20">
               <Sparkles size={18} />
             </div>
             <div>
@@ -867,7 +867,7 @@ function ObservabilityCopilotModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -890,7 +890,7 @@ function ObservabilityCopilotModal({
             </span>
           </div>
           {initialIncident && (
-            <span className="font-mono text-[9px] text-[#37828e] bg-[#eef7f8] px-2 py-0.5 rounded-md font-bold">
+            <span className="font-mono text-[9px] text-[#2d6b75] bg-[#ebf5f7] px-2 py-0.5 rounded-md font-bold">
               Target: {initialIncident.trace}
             </span>
           )}
@@ -909,7 +909,7 @@ function ObservabilityCopilotModal({
               <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                 {m.role === "assistant" ? (
                   <>
-                    <Bot size={12} className="text-[#37828e]" /> SRE Copilot
+                    <Bot size={12} className="text-[#47a2b0]" /> SRE Copilot
                   </>
                 ) : (
                   "You"
@@ -919,7 +919,7 @@ function ObservabilityCopilotModal({
                 className={cn(
                   "relative max-w-[95%] rounded-2xl p-4 text-[11px] leading-relaxed shadow-xs space-y-2",
                   m.role === "user"
-                    ? "bg-[#37828e] text-white rounded-tr-xs"
+                    ? "bg-[#47a2b0] text-white rounded-tr-xs"
                     : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-xs"
                 )}
               >
@@ -928,14 +928,14 @@ function ObservabilityCopilotModal({
                 {/* Executed Agent Tools */}
                 {m.role === "assistant" && m.toolCallsExecuted && m.toolCallsExecuted.length > 0 && (
                   <div className="mt-2.5 rounded-xl border border-teal-200/80 bg-[#f0f9fa] p-2.5 text-[9px] text-slate-800">
-                    <div className="flex items-center gap-1 font-bold text-[#2b6872] pb-1 border-b border-teal-100">
-                      <Wrench size={11} className="text-[#37828e]" /> Executed Agent Tools ({m.toolCallsExecuted.length})
+                    <div className="flex items-center gap-1 font-bold text-[#2d6b75] pb-1 border-b border-teal-100">
+                      <Wrench size={11} className="text-[#47a2b0]" /> Executed Agent Tools ({m.toolCallsExecuted.length})
                     </div>
                     <div className="space-y-1.5 mt-2">
                       {m.toolCallsExecuted.map((t, tidx) => (
                         <div key={tidx} className="flex flex-col gap-0.5 bg-white/90 p-2 rounded-lg border border-teal-100/80 shadow-2xs font-mono text-[9px]">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-[#37828e]">{t.name}</span>
+                            <span className="font-bold text-[#2d6b75]">{t.name}</span>
                             <span className="text-[8px] bg-teal-50 text-teal-700 px-1.5 py-0.2 rounded font-sans font-medium">function_call</span>
                           </div>
                           <pre className="text-slate-600 overflow-x-auto text-[8px] leading-tight mt-0.5">{JSON.stringify(t.args || {}, null, 2)}</pre>
@@ -984,7 +984,7 @@ function ObservabilityCopilotModal({
           ))}
           {loading && (
             <div className="flex items-center gap-2 text-slate-500 text-[11px] p-3 rounded-2xl bg-slate-50 border border-slate-100 max-w-[80%]">
-              <RefreshCw size={14} className="animate-spin text-[#37828e]" />
+              <RefreshCw size={14} className="animate-spin text-[#47a2b0]" />
               Synthesizing KQL query, executing correlation on telemetry plane, and evaluating root cause...
             </div>
           )}
@@ -1003,7 +1003,7 @@ function ObservabilityCopilotModal({
               key={suggestion}
               onClick={() => handleSend(suggestion)}
               disabled={loading}
-              className="shrink-0 text-[9px] font-medium text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full hover:border-[#37828e] hover:text-[#37828e] transition-colors"
+              className="shrink-0 text-[9px] font-medium text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full hover:border-[#47a2b0] hover:text-[#2d6b75] transition-colors cursor-pointer"
             >
               {suggestion}
             </button>
@@ -1025,12 +1025,12 @@ function ObservabilityCopilotModal({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask Copilot about any trace, latency anomaly, or incident..."
               disabled={loading}
-              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-[11px] text-slate-800 placeholder-slate-400 focus:border-[#37828e] focus:bg-white focus:outline-hidden"
+              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-[11px] text-slate-800 placeholder-slate-400 focus:border-[#47a2b0] focus:bg-white focus:outline-hidden"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#37828e] text-white hover:bg-[#2d6b75] disabled:opacity-40 transition-colors shadow-xs"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#47a2b0] text-white hover:bg-[#37828e] disabled:opacity-40 transition-colors shadow-xs cursor-pointer"
             >
               <Send size={15} />
             </button>
@@ -1092,29 +1092,30 @@ function EnhancedIncidentCard({
   return (
     <article
       className={cn(
-        "group relative rounded-2xl border bg-white p-5 transition-all duration-200 hover:shadow-md",
+        "group relative rounded-2xl border bg-white p-5 sm:p-6 transition-all duration-200 hover:shadow-md",
         isInvestigating
-          ? "border-rose-200/80 bg-linear-to-r from-rose-50/20 to-white"
+          ? "border-rose-200/90 bg-linear-to-r from-rose-50/25 to-white"
           : isWarning
-            ? "border-amber-200/80 bg-linear-to-r from-amber-50/15 to-white"
+            ? "border-amber-200/90 bg-linear-to-r from-amber-50/20 to-white"
             : "border-slate-200/80 hover:border-slate-300"
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* Header Row */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-start gap-3.5">
           <div
             className={cn(
-              "mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl shadow-xs",
+              "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-xs",
               isInvestigating
-                ? "bg-rose-50 text-rose-600"
+                ? "bg-rose-50 text-rose-600 ring-1 ring-rose-200/60"
                 : isWarning
-                  ? "bg-amber-50 text-amber-600"
+                  ? "bg-amber-50 text-amber-600 ring-1 ring-amber-200/60"
                   : isOptimized
-                    ? "bg-emerald-50 text-emerald-600"
-                    : "bg-slate-100 text-slate-600"
+                    ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60"
+                    : "bg-slate-100 text-slate-600 ring-1 ring-slate-200/60"
             )}
           >
-            <BadgeIcon size={18} />
+            <BadgeIcon size={20} />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1123,74 +1124,76 @@ function EnhancedIncidentCard({
               </span>
               <span className="text-[10px] text-slate-400 font-mono">{incident.time}</span>
               {incident.queueWaitMs !== null && (
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono text-slate-500">
+                <span className="rounded bg-slate-100 px-2 py-0.5 text-[9px] font-mono font-medium text-slate-600">
                   queue {incident.queueWaitMs}ms
                 </span>
               )}
             </div>
-            <h3 className="mt-2 font-display text-[14px] font-bold text-[#0e0e0e] flex items-center gap-2">
+            <h3 className="mt-2 font-display text-[15px] font-bold text-[#0e0e0e] flex items-center gap-2 tracking-[-0.01em]">
               {incident.title}
             </h3>
-            <div className="mt-1 text-[10px] font-medium text-slate-500 flex items-center gap-2">
-              <span className="font-mono text-slate-700">{incident.customer}</span> · <span>{incident.step}</span>
+            <div className="mt-1 text-[11px] font-medium text-slate-500 flex items-center gap-2">
+              <span className="font-mono text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-semibold">{incident.customer}</span>
+              <span>·</span>
+              <span>{incident.step}</span>
             </div>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
           <button
             onClick={() => onDiagnoseWithAI(incident)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#37828e]/20 bg-[#ebf5f7] px-3 py-1.5 text-[10px] font-bold text-[#2d6b75] hover:bg-[#d9eff2] transition-colors shadow-2xs"
+            className="h-8 inline-flex items-center gap-1.5 rounded-xl border border-[#47a2b0]/30 bg-[#47a2b0]/10 px-3 text-[11px] font-bold text-[#2d6b75] hover:bg-[#47a2b0]/20 transition-colors shadow-2xs cursor-pointer"
           >
-            <Sparkles size={12} className="text-[#37828e]" /> Diagnose with AI
+            <Sparkles size={13} className="text-[#47a2b0]" /> Diagnose with AI
           </button>
           <button
             onClick={() => onOpenKqlQuery(getIncidentKql())}
-            className="flex items-center gap-1 rounded-xl bg-slate-50 border border-slate-200 px-2.5 py-1.5 font-mono text-[9px] text-slate-600 hover:bg-slate-100 transition-colors"
+            className="h-8 inline-flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-2.5 font-mono text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
             title="Open KQL trace query"
           >
-            <Terminal size={11} className="text-slate-500" /> KQL
+            <Terminal size={12} className="text-[#47a2b0]" /> KQL
           </button>
           <button
             onClick={handleCopyTrace}
-            className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5 font-mono text-[9px] text-slate-500 hover:bg-slate-100 transition-colors"
+            className="h-8 inline-flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-2.5 font-mono text-[10px] text-slate-500 hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
             title="Copy trace ID"
           >
-            {copied ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
-            {incident.trace}
+            {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+            <span className="truncate max-w-[110px]">{incident.trace}</span>
           </button>
         </div>
       </div>
 
       {/* Root Cause Details */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl bg-slate-50/80 border border-slate-100 p-3.5">
-          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">
-            <Wrench size={12} /> What happened
+      <div className="mt-4.5 grid gap-3.5 sm:grid-cols-2">
+        <div className="rounded-xl bg-slate-50/90 border border-slate-200/70 p-4">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <Wrench size={13} className="text-slate-400" /> What happened
           </div>
-          <p className="mt-1.5 text-[10px] leading-relaxed text-slate-700">{incident.cause}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-700">{incident.cause}</p>
         </div>
-        <div className="rounded-xl bg-[#ebf5f7]/70 border border-[#d2ebef] p-3.5">
-          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.08em] text-[#37828e]">
-            <CircleHelp size={12} /> Root cause & impact
+        <div className="rounded-xl bg-[#ebf5f7]/80 border border-[#bce2e8] p-4">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#2d6b75]">
+            <CircleHelp size={13} /> Root cause & impact
           </div>
-          <p className="mt-1.5 text-[10px] leading-relaxed text-[#2d6b75]">{incident.answer}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-[#2d6b75]">{incident.answer}</p>
         </div>
       </div>
 
       {/* Action Recommendation */}
-      <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2 text-[10px] text-slate-600 border border-slate-100">
+      <div className="mt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl bg-slate-50/90 px-4 py-2.5 text-[11px] text-slate-700 border border-slate-200/70">
         <div className="flex items-center gap-2">
-          <span className="font-bold uppercase tracking-[.06em] text-slate-400 text-[9px]">SRE Recommendation:</span>
-          <span>{incident.recommendation}</span>
+          <span className="font-bold uppercase tracking-wider text-slate-500 text-[10px] shrink-0">SRE Action:</span>
+          <span className="text-slate-600 leading-normal">{incident.recommendation}</span>
         </div>
         {incident.rawRecord && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="text-[9px] text-[#37828e] font-semibold hover:underline flex items-center gap-1"
+            className="text-[10px] text-[#47a2b0] font-bold hover:underline shrink-0 self-start sm:self-auto cursor-pointer"
           >
-            {expanded ? "Hide telemetry JSON" : "Inspect payload"}
+            {expanded ? "Hide JSON payload" : "Inspect payload"}
           </button>
         )}
       </div>
@@ -1295,26 +1298,38 @@ function LiveObservability({
 
   return (
     <div className="space-y-6 p-4 sm:p-7 lg:p-9 max-w-7xl mx-auto">
-      {/* Page Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      {/* 1. Page Header & Live Telemetry Controls */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-200/80 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-[#37828e]">
-            Client 1 · Prior Auth Processing <LiveBadge />
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">
+            <span className="h-2 w-2 rounded-full bg-[#45bd8d] animate-pulse" /> SRE & Distributed Telemetry · Client 1 Prior Auth
           </div>
-          <h1 className="mt-2 font-display text-[28px] font-bold tracking-[-.05em] text-[#0e0e0e]">
-            Observability & SRE Intelligence
-          </h1>
-          <p className="mt-1.5 text-[11px] text-slate-500">
+          <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.03em] text-[#0e0e0e]">
+            Pipeline Observability & Diagnostics
+          </h2>
+          <p className="mt-1 text-[11px] text-slate-500">
             Business-flow telemetry, KQL distributed trace queries, and AI-assisted root-cause investigations.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600 shadow-2xs">
+            <Radio size={13} className="text-emerald-500 animate-pulse" />
+            <span>Azure Monitor</span>
+            {sampling ? (
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-500">
+                {sampling.sampler} · {(sampling.ratio * 100).toFixed(0)}%
+              </span>
+            ) : (
+              <span className="text-slate-400">· OpenTelemetry</span>
+            )}
+          </div>
+
           <button
             onClick={() => setIsKqlConsoleOpen(!isKqlConsoleOpen)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-[0.98] cursor-pointer"
           >
-            <Terminal size={14} className="text-[#37828e]" />
+            <Terminal size={13} className="text-[#47a2b0]" />
             {isKqlConsoleOpen ? "Hide KQL Console" : "Open KQL Console"}
           </button>
 
@@ -1323,21 +1338,11 @@ function LiveObservability({
               setSelectedIncidentForAI(null);
               setIsCopilotOpen(true);
             }}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#37828e] to-[#47a2b0] px-4 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#37828e]/20 hover:opacity-95 transition-all"
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#47a2b0] px-4 text-[11px] font-bold text-white shadow-[0_4px_14px_rgba(71,162,176,.25)] hover:bg-[#37828e] transition active:scale-[0.98] cursor-pointer"
           >
-            <Sparkles size={14} /> Observability Copilot
+            <Sparkles size={13} />
+            Observability Copilot
           </button>
-
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[10px] text-slate-600 shadow-2xs">
-            <Radio size={13} className="text-emerald-500 animate-pulse" /> Azure Monitor · OpenTelemetry
-            {sampling ? (
-              <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] text-slate-500 font-bold">
-                {sampling.sampler} · {(sampling.ratio * 100).toFixed(0)}%
-              </span>
-            ) : (
-              <span className="ml-1 text-slate-400">· AI traces</span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -1349,8 +1354,8 @@ function LiveObservability({
         />
       )}
 
-      {/* Metrics Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {/* 2. Metrics Row (5-column responsive grid) */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 items-stretch">
         <MetricCard
           icon={CheckCircle2}
           label="Business SLO"
@@ -1393,8 +1398,8 @@ function LiveObservability({
         />
       </div>
 
-      {/* Main Diagnostic Section — tabbed */}
-      <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+      {/* 3. Main Diagnostic Section — tabbed */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
         {/* Section header with tab nav */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
           <SectionHeading
@@ -1402,18 +1407,18 @@ function LiveObservability({
             eyebrow="Incident feed · Pipeline gaps · Journey telemetry"
           />
           {attentionCount > 0 ? (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold text-amber-700 flex items-center gap-1.5">
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold text-amber-700 flex items-center gap-1.5 shadow-2xs">
               <AlertTriangle size={12} /> {attentionCount} requires attention
             </span>
           ) : (
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold text-emerald-700 flex items-center gap-1.5">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold text-emerald-700 flex items-center gap-1.5 shadow-2xs">
               <CheckCircle2 size={12} /> All pipeline stages healthy
             </span>
           )}
         </div>
 
         {/* Tab strip */}
-        <div className="flex items-center gap-0.5 border-b border-slate-100 px-5 sm:px-6 overflow-x-auto">
+        <div className="flex items-center gap-1 border-b border-slate-100 px-5 sm:px-6 bg-slate-50/50 overflow-x-auto">
           {([
             { key: "incidents", label: "Incident Feed", icon: Flame, badge: attentionCount > 0 ? String(attentionCount) : null, badgeTone: "red" },
             { key: "gaps", label: "Pipeline Gaps", icon: ShieldAlert, badge: null, badgeTone: "amber" },
@@ -1423,9 +1428,9 @@ function LiveObservability({
               key={key}
               onClick={() => setActiveTab(key)}
               className={cn(
-                "flex items-center gap-2 px-3 py-3 text-[11px] font-bold transition-colors border-b-2 whitespace-nowrap",
+                "flex items-center gap-2 px-4 py-3 text-[11px] font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer",
                 activeTab === key
-                  ? "border-[#37828e] text-[#37828e]"
+                  ? "border-[#47a2b0] text-[#47a2b0] bg-white -mb-px"
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-200"
               )}
             >
@@ -1434,7 +1439,7 @@ function LiveObservability({
               {badge && (
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                    "rounded-full px-1.5 py-0.2 font-mono text-[9px] font-bold",
                     badgeTone === "red" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
                   )}
                 >
@@ -1450,9 +1455,9 @@ function LiveObservability({
         {/* Filter and Search Bar — Incidents Tab Only */}
         {activeTab === "incidents" && (
           <>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-y border-slate-100 py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
               {/* Severity Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {[
                   { key: "all", label: "All Telemetry", count: allIncidents.length },
                   {
@@ -1475,17 +1480,17 @@ function LiveObservability({
                     key={tab.key}
                     onClick={() => setActiveSeverityFilter(tab.key as any)}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-bold transition-colors",
+                      "inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[11px] font-bold transition-all cursor-pointer",
                       activeSeverityFilter === tab.key
-                        ? "bg-[#37828e] text-white shadow-2xs"
-                        : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                        ? "bg-[#47a2b0] text-white shadow-2xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
                     )}
                   >
                     {tab.label}
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-0.2 font-mono text-[9px]",
-                        activeSeverityFilter === tab.key ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-700"
+                        "rounded-full px-1.5 py-0.2 font-mono text-[9px] font-bold",
+                        activeSeverityFilter === tab.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
                       )}
                     >
                       {tab.count}
@@ -1500,7 +1505,7 @@ function LiveObservability({
                   value={activeStageFilter}
                   onChange={(e) => setActiveStageFilter(e.target.value)}
                   aria-label="Filter incidents by pipeline stage"
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-700 focus:border-[#37828e] focus:outline-hidden"
+                  className="h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition outline-none cursor-pointer focus:border-[#47a2b0]"
                 >
                   <option value="all">All Stages</option>
                   <option value="ocr">OCR (Stage 1)</option>
@@ -1514,12 +1519,12 @@ function LiveObservability({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by doc, trace, run..."
-                    className="w-48 rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 py-1.5 text-[10px] text-slate-800 placeholder-slate-400 focus:border-[#37828e] focus:bg-white focus:outline-hidden"
+                    className="h-8 w-48 sm:w-56 rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-[11px] text-slate-800 placeholder-slate-400 shadow-2xs focus:border-[#47a2b0] outline-none transition"
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       <X size={12} />
                     </button>
