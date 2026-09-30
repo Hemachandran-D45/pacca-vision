@@ -135,6 +135,11 @@ export default function AnalyticsPage() {
   const statsPoller = usePolled(() => fetchStats(), 12000);
   const analyticsPoller = usePolled(() => fetchAnalytics(), 12000);
 
+  const liveDocs = docsPoller.data?.documents || [];
+  const liveStats = statsPoller.data?.stats;
+  const liveAnalytics = analyticsPoller.data?.analytics;
+  const liveCosmosCount = liveStats?.documents ?? liveDocs.length ?? 0;
+
   // Interactive Time Range filter multipliers for realistic dynamic movement
   const rangeMultiplier = useMemo(() => {
     switch (timeRange) {
@@ -150,11 +155,25 @@ export default function AnalyticsPage() {
     }
   }, [timeRange]);
 
-  // Dynamic Volume Numbers based on TimeRange
-  const totalVolume = Math.round(128450 * rangeMultiplier);
-  const automatedVolume = Math.round(105714 * rangeMultiplier);
+  // STP rate dynamically derived from live analytics / stats, falling back to 82.3% baseline
+  const stpRatePercent = useMemo(() => {
+    if (liveAnalytics?.quality?.stpRate != null) {
+      return Number((liveAnalytics.quality.stpRate * 100).toFixed(1));
+    }
+    if (liveStats?.stpRate != null) {
+      return Number((liveStats.stpRate * 100).toFixed(1));
+    }
+    if (liveDocs.length > 0) {
+      const stpCount = liveDocs.filter(d => !d.needsReview && d.status === "Succeeded").length;
+      return Number(((stpCount / liveDocs.length) * 100).toFixed(1));
+    }
+    return 82.3;
+  }, [liveAnalytics, liveStats, liveDocs]);
+
+  // Dynamic Volume Numbers based on TimeRange and live Cosmos additions
+  const totalVolume = Math.round((128450 + liveCosmosCount) * rangeMultiplier);
+  const automatedVolume = Math.round(totalVolume * (stpRatePercent / 100));
   const reviewVolume = totalVolume - automatedVolume;
-  const stpRatePercent = 82.3;
 
   // Real ROI Calculation Logic ($100/hr Staff Rate):
   // 105,714 automated docs save 1.045 min of direct intake staff time each = 1,842 hours = $184.2K @ $100/hr
@@ -165,7 +184,7 @@ export default function AnalyticsPage() {
   const costSavingsFormatted =
     costSavingsUsd >= 1000 ? `$${(costSavingsUsd / 1000).toFixed(1)}K` : `$${costSavingsUsd.toFixed(0)}`;
 
-  const totalClinicalHoursAvoided = Math.round(6150 * rangeMultiplier);
+  const totalClinicalHoursAvoided = Math.round((automatedVolume * 3.49) / 60);
   const fteRedeployed = (totalClinicalHoursAvoided / 160).toFixed(0);
 
   // Dynamic Volume Trend Data
@@ -204,11 +223,201 @@ export default function AnalyticsPage() {
 
   // Dynamic Document Mix Data
   const documentMixData = useMemo(() => {
-    return BASE_DOCUMENT_MIX.map((item) => ({
+    const liveCounts: Record<string, number> = {
+      Demographics: 0,
+      "Rx Image": 0,
+      "Lab Results": 0,
+      "Clinical Notes": 0,
+      "Insurance Card": 0,
+    };
+
+    if (liveStats?.byDocType && liveStats.byDocType.length > 0) {
+      for (const item of liveStats.byDocType) {
+        const dt = (item.docType || "").toLowerCase();
+        if (dt.includes("demo") || dt.includes("patient")) liveCounts["Demographics"] += item.count;
+        else if (dt.includes("rx") || dt.includes("prescrip")) liveCounts["Rx Image"] += item.count;
+        else if (dt.includes("lab")) liveCounts["Lab Results"] += item.count;
+        else if (dt.includes("note") || dt.includes("clinic")) liveCounts["Clinical Notes"] += item.count;
+        else if (dt.includes("insur") || dt.includes("auth") || dt.includes("card")) liveCounts["Insurance Card"] += item.count;
+        else liveCounts["Rx Image"] += item.count;
+      }
+    } else if (liveDocs.length > 0) {
+      for (const doc of liveDocs) {
+        const dt = (doc.docType || "").toLowerCase();
+        if (dt.includes("demo") || dt.includes("patient")) liveCounts["Demographics"]++;
+        else if (dt.includes("rx") || dt.includes("prescrip")) liveCounts["Rx Image"]++;
+        else if (dt.includes("lab")) liveCounts["Lab Results"]++;
+        else if (dt.includes("note") || dt.includes("clinic")) liveCounts["Clinical Notes"]++;
+        else if (dt.includes("insur") || dt.includes("auth") || dt.includes("card")) liveCounts["Insurance Card"]++;
+        else liveCounts["Rx Image"]++;
+      }
+    }
+
+    const combined = BASE_DOCUMENT_MIX.map((item) => {
+      const added = liveCounts[item.name] || 0;
+      const baseShare = Math.round((totalVolume * item.percent) / 100);
+      return {
+        ...item,
+        value: baseShare + added,
+      };
+    });
+
+    const sumVal = combined.reduce((acc, c) => acc + c.value, 0) || 1;
+    return combined.map((item) => ({
       ...item,
-      value: Math.round((totalVolume * item.percent) / 100),
+      percent: Math.round((item.value / sumVal) * 100),
     }));
-  }, [totalVolume]);
+  }, [totalVolume, liveStats, liveDocs]);
+
+  // Dynamic Technical Diagnostics Data
+  const classificationAccuracy = useMemo(() => {
+    if (liveAnalytics?.quality?.avgOcrConf != null) {
+      return (liveAnalytics.quality.avgOcrConf * 100).toFixed(1) + "%";
+    }
+    if (liveStats?.avgOcrConfidence != null) {
+      return (liveStats.avgOcrConfidence * 100).toFixed(1) + "%";
+    }
+    return "96.8%";
+  }, [liveAnalytics, liveStats]);
+
+  const extractionAccuracy = useMemo(() => {
+    if (liveAnalytics?.quality?.avgFieldScore != null) {
+      return (liveAnalytics.quality.avgFieldScore * 100).toFixed(1) + "%";
+    }
+    if (liveStats?.avgFieldScore != null) {
+      return (liveStats.avgFieldScore * 100).toFixed(1) + "%";
+    }
+    return "94.2%";
+  }, [liveAnalytics, liveStats]);
+
+  const avgCycleTime = useMemo(() => {
+    const rawMs = liveAnalytics?.latency?.pipelineMeanMs ?? liveStats?.avgLatencyMs;
+    if (rawMs && rawMs > 0) {
+      if (rawMs >= 60000) {
+        return (rawMs / 60000).toFixed(1) + " min";
+      }
+      return Math.round(rawMs / 1000) + " sec";
+    }
+    return "4.2 min";
+  }, [liveAnalytics, liveStats]);
+
+  const exceptionRatePercent = useMemo(() => {
+    return (100 - stpRatePercent).toFixed(1) + "%";
+  }, [stpRatePercent]);
+
+  const stageLatencyData = useMemo(() => {
+    const queueWaitS = Math.max(1, Math.round((liveAnalytics?.latency?.queueWaitMs ?? 4000) / 1000));
+    const classifyS = Math.max(2, Math.round((liveAnalytics?.latency?.classifyMs ?? 9000) / 1000));
+    const extractS = Math.max(5, Math.round((liveAnalytics?.latency?.extractMs ?? 38000) / 1000));
+    const stage2Ms = liveAnalytics?.latency?.stage2Ms ?? 50000;
+    const extractMs = liveAnalytics?.latency?.extractMs ?? 38000;
+    const validateS = Math.max(2, Math.round((stage2Ms - extractMs) / 1000)) || 12;
+    const reviewS = 165;
+    const completeS = 3;
+
+    const stages = [
+      { stage: "Upload", seconds: queueWaitS },
+      { stage: "Classify", seconds: classifyS },
+      { stage: "Extract", seconds: extractS },
+      { stage: "Validate", seconds: validateS },
+      { stage: "Review", seconds: reviewS },
+      { stage: "Complete", seconds: completeS },
+    ];
+    const maxSec = Math.max(...stages.map((s) => s.seconds));
+    return stages.map((s) => ({
+      ...s,
+      isBottleneck: s.seconds === maxSec,
+    }));
+  }, [liveAnalytics]);
+
+  const confidenceHistogramData = useMemo(() => {
+    const bracketCounts: Record<string, number> = {
+      "0.3": 14,
+      "0.4": 32,
+      "0.5": 68,
+      "0.6": 125,
+      "0.7": 240,
+      "0.8": 420,
+      "0.9": 585,
+      "1.0": 432,
+    };
+
+    if (liveDocs.length > 0) {
+      for (const doc of liveDocs) {
+        const conf = typeof doc.confidence === "number" ? doc.confidence : (doc.fieldScore ?? 0.85);
+        if (conf < 0.35) bracketCounts["0.3"]++;
+        else if (conf < 0.45) bracketCounts["0.4"]++;
+        else if (conf < 0.55) bracketCounts["0.5"]++;
+        else if (conf < 0.65) bracketCounts["0.6"]++;
+        else if (conf < 0.75) bracketCounts["0.7"]++;
+        else if (conf < 0.85) bracketCounts["0.8"]++;
+        else if (conf < 0.95) bracketCounts["0.9"]++;
+        else bracketCounts["1.0"]++;
+      }
+    }
+
+    return Object.entries(bracketCounts).map(([bracket, count]) => ({
+      bracket,
+      count,
+      isReview: parseFloat(bracket) < 0.82,
+    }));
+  }, [liveDocs]);
+
+  const topExceptionsData = useMemo(() => {
+    const counts: Record<string, number> = {
+      "Low Confidence Field": 4820,
+      "Missing Required Field": 3110,
+      "Poor Scan Quality": 2340,
+      "Doc Type Mismatch": 1290,
+      "Business Rule Fail": 980,
+    };
+
+    if (liveAnalytics?.gates?.documentReasons || liveAnalytics?.gates?.fieldReasons) {
+      const allReasons = [
+        ...(liveAnalytics.gates.documentReasons || []),
+        ...(liveAnalytics.gates.fieldReasons || []),
+      ];
+      for (const item of allReasons) {
+        const r = item.reason.toLowerCase();
+        if (r.includes("conf") || r.includes("score")) counts["Low Confidence Field"] += item.count;
+        else if (r.includes("miss") || r.includes("require") || r.includes("empty")) counts["Missing Required Field"] += item.count;
+        else if (r.includes("quality") || r.includes("scan") || r.includes("ocr")) counts["Poor Scan Quality"] += item.count;
+        else if (r.includes("type") || r.includes("mismatch") || r.includes("class")) counts["Doc Type Mismatch"] += item.count;
+        else counts["Business Rule Fail"] += item.count;
+      }
+    } else if (liveDocs.length > 0) {
+      for (const doc of liveDocs) {
+        if (doc.reviewReasons && Array.isArray(doc.reviewReasons)) {
+          for (const reason of doc.reviewReasons) {
+            const r = String(reason).toLowerCase();
+            if (r.includes("conf") || r.includes("score")) counts["Low Confidence Field"]++;
+            else if (r.includes("miss") || r.includes("require") || r.includes("empty")) counts["Missing Required Field"]++;
+            else if (r.includes("quality") || r.includes("scan") || r.includes("ocr")) counts["Poor Scan Quality"]++;
+            else if (r.includes("type") || r.includes("mismatch")) counts["Doc Type Mismatch"]++;
+            else counts["Business Rule Fail"]++;
+          }
+        }
+      }
+    }
+
+    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    return Object.entries(counts)
+      .map(([reason, count]) => ({
+        reason,
+        count,
+        pct: `${Math.round((count / total) * 100)}%`,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [liveAnalytics, liveDocs]);
+
+  const slaTrendData = useMemo(() => {
+    let d0Compliance = 97;
+    if (liveDocs.length > 0) {
+      const withinSla = liveDocs.filter(d => (d.latencyMs ? d.latencyMs <= 300000 : true)).length;
+      d0Compliance = Math.min(100, Math.max(88, Math.round((withinSla / liveDocs.length) * 100)));
+    }
+    return BASE_SLA_TREND.map(item => item.day === "D0" ? { ...item, compliance: d0Compliance } : item);
+  }, [liveDocs]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -250,13 +459,13 @@ export default function AnalyticsPage() {
     } else {
       csvContent = [
         "Pipeline Stage,Duration Seconds,Bottleneck Flag",
-        ...BASE_STAGE_LATENCY.map((s) => `"${s.stage}",${s.seconds},${s.isBottleneck ? "YES" : "NO"}`),
+        ...stageLatencyData.map((s) => `"${s.stage}",${s.seconds},${s.isBottleneck ? "YES" : "NO"}`),
         "",
         "Exception Reason,Incident Count,Share",
-        ...BASE_TOP_EXCEPTIONS.map((e) => `"${e.reason}",${e.count},${e.pct}`),
+        ...topExceptionsData.map((e) => `"${e.reason}",${e.count},${e.pct}`),
         "",
         "SLA Compliance Trend",
-        ...BASE_SLA_TREND.map((s) => `"${s.day}",${s.compliance}%`),
+        ...slaTrendData.map((s) => `"${s.day}",${s.compliance}%`),
       ].join("\r\n");
     }
 
@@ -280,8 +489,14 @@ export default function AnalyticsPage() {
       {/* 1. UNIFIED SUB-HEADER & NAVIGATION CONTROLS (CLEAN & ALIGNED) */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-200/80 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">
-            <span className="h-2 w-2 rounded-full bg-[#45bd8d] animate-pulse" /> IDP Program Intelligence
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.18em] text-[#47a2b0]">
+              <span className="h-2 w-2 rounded-full bg-[#45bd8d] animate-pulse" /> IDP Program Intelligence
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Cosmos Telemetry ({liveCosmosCount} active docs)
+            </span>
           </div>
           <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.03em] text-[#0e0e0e]">
             {activeTab === "executive"
@@ -744,7 +959,7 @@ export default function AnalyticsPage() {
                 </span>
               </div>
               <div className="mt-2 font-display text-3xl font-bold tracking-[-0.04em] text-[#0e0e0e]">
-                96.8%
+                {classificationAccuracy}
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#10b981]">
                 <CheckCircle2 size={13} /> SLA Compliant (+1.8% over target)
@@ -766,7 +981,7 @@ export default function AnalyticsPage() {
                 </span>
               </div>
               <div className="mt-2 font-display text-3xl font-bold tracking-[-0.04em] text-[#0e0e0e]">
-                94.2%
+                {extractionAccuracy}
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#2563eb]">
                 <CheckCircle2 size={13} /> SLA Compliant (+1.2% over target)
@@ -783,7 +998,7 @@ export default function AnalyticsPage() {
                 Avg Cycle Time
               </div>
               <div className="mt-2 font-display text-3xl font-bold tracking-[-0.04em] text-[#0e0e0e]">
-                4.2 min
+                {avgCycleTime}
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#10b981]">
                 <ArrowDownRight size={14} /> -18 sec vs last week
@@ -800,7 +1015,7 @@ export default function AnalyticsPage() {
                 Exception Rate
               </div>
               <div className="mt-2 font-display text-3xl font-bold tracking-[-0.04em] text-[#0e0e0e]">
-                12.4%
+                {exceptionRatePercent}
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#10b981]">
                 <ArrowDownRight size={14} /> -1.8 pts vs last week
@@ -825,7 +1040,7 @@ export default function AnalyticsPage() {
               </div>
 
               <div className="mt-4 space-y-3">
-                {BASE_STAGE_LATENCY.map((item) => (
+                {stageLatencyData.map((item) => (
                   <div key={item.stage} className="space-y-1">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-semibold text-slate-700">{item.stage}</span>
@@ -836,7 +1051,7 @@ export default function AnalyticsPage() {
                     <div className="h-3 w-full rounded-md bg-slate-100 overflow-hidden">
                       <div
                         className={cn("h-full rounded-md transition-all duration-500", item.isBottleneck ? "bg-[#e0564c]" : "bg-[#2563eb]")}
-                        style={{ width: `${Math.min(100, (item.seconds / 170) * 100)}%` }}
+                        style={{ width: `${Math.min(100, (item.seconds / Math.max(...stageLatencyData.map(s => s.seconds), 1)) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -862,7 +1077,7 @@ export default function AnalyticsPage() {
 
               <div className="mt-4 h-[210px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={BASE_CONFIDENCE_HISTOGRAM} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <BarChart data={confidenceHistogramData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="bracket" tick={{ fontSize: 10, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
@@ -872,7 +1087,7 @@ export default function AnalyticsPage() {
                     />
                     <ReferenceLine x="0.8" stroke="#ef4444" strokeDasharray="3 3" label={{ value: "Threshold", fill: "#ef4444", fontSize: 9, position: "top" }} />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                      {BASE_CONFIDENCE_HISTOGRAM.map((entry, index) => (
+                      {confidenceHistogramData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.isReview ? "#3b82f6" : "#1d4ed8"} />
                       ))}
                     </Bar>
@@ -885,7 +1100,7 @@ export default function AnalyticsPage() {
                   <span className="h-2 w-2 rounded-full bg-red-500" />
                   <span>Review threshold: 0.82</span>
                 </span>
-                <span className="font-semibold text-slate-700">Peak: 0.90 bracket (585)</span>
+                <span className="font-semibold text-slate-700">Peak: 0.90 bracket ({confidenceHistogramData.find(c => c.bracket === "0.9")?.count || 585})</span>
               </div>
             </section>
 
@@ -901,7 +1116,7 @@ export default function AnalyticsPage() {
               </div>
 
               <div className="mt-4 space-y-3">
-                {BASE_TOP_EXCEPTIONS.map((item) => (
+                {topExceptionsData.map((item) => (
                   <div key={item.reason} className="space-y-1">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-medium text-slate-700 truncate max-w-[190px]">
@@ -914,7 +1129,7 @@ export default function AnalyticsPage() {
                     <div className="h-2.5 w-full rounded-md bg-slate-100 overflow-hidden">
                       <div
                         className="h-full rounded-md bg-[#f97316] transition-all duration-500"
-                        style={{ width: `${(item.count / 4820) * 100}%` }}
+                        style={{ width: `${(item.count / (topExceptionsData[0]?.count || 1)) * 100}%` }}
                       />
                     </div>
                   </div>
@@ -948,7 +1163,7 @@ export default function AnalyticsPage() {
 
             <div className="mt-6 h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={BASE_SLA_TREND} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
+                <LineChart data={slaTrendData} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#64748b" }} />
                   <YAxis domain={[86, 100]} tick={{ fontSize: 10, fill: "#64748b" }} tickFormatter={(v) => `${v}%`} />
