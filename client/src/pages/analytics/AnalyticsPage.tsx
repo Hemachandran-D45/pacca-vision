@@ -123,7 +123,7 @@ const BASE_SLA_TREND = [
 ];
 
 export default function AnalyticsPage() {
-  const [activeTab, setActiveTab] = useState<"executive" | "technical" | "live">("executive");
+  const [activeTab, setActiveTab] = useState<"executive" | "technical">("executive");
   const [dataMode, setDataMode] = useState<"live" | "enterprise">("live");
   const [timeRange, setTimeRange] = useState<"mtd" | "30d" | "90d" | "ytd">("mtd");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -461,54 +461,18 @@ export default function AnalyticsPage() {
           </div>
           <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.03em] text-[#0e0e0e]">
             {activeTab === "executive"
-              ? dataMode === "live"
-                ? "IDP Program — Live Telemetry (Cosmos DB)"
-                : "IDP Program — Executive Dashboard (128K Scale)"
-              : activeTab === "technical"
-              ? dataMode === "live"
-                ? "IDP Pipeline — Live Technical Diagnostics"
-                : "IDP Pipeline — Technical Diagnostics (128K Baseline)"
-              : "Azure Infrastructure & Telemetry"}
+              ? "IDP Program — Executive & Business ROI"
+              : "IDP Pipeline — Technical & Cloud Diagnostics"}
           </h2>
           <p className="mt-1 text-[11px] text-slate-500">
-            {dataMode === "live"
-              ? `Real-time ingestion from Azure Cosmos DB · ${liveCosmosCount} active documents · Zero synthetic baselines`
-              : activeTab === "executive"
-              ? "Annualized enterprise scale · 128,450 documents modeled from live pipeline latency & STP rates"
-              : "Operational performance & quality · Last 24 hours refresh · Environment: Production"}
+            {activeTab === "executive"
+              ? "Intake volume, labor cost avoidance ($100/hr), clinical FTE reallocation, and straight-through processing rates"
+              : "Micro-stage latency, field extraction confidence, exception gate root causes, and Azure OpenAI token meters"}
           </p>
         </div>
 
-        {/* CONTROLS: TABS & ACTION BUTTONS */}
+        {/* CONTROLS: 2 CLEAN TABS & ACTION BUTTONS */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* DATA MODE SELECTOR: LIVE TELEMETRY VS ENTERPRISE 128K */}
-          <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs">
-            <button
-              onClick={() => setDataMode("live")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition cursor-pointer",
-                dataMode === "live"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              )}
-            >
-              <Activity size={12} />
-              Live Telemetry ({liveCosmosCount})
-            </button>
-            <button
-              onClick={() => setDataMode("enterprise")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition cursor-pointer",
-                dataMode === "enterprise"
-                  ? "bg-[#47a2b0] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              )}
-            >
-              <Layers size={12} />
-              Enterprise Model (128K)
-            </button>
-          </div>
-
           {/* TAB SWITCHER */}
           <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs">
             <button
@@ -533,19 +497,7 @@ export default function AnalyticsPage() {
               )}
             >
               <Sliders size={13} className={activeTab === "technical" ? "text-[#47a2b0]" : ""} />
-              Technical Diagnostics
-            </button>
-            <button
-              onClick={() => setActiveTab("live")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition cursor-pointer",
-                activeTab === "live"
-                  ? "bg-white text-[#0e0e0e] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              )}
-            >
-              <Zap size={13} className={activeTab === "live" ? "text-amber-500" : ""} />
-              Azure Live
+              Pipeline &amp; Cloud Diagnostics
             </button>
           </div>
 
@@ -588,6 +540,43 @@ export default function AnalyticsPage() {
       {/* ========================================================= */}
       {activeTab === "executive" && (
         <div className="space-y-6">
+          {/* CONTEXTUAL SCOPE SELECTOR: LIVE TELEMETRY VS ENTERPRISE 128K */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+            <div className="flex items-center gap-2 text-[12px] text-slate-600">
+              <span className="font-semibold text-slate-900">ROI Modeling Scope:</span>
+              <span className="text-slate-500">
+                {dataMode === "live"
+                  ? `Cosmos DB ground truth (${liveCosmosCount} active documents · $${(liveAnalytics?.totals?.spendUsd ?? 0.99).toFixed(2)} compute spend)`
+                  : "Annualized enterprise scale (128,450 intake faxes modeled from measured STP)"}
+              </span>
+            </div>
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs">
+              <button
+                onClick={() => setDataMode("live")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition cursor-pointer",
+                  dataMode === "live"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                <Activity size={12} />
+                Live Telemetry ({liveCosmosCount})
+              </button>
+              <button
+                onClick={() => setDataMode("enterprise")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition cursor-pointer",
+                  dataMode === "enterprise"
+                    ? "bg-[#47a2b0] text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                <Layers size={12} />
+                Project Annualized (128K Scale)
+              </button>
+            </div>
+          </div>
           {/* TOP 4 EXECUTIVE KPI CARDS */}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {/* Card 1: Documents Processed (MTD) */}
@@ -1182,13 +1171,13 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </div>
           </section>
+
+          {/* ROW 3: AZURE CLOUD INFRASTRUCTURE & TOKEN RUNTIME TELEMETRY */}
+          <section className="pt-2">
+            <AnalyticsLive embedded={true} />
+          </section>
         </div>
       )}
-
-      {/* ========================================================= */}
-      {/* VIEW 3: AZURE LIVE STREAM (CONTAINER RUNTIME)              */}
-      {/* ========================================================= */}
-      {activeTab === "live" && <AnalyticsLive embedded={true} />}
     </div>
   );
 }
