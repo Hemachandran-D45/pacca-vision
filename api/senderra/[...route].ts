@@ -21,7 +21,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const url = new URL(req.url || "/", "http://localhost");
-  const route = url.pathname.replace(/^\/api\/senderra/, "") || "/";
+  const queryRoute = (req as any).query?.route
+    ? Array.isArray((req as any).query.route)
+      ? "/" + (req as any).query.route.join("/")
+      : "/" + String((req as any).query.route)
+    : null;
+  const rawPath = url.pathname.replace(/^\/api\/senderra/, "") || "/";
+  const route = queryRoute || rawPath;
 
   // Vercel parses a JSON body for us, but only when the content-type says so.
   const body =

@@ -139,9 +139,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   let payload: unknown = null;
+  const rawText = await response.text().catch(() => "");
   try {
-    payload = await response.json();
+    payload = rawText ? JSON.parse(rawText) : null;
   } catch {
+    if (!response.ok) {
+      throw new Error(`Endpoint unavailable (${response.status}: ${response.statusText || "Not Found"}).`);
+    }
     throw new Error("The server returned an unreadable response.");
   }
   const body = payload as { ok?: boolean; error?: string };
@@ -282,15 +286,22 @@ export type ObservabilityChatResponse = {
   };
 };
 
-export function postObservabilityChat(payload: {
+export async function postObservabilityChat(payload: {
   messages: ObservabilityChatMessage[];
   contextIncident?: Record<string, unknown>;
   runId?: string;
 }) {
-  return request<ObservabilityChatResponse>("/observability/chat", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  try {
+    return await request<ObservabilityChatResponse>("/observability/chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    return await request<ObservabilityChatResponse>("/observability-chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export type KqlQueryResult = {
@@ -348,9 +359,13 @@ export type PipelineGapSummary = {
   estimatedDlqDepth: number;
 };
 
-export function fetchPipelineGaps(runId?: string) {
+export async function fetchPipelineGaps(runId?: string) {
   const query = runId ? `?runId=${encodeURIComponent(runId)}` : "";
-  return request<PipelineGapSummary>(`/observability/gaps${query}`);
+  try {
+    return await request<PipelineGapSummary>(`/observability/gaps${query}`);
+  } catch (err) {
+    return await request<PipelineGapSummary>(`/observability-gaps${query}`);
+  }
 }
 
 export type DiagnoseResult = {
@@ -370,11 +385,18 @@ export type DiagnoseResult = {
   };
 };
 
-export function diagnoseDocument(payload: { docId?: string; runId?: string }) {
-  return request<DiagnoseResult>("/observability/diagnose", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export async function diagnoseDocument(payload: { docId?: string; runId?: string }) {
+  try {
+    return await request<DiagnoseResult>("/observability/diagnose", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    return await request<DiagnoseResult>("/observability-diagnose", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export function fetchHealth() {

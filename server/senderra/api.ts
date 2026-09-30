@@ -845,12 +845,12 @@ export async function handleSenderra(
       const res = await executeKql(queryStr);
       return { status: res.ok ? 200 : 400, body: res };
     }
-    if (method === "GET" && route === "/observability/gaps") {
+    if (method === "GET" && (route === "/observability/gaps" || route === "/observability-gaps")) {
       const runIdFilter = query.get("runId") || undefined;
       const result = await detectPipelineGaps(runIdFilter);
-      return { status: result.ok ? 200 : 503, body: result };
+      return { status: 200, body: result };
     }
-    if (method === "POST" && route === "/observability/diagnose") {
+    if (method === "POST" && (route === "/observability/diagnose" || route === "/observability-diagnose")) {
       // Targeted document diagnosis: run gap detection + KQL for a specific doc
       const docId = String(body.docId || "");
       const runId = String(body.runId || "");

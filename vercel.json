@@ -5,6 +5,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/senderra/:path*",
+      "destination": "/api/senderra/[...route]"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
