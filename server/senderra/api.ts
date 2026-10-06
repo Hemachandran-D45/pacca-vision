@@ -41,8 +41,10 @@ import {
   signSession,
   type RequestContext,
   type Role,
+  type SessionUser,
 } from "../auth.js";
 import { login } from "./users.js";
+import { handleLlmSettingsGet, handleLlmSettingsUpdate, handleModels } from "./models.js";
 
 /** `headers` lets a route set a cookie; every entry point copies them onto the response. */
 export type ApiResult = { status: number; body: unknown; headers?: Record<string, string> };
@@ -849,6 +851,8 @@ export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
   "POST /review": STAFF,
   "POST /ivr-trigger": STAFF,
   "GET /ivr-outreach": STAFF,
+  "GET /models": STAFF,
+  "GET /llm-settings": STAFF,
 
   "GET /observability": DEVELOPER,
   "GET /observability/gaps": DEVELOPER,
@@ -861,6 +865,7 @@ export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
   "POST /schemas/sync": DEVELOPER,
 
   "GET /analytics": ADMIN,
+  "POST /llm-settings": ADMIN,
 
   "POST /ivr-writeback": "machine",
   "POST /ivr-webhook": "machine",
@@ -904,9 +909,12 @@ export async function handleSenderra(
   if (policy === "machine") {
     const machine = authorizeMachine(ctx, "IVR_WRITEBACK_API_KEY");
     if (!machine.ok) return fail(machine.status, machine.error);
-  } else if (policy !== "public") {
+  }
+  let user: SessionUser | null = null;
+  if (policy !== "public" && policy !== "machine") {
     const auth = authorize(ctx, policy);
     if (!auth.ok) return fail(auth.status, auth.error);
+    user = auth.user;
     // The acting identity is the session, never whatever the body claims.
     if (route === "/review" || route === "/ivr-trigger") body = { ...body, by: auth.user.email };
   }
@@ -919,6 +927,9 @@ export async function handleSenderra(
     if (method === "GET" && route === "/me") return handleMe(ctx);
 
     if (method === "GET" && route === "/health") return await handleHealth();
+    if (method === "GET" && route === "/models") return await handleModels();
+    if (method === "GET" && route === "/llm-settings") return await handleLlmSettingsGet(user!);
+    if (method === "POST" && route === "/llm-settings") return await handleLlmSettingsUpdate(user!, body);
     if (method === "GET" && route === "/documents") return await handleDocuments(query);
     if (method === "GET" && route === "/document") return await handleDocument(query);
     if (method === "GET" && route === "/stats") return await handleStats();
