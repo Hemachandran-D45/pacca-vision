@@ -2,8 +2,8 @@ import { completeChatWithTools, type ChatToolDefinition } from "../chatCompletio
 import { container } from "./cosmos.js";
 import { executeKql, type KqlQueryResult } from "./kqlEngine.js";
 import { detectPipelineGaps } from "./pipelineGaps.js";
+import { queryLogAnalytics } from "./logAnalyticsEngine.js";
 import type { ExtractItem, OcrItem } from "./types.js";
-
 export type ObservabilityChatRequest = {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   contextIncident?: Record<string, unknown>;
@@ -112,6 +112,32 @@ const OBSERVABILITY_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "query_azure_monitor",
+      description:
+        "Execute a KQL query against Azure Log Analytics to find infrastructure errors, Function App exceptions, Service Bus deadletters, Event Grid delivery failures, Blob storage issues, Cosmos DB throttling, or Azure OpenAI token/rate limit errors. " +
+        "Available tables: " +
+        "AppTraces (Function App Python logs), " +
+        "AppExceptions (Function App unhandled exceptions & stacktraces), " +
+        "FunctionAppLogs (Function host execution & runtime errors), " +
+        "AzureDiagnostics (Service Bus deadletter/queue operational logs, Event Grid drops, OpenAI RequestResponse / 429 throttling & AzureOpenAIRequestUsage token metrics), " +
+        "StorageBlobLogs (Blob upload/read failures & SAS auth errors), " +
+        "StorageFileLogs (Azure Files asset share read/mount errors), " +
+        "CDBDataPlaneRequests (Cosmos DB 429 throttling & RU spikes).",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The KQL query string for Azure Log Analytics (e.g., AppExceptions | take 10 or AzureDiagnostics | where Category == 'ServiceBus')",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "run_diagnostic_playbook",
       description:
         "Execute a full automated SRE diagnostic playbook for a given failure scenario. " +
@@ -171,6 +197,23 @@ export async function handleObservabilityChat(
         summary: res.summary,
         error: res.error,
       };
+    }
+
+    if (name === "query_azure_monitor") {
+      const queryStr = String(args.query || "");
+      let resultData;
+      try {
+        resultData = await queryLogAnalytics(queryStr);
+      } catch (e: any) {
+        resultData = { error: e.message };
+      }
+      kqlExecutedLogs.push({
+        title: "Azure Monitor Query",
+        query: queryStr,
+        rowCount: Array.isArray(resultData) && resultData[0]?.rows ? resultData[0].rows.length : 0,
+        executionTimeMs: 0,
+      });
+      return resultData;
     }
 
     if (name === "detect_pipeline_gaps") {
