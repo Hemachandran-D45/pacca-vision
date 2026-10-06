@@ -28,8 +28,26 @@ import type { DocumentSummary, ExtractItem, OcrItem } from "./types.js";
 import { handleObservabilityChat } from "./observabilityChat.js";
 import { executeKql } from "./kqlEngine.js";
 import { detectPipelineGaps } from "./pipelineGaps.js";
+import {
+  ADMIN,
+  DEVELOPER,
+  STAFF,
+  authorize,
+  authorizeMachine,
+  clearedSessionCookie,
+  currentUser,
+  jwtSecret,
+  sessionCookie,
+  signSession,
+  type RequestContext,
+  type Role,
+  type SessionUser,
+} from "../auth.js";
+import { login } from "./users.js";
+import { handleLlmSettingsGet, handleLlmSettingsUpdate, handleModels } from "./models.js";
 
-export type ApiResult = { status: number; body: unknown };
+/** `headers` lets a route set a cookie; every entry point copies them onto the response. */
+export type ApiResult = { status: number; body: unknown; headers?: Record<string, string> };
 
 const MAX_UPLOAD_BATCH = 50;
 
@@ -78,6 +96,8 @@ function pendingToSummary(p: {
     fieldCount: null,
     fieldsNeedingReview: null,
     costUsd: null,
+    modelId: null,
+    modelSource: null,
     latencyMs: null,
     minPageConfidence: null,
     receivedAt: p.uploadedAt,
@@ -551,16 +571,50 @@ async function handleUploadSas(body: Record<string, unknown>): Promise<ApiResult
     return fail(400, "runId may only contain letters, digits, dot, dash and underscore.");
   }
 
+  // Optional per-upload model. Checked here so the uploader hears "not
+  // allowed" now, rather than finding later that the pipeline fell back to the
+  // active model. The Function App checks again when it processes the file,
+  // because the browser sets the metadata header itself and could change it.
+  let metadata: Record<string, string> | undefined;
+  const requested = typeof body.model === "string" ? body.model.trim() : "";
+  if (requested) {
+    const refusal = await checkUploadModel(requested, runId);
+    if (refusal) return refusal;
+    metadata = { llm_model: requested };
+  }
+
   const grants = [];
   for (const entry of files) {
     const name = typeof entry === "string" ? entry : (entry as { name?: unknown })?.name;
     if (typeof name !== "string" || !name.trim()) {
       return fail(400, "Every file needs a name.");
     }
-    grants.push(await mintUploadSas(config, runId, name.trim()));
+    grants.push({ ...(await mintUploadSas(config, runId, name.trim())), ...(metadata ? { metadata } : {}) });
   }
 
-  return { status: 200, body: { ok: true, runId, container: config.docsContainer, grants } };
+  return { status: 200, body: { ok: true, runId, container: config.docsContainer, model: requested || null, grants } };
+}
+
+/** null if `model` may be chosen for uploads into `runId`, else the refusal. */
+async function checkUploadModel(model: string, runId: string): Promise<ApiResult | null> {
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(model)) return fail(400, "Unknown model.");
+  const listed = await handleModels();
+  if (listed.status !== 200) {
+    const error = (listed.body as { error?: string })?.error ?? "unknown error";
+    return fail(502, `Could not check the model with the pipeline: ${error}`);
+  }
+  const catalog = listed.body as {
+    models?: { id: string; selectable: boolean; phi_approved: boolean }[];
+    phi_run_ids?: string[];
+    require_phi_approved?: boolean;
+  };
+  const spec = catalog.models?.find((m) => m.id === model);
+  if (!spec) return fail(422, `${model} is not in the pipeline's model list.`);
+  if (!spec.selectable) return fail(422, `${model} is not available.`);
+  if (catalog.require_phi_approved && catalog.phi_run_ids?.includes(runId) && !spec.phi_approved) {
+    return fail(422, `${model} is not approved for PHI, and uploads to ${runId}/ are treated as PHI.`);
+  }
+  return null;
 }
 
 async function handleReview(body: Record<string, unknown>): Promise<ApiResult> {
@@ -783,6 +837,80 @@ async function getObservabilityFromCosmos(limitNum: number, runIdFilter?: string
   };
 }
 
+// --- sessions ------------------------------------------------------------------
+async function handleLogin(body: Record<string, unknown>): Promise<ApiResult> {
+  const secret = jwtSecret();
+  if (!secret) return fail(503, "Sign-in is not configured on the server (PACCA_JWT_SECRET, 32+ characters).");
+  const result = await login(body.email, body.password);
+  if (!result.ok) return fail(result.status, result.error);
+  return {
+    status: 200,
+    body: { ok: true, user: result.user },
+    headers: { "Set-Cookie": sessionCookie(signSession(result.user, secret)) },
+  };
+}
+
+function handleMe(ctx: RequestContext): ApiResult {
+  const user = currentUser(ctx);
+  return user ? { status: 200, body: { ok: true, user } } : fail(401, "Not signed in.");
+}
+
+function handleLogout(): ApiResult {
+  return { status: 200, body: { ok: true }, headers: { "Set-Cookie": clearedSessionCookie() } };
+}
+
+/**
+ * Who may call what. Checked before any handler runs; a route missing from
+ * this table is a 404 whether or not it exists, so a new route cannot ship
+ * unprotected by forgetting to list it.
+ *
+ *   public   no session (health, sign-in)
+ *   machine  the IVR system's callback: x-api-key when IVR_WRITEBACK_API_KEY
+ *            is set (it has no user session to present)
+ *   <Role>   that role or higher. Staff < Solution Developer < Platform Admin
+ *
+ * The client builds its tabs from shared/roles.ts, and
+ * tests/server/page-routes.test.ts checks every visible page only calls
+ * routes its role may use.
+ * Hiding a tab is presentation; this table is the control.
+ */
+export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
+  "POST /login": "public",
+  "POST /logout": "public",
+  "GET /me": "public",
+  "GET /health": "public",
+
+  "GET /documents": STAFF,
+  "GET /document": STAFF,
+  "GET /stats": STAFF,
+  "GET /schema": STAFF,
+  "POST /upload-sas": STAFF,
+  "POST /review": STAFF,
+  "POST /ivr-trigger": STAFF,
+  "GET /ivr-outreach": STAFF,
+  "GET /models": STAFF,
+  "GET /llm-settings": STAFF,
+
+  // Data for both Observability (Developer) and the Analytics page (Admin):
+  // pipeline totals, tokens, latency and cost. The Analytics *page* - the
+  // executive ROI view - stays Admin-only through the tab matrix.
+  "GET /analytics": DEVELOPER,
+  "GET /observability": DEVELOPER,
+  "GET /observability/gaps": DEVELOPER,
+  "GET /observability-gaps": DEVELOPER,
+  "POST /observability/chat": DEVELOPER,
+  "POST /observability-chat": DEVELOPER,
+  "POST /observability/diagnose": DEVELOPER,
+  "POST /observability-diagnose": DEVELOPER,
+  "POST /kql": DEVELOPER,
+  "POST /schemas/sync": DEVELOPER,
+
+  "POST /llm-settings": ADMIN,
+
+  "POST /ivr-writeback": "machine",
+  "POST /ivr-webhook": "machine",
+};
+
 async function handleObservability(query: URLSearchParams): Promise<ApiResult> {
   const config = readConfig();
   if (isConfigError(config)) return fail(503, config.error, { missing: config.missing });
@@ -811,12 +939,37 @@ export async function handleSenderra(
   method: string,
   path: string,
   query: URLSearchParams,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  ctx: RequestContext = {}
 ): Promise<ApiResult> {
   const route = `/${path.replace(/^\/+|\/+$/g, "")}`;
 
+  const policy = ROUTE_POLICY[`${method} ${route}`];
+  if (!policy) return fail(404, `No Senderra route ${method} ${route}.`);
+  if (policy === "machine") {
+    const machine = authorizeMachine(ctx, "IVR_WRITEBACK_API_KEY");
+    if (!machine.ok) return fail(machine.status, machine.error);
+  }
+  let user: SessionUser | null = null;
+  if (policy !== "public" && policy !== "machine") {
+    const auth = authorize(ctx, policy);
+    if (!auth.ok) return fail(auth.status, auth.error);
+    user = auth.user;
+    // The acting identity is the session, never whatever the body claims.
+    if (route === "/review" || route === "/ivr-trigger") body = { ...body, by: auth.user.email };
+  }
+
   try {
+    // Single-segment on purpose: multi-segment routes under the Vercel
+    // catch-all have 404'd before (see api/senderra/observability/).
+    if (method === "POST" && route === "/login") return await handleLogin(body);
+    if (method === "POST" && route === "/logout") return handleLogout();
+    if (method === "GET" && route === "/me") return handleMe(ctx);
+
     if (method === "GET" && route === "/health") return await handleHealth();
+    if (method === "GET" && route === "/models") return await handleModels();
+    if (method === "GET" && route === "/llm-settings") return await handleLlmSettingsGet(user!);
+    if (method === "POST" && route === "/llm-settings") return await handleLlmSettingsUpdate(user!, body);
     if (method === "GET" && route === "/documents") return await handleDocuments(query);
     if (method === "GET" && route === "/document") return await handleDocument(query);
     if (method === "GET" && route === "/stats") return await handleStats();

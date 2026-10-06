@@ -20,6 +20,9 @@ export type DocumentSummary = {
   fieldCount: number | null;
   fieldsNeedingReview: number | null;
   costUsd: number | null;
+  /** The model this document ran on, and why (settings | upload | override | env). */
+  modelId: string | null;
+  modelSource: string | null;
   latencyMs: number | null;
   minPageConfidence: number | null;
   receivedAt: string | null;
@@ -132,12 +135,29 @@ export type SenderraStats = {
   byStatus: { status: string; count: number }[];
 };
 
+/** A failed call, with the HTTP status kept so callers can tell a 412 (stale
+ * ETag) from a 422 (refused) without parsing the message. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+/** Fired when any call comes back 401: the session expired or was never there.
+ * Home listens and returns to the sign-in screen. */
+export const UNAUTHORIZED_EVENT = "pacca:unauthorized";
+
 /** Every failure the UI can show is an `Error` with the server's own message. */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
     ...init,
+    // Same-origin: the httpOnly session cookie rides along automatically.
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
+  if (response.status === 401 && path !== "/login" && path !== "/me") {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
   let payload: unknown = null;
   const rawText = await response.text().catch(() => "");
   try {
@@ -150,9 +170,125 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const body = payload as { ok?: boolean; error?: string };
   if (!response.ok || body?.ok === false) {
-    throw new Error(body?.error || `Request failed (${response.status}).`);
+    throw new ApiError(body?.error || `Request failed (${response.status}).`, response.status);
   }
   return payload as T;
+}
+
+// --- session -----------------------------------------------------------------
+export type SessionUser = {
+  email: string;
+  name: string;
+  role: "Client Staff" | "PACCA Solution Developer" | "PACCA Platform Admin";
+};
+
+export function signIn(email: string, password: string) {
+  return request<{ user: SessionUser }>("/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function signOut() {
+  return request<{ ok: true }>("/logout", { method: "POST" });
+}
+
+/** The signed-in user, or null when there is no valid session. */
+export async function fetchMe(): Promise<SessionUser | null> {
+  try {
+    return (await request<{ user: SessionUser }>("/me")).user;
+  } catch {
+    return null;
+  }
+}
+
+// --- model switch (proxied to the Function App; see server/senderra/models.ts) ---
+export type ModelInfo = {
+  id: string;
+  label: string;
+  deployment: string;
+  provider: string;
+  status: string;
+  enabled: boolean;
+  selectable: boolean;
+  not_selectable_reason: string | null;
+  phi_approved: boolean;
+  sku_tier: string;
+  capabilities: {
+    structured_output: string;
+    reasoning_effort: boolean;
+    prompt_cache_key: boolean;
+    token_param: string;
+  };
+  /** USD per 1M tokens: [input, cached input, output] per tier. */
+  pricing_per_1m: { global?: number[]; datazone?: number[] };
+  pricing_note: string | null;
+};
+
+export type ActiveModel = {
+  model: string;
+  deployment: string;
+  source: "override" | "upload" | "settings" | "env";
+  reasoning_effort: string | null;
+};
+
+export type ModelsResponse = {
+  default: string;
+  active: ActiveModel;
+  reasoning_efforts: string[];
+  phi_run_ids: string[];
+  require_phi_approved: boolean;
+  models: ModelInfo[];
+};
+
+export type LlmSettingChange = {
+  updated_at: string;
+  updated_by: string;
+  reason: string;
+  version: number;
+  from: { model: string | null; reasoning_effort: string | null };
+  to: { model: string; reasoning_effort: string | null };
+};
+
+export type LlmSettings = {
+  stored: {
+    model: string;
+    reasoning_effort?: string | null;
+    reason?: string;
+    updated_by?: string;
+    updated_at?: string;
+    version?: number;
+  } | null;
+  etag: string | null;
+  effective: {
+    model_id: string;
+    model_deployment: string;
+    model_source: ActiveModel["source"];
+    reasoning_effort: string | null;
+  };
+  ttl_sec: number;
+  /** Platform Admin only. */
+  history?: LlmSettingChange[];
+};
+
+export function fetchModels() {
+  return request<ModelsResponse>("/models");
+}
+
+export function fetchLlmSettings() {
+  return request<LlmSettings>("/llm-settings");
+}
+
+export function updateLlmSettings(input: {
+  model: string;
+  reasoning_effort?: string | null;
+  reason?: string;
+  etag?: string | null;
+}) {
+  return request<LlmSettings & { propagates_within_sec: number }>("/llm-settings", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function fetchDocuments(params: Record<string, string> = {}) {
@@ -193,6 +329,14 @@ export type SenderraAnalytics = {
     avgFieldScore: number | null; pages: number; needsReview: number;
   }[];
   confidenceHistogram: { label: string; count: number }[];
+  byModel: {
+    model: string;
+    documents: number;
+    spendUsd: number;
+    costPerDoc: number | null;
+    avgLatencyMs: number | null;
+    reviewRate: number | null;
+  }[];
   costTrend: { day: string; spend: number; documents: number }[];
   guards: {
     contextualizationUsd: number; contextualizationTokens: number; pagesBasic: number;
@@ -415,12 +559,16 @@ export type UploadGrant = {
   documentId: string;
   container: string;
   uploadUrl: string;
+  /** Blob metadata to set on the PUT, e.g. {llm_model} for a per-upload model. */
+  metadata?: Record<string, string>;
 };
 
-export function mintUploadGrants(files: { name: string }[], runId?: string) {
-  return request<{ runId: string; container: string; grants: UploadGrant[] }>("/upload-sas", {
+/** `model` is optional: an id from /models to process these files on instead
+ * of the active model. Empty means "use the active model". */
+export function mintUploadGrants(files: { name: string }[], runId?: string, model?: string) {
+  return request<{ runId: string; container: string; model: string | null; grants: UploadGrant[] }>("/upload-sas", {
     method: "POST",
-    body: JSON.stringify({ files, ...(runId ? { runId } : {}) }),
+    body: JSON.stringify({ files, ...(runId ? { runId } : {}), ...(model ? { model } : {}) }),
   });
 }
 
@@ -438,6 +586,9 @@ export async function uploadToBlob(grant: UploadGrant, file: File): Promise<void
     headers: {
       "x-ms-blob-type": "BlockBlob",
       "Content-Type": file.type || "application/pdf",
+      // Blob metadata travels as x-ms-meta-* on the same PUT. fn_ocr reads
+      // llm_model from it and the Function App validates it again.
+      ...Object.fromEntries(Object.entries(grant.metadata ?? {}).map(([k, v]) => [`x-ms-meta-${k}`, v])),
     },
     body: file,
   });

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
-import { SkeletonPage } from "@/components/MockAuth";
-import type { MockUser } from "@/components/MockAuth";
+import { SkeletonPage } from "@/components/Auth";
+import type { AppUser } from "@/components/Auth";
 
 const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"));
 const DocumentsPage = lazy(() => import("@/pages/documents/DocumentsPage"));
@@ -36,7 +36,7 @@ export function AppRoutes({
   onOpenHil,
 }: {
   path: string;
-  user: MockUser;
+  user: AppUser;
   hilFocus: string | null;
   onNavigate: (path: string) => void;
   onOpenDocument: (documentId: string) => void;

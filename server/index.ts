@@ -6,6 +6,7 @@ import { loadLocalEnv } from "./loadLocalEnv.js";
 import { createSolution } from "./solutionsApi.js";
 import { handleSolutionsV2 } from "./solutionsV2Api.js";
 import { handleSenderra } from "./senderra/api.js";
+import { DEVELOPER, authorize, contextFrom } from "./auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,15 @@ async function startServer() {
   const server = createServer(app);
 
   app.use(express.json({ limit: "256kb" }));
+  // Solutions (doc types) are Solution Developer and above; see ROUTE_POLICY.
+  app.use(["/api/solutions", "/api/solutions-v2"], (req, res, next) => {
+    const auth = authorize(contextFrom(req.headers), DEVELOPER);
+    if (!auth.ok) {
+      res.status(auth.status).json({ ok: false, error: auth.error });
+      return;
+    }
+    next();
+  });
   app.post("/api/solutions", async (req, res) => {
     const result = await createSolution(req.body);
     res.status(result.status).json(result.body);
@@ -38,8 +48,9 @@ async function startServer() {
       return;
     }
     const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
-    const result = await handleSenderra(method, route, url.searchParams, body);
+    const result = await handleSenderra(method, route, url.searchParams, body, contextFrom(req.headers));
     res.setHeader("Cache-Control", "no-store");
+    for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value);
     res.status(result.status).json(result.body);
   });
 

@@ -85,6 +85,8 @@ function toOptimisticRow(item: UploadedDocInfo & { timestamp?: number; uploadedA
     status: "Queued" as const,
     confidence: "—",
     pages: "—" as const,
+    model: item.model ?? "Active model",
+    modelSource: item.model ? "upload" : null,
     received: "Just now",
     color: "#8496ad",
     pdfUrl: `/api/senderra/document?documentId=${encodeURIComponent(item.documentId)}`,
@@ -163,6 +165,8 @@ export default function DocumentsPage({
       status: listStatus(d.uiStatus),
       confidence: percent(d.confidence, 1),
       pages: d.pages ?? "—",
+      model: d.modelId ?? "—",
+      modelSource: d.modelSource,
       received: relativeTime(d.receivedAt),
       color:
         d.uiStatus === "Processed"
@@ -300,6 +304,7 @@ export default function DocumentsPage({
       "Is Duplicate",
       "Duplicate Reason",
       "Confidence",
+      "Model",
       "Timestamp",
       "PDF Link",
     ];
@@ -320,6 +325,7 @@ export default function DocumentsPage({
       escapeCsv(d.isDuplicate ? "Yes" : "No"),
       escapeCsv(d.duplicateReason || ""),
       escapeCsv(d.confidence),
+      escapeCsv(d.model),
       escapeCsv(d.timestamp),
       escapeCsv(d.pdfUrl ? `${origin}${d.pdfUrl}` : ""),
     ]);
@@ -497,6 +503,7 @@ export default function DocumentsPage({
                   <th className="px-3 py-3 font-bold">Tags</th>
                   <th className="px-3 py-3 font-bold">Confidence</th>
                   <th className="px-3 py-3 font-bold">Pages</th>
+                  <th className="px-3 py-3 font-bold">Model</th>
                   <th className="px-5 py-3 font-bold text-right">Action</th>
                 </tr>
               </thead>
@@ -595,6 +602,14 @@ export default function DocumentsPage({
 
                       {/* 7. PAGES */}
                       <td className="px-3 py-4 text-[10px] text-slate-500">{doc.pages}</td>
+
+                      {/* 7b. MODEL — which LLM processed it, and whether the uploader chose it */}
+                      <td className="px-3 py-4 text-[10px] text-slate-600" title={doc.modelSource ? `via ${doc.modelSource}` : undefined}>
+                        {doc.model}
+                        {doc.modelSource === "upload" && (
+                          <span className="ml-1 rounded bg-[#ebf5f7] px-1 py-0.5 text-[8px] font-bold text-[#2d6b75]">per upload</span>
+                        )}
+                      </td>
 
                       {/* 8. ACTION */}
                       <td className="px-5 py-4 text-right">

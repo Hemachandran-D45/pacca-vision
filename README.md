@@ -94,12 +94,56 @@ bundle and these are account keys.
 | `AZURE_STORAGE_ACCOUNT`, `AZURE_STORAGE_KEY` | Storage account → Access keys → key1. Needed to mint SAS tokens |
 | `SENDERRA_DOCS_CONTAINER` | `docs-in` — the pipeline's intake container |
 | `SENDERRA_UPLOAD_RUN_ID` | `ui` — first path segment, becomes the run id and partition-key prefix |
+| `PACCA_JWT_SECRET` | **Required for sign-in.** 32+ random characters signing the session cookie: `openssl rand -hex 32`. Rotating it signs everyone out |
+| `COSMOS_USERS_CONTAINER` | Optional, default `users` — sign-in accounts (pk `/username`), same database as `documents` |
+| `SENDERRA_FUNCTION_URL`, `SENDERRA_FUNCTION_KEY` | Function App host (`https://<defaultHostName>`) and a function key — the model switch and per-upload model. Server-only; never sent to the browser |
+| `IVR_WRITEBACK_API_KEY` | Optional. When set, the IVR system's writeback must send it as `x-api-key`; while unset the route stays open (with a log warning) |
+
+## Sign-in and roles
+
+Accounts live in the Cosmos `users` container; there is no sign-up page. Create or reset the three
+demo accounts (one per role, all `@emids.com`):
+
+```bash
+SEED_PASSWORD='…' pnpm seed:users   # pacca.staff@, pacca.developer@, pacca.admin@emids.com
+```
+
+The password comes from the environment, never the repo; only its scrypt hash is stored. Signing in
+sets an httpOnly, Secure, SameSite=Strict cookie (8 h). Five wrong passwords lock an account for 15
+minutes. Only `@emids.com` addresses can exist or sign in.
+
+| | Client Staff | Solution Developer | Platform Admin |
+| --- | :-: | :-: | :-: |
+| Command Center, Documents (upload + per-upload model), HIL Review, Monitor | ✓ | ✓ | ✓ |
+| Solutions (doc types), Observability | | ✓ | ✓ |
+| Analytics (cost / ROI), Settings (global model switch + history), Users | | | ✓ |
+
+The server enforces this per route — `ROUTE_POLICY` in `server/senderra/api.ts` — and the tabs follow
+`rolePermissions` in `client/src/components/Auth.tsx`. Hiding a tab is presentation; the route table
+is the control, and a route missing from it is a 404. An admin can preview the app as a lower role;
+nobody can go upward.
+
+## Model switch
+
+The pipeline's model is chosen at runtime by senderra-idp-fa (allowlist in its `models.json`, active
+choice in Cosmos `settings`). This app is a client of it:
+
+- **Settings → AI model** (Platform Admin): switch the model for every new document, with reasoning
+  effort and a reason; see the allowlist with prices and the change history. Reaches every worker
+  within ~60 s; no redeploy. A concurrent change by another admin is detected (ETag) rather than
+  overwritten.
+- **Upload panel → Process with** (everyone): run one batch on another model without touching the
+  global setting. Sent as blob metadata `x-ms-meta-llm_model`.
+- **Documents / Analytics**: which model each document ran on, and spend by model.
+
+The function key stays on the server (`server/senderra/models.ts`), and the acting user recorded in
+the history is always the signed-in email.
 
 ### Deploying to Vercel
 
 ```bash
 npx vercel link
-bash scripts/vercel-env.sh production    # pushes the block above from .env.local
+bash scripts/vercel-env.sh production    # pushes the block above from .env.local (or .env)
 npx vercel --prod
 ```
 

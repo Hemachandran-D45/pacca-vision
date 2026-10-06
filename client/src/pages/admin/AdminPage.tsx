@@ -3,66 +3,28 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
+import { ModelSettings } from "@/senderra/ModelSettings";
 
 export default function AdminPage({ kind }: { kind: "users" | "settings" }) {
   if (kind === "settings") {
+    // The previous Workspace / Notifications / Security panels were toast-only
+    // mock-ups that saved nothing; the AI model is the first real setting.
     return (
       <div className="space-y-5 p-4 sm:p-7 lg:p-9">
         <div>
           <div className="text-[11px] font-bold uppercase tracking-[.15em] text-[#47a2b0]">Administration</div>
           <h2 className="mt-1 font-display text-2xl font-bold tracking-[-.05em] text-[#0e0e0e]">Settings</h2>
-          <p className="mt-2 text-[11px] text-slate-500">Workspace preferences and policy controls for PACCA Vision.</p>
+          <p className="mt-2 text-[11px] text-slate-500">Platform controls for PACCA Vision. Changes here apply to every user.</p>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
-          <aside className="space-y-1 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
-            {["Workspace", "Notifications", "Security", "Data retention", "API access"].map((label, i) => (
-              <button
-                key={label}
-                onClick={() => toast(`${label} settings selected`)}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-semibold",
-                  i === 0 ? "bg-[#ebf5f7] text-[#2d6b75]" : "text-slate-500 hover:bg-slate-50"
-                )}
-              >
-                {label}
-                {i === 0 && <ChevronRight size={14} />}
-              </button>
-            ))}
-          </aside>
-
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
-            <SectionHeading title="Workspace defaults" eyebrow="These settings apply to new pipelines and solutions." />
-            <div className="mt-6 max-w-xl space-y-5">
-              {[
-                ["Workspace name", "Client 1"],
-                ["Default processing SLA", "30 seconds"],
-                ["Time zone", "Asia / Kolkata"],
-              ].map(([label, value]) => (
-                <label key={label} className="block">
-                  <span className="mb-2 block text-[10px] font-bold text-slate-500">{label}</span>
-                  <input
-                    defaultValue={value}
-                    className="h-10 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
-                  />
-                </label>
-              ))}
-
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
-                <div>
-                  <div className="text-[11px] font-bold text-[#0e0e0e]">Require reviewer reason</div>
-                  <div className="mt-1 text-[10px] text-slate-400">Require a note for manual overrides and reprocessing.</div>
-                </div>
-                <button onClick={() => toast("Reviewer reason policy updated")} className="h-6 w-11 rounded-full bg-[#47a2b0] p-1">
-                  <span className="ml-5 block h-4 w-4 rounded-full bg-white shadow-sm" />
-                </button>
-              </div>
-
-              <button onClick={() => toast.success("Settings saved")} className="rounded-xl bg-[#47a2b0] px-4 py-2.5 text-[10px] font-bold text-white hover:bg-[#37828e]">
-                Save changes
-              </button>
+          <aside className="h-fit space-y-1 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+            <div className="flex w-full items-center justify-between rounded-xl bg-[#ebf5f7] px-3 py-2.5 text-left text-[11px] font-semibold text-[#2d6b75]">
+              AI model
+              <ChevronRight size={14} />
             </div>
-          </section>
+          </aside>
+          <ModelSettings />
         </div>
       </div>
     );

@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { mintUploadGrants, uploadToBlob, bytes, type UploadGrant } from "@/senderra/api";
+import { UploadModelSelect, useUploadModels } from "@/senderra/UploadModelPicker";
 
 export const UPLOAD_DEPARTMENTS = [
   "Prior Authorization",
@@ -76,6 +77,8 @@ export type UploadedDocInfo = {
   docType: string;
   documentId: string;
   blobName: string;
+  /** Model chosen for this upload, or undefined for the active model. */
+  model?: string;
 };
 
 export function UploadDocumentModal({
@@ -93,12 +96,15 @@ export function UploadDocumentModal({
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [errors, setErrors] = useState<{ files?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const picker = useUploadModels();
+  const [model, setModel] = useState("");
 
   const resetState = () => {
     setSelectedFiles([]);
     setErrors({});
     setBusy(false);
     setUploadProgress(null);
+    setModel("");
   };
 
   const handleAddFiles = (files: FileList | File[] | null) => {
@@ -153,7 +159,11 @@ export function UploadDocumentModal({
     const uploadedList: UploadedDocInfo[] = [];
 
     try {
-      const res = await mintUploadGrants(selectedFiles.map((f) => ({ name: f.name })));
+      const res = await mintUploadGrants(
+        selectedFiles.map((f) => ({ name: f.name })),
+        undefined,
+        model || undefined
+      );
       const grantsList: UploadGrant[] = res?.grants ?? [];
       if (grantsList.length !== selectedFiles.length) {
         throw new Error("Upload grant count did not match the selected files.");
@@ -176,6 +186,7 @@ export function UploadDocumentModal({
           docType: resolvedType,
           documentId: grant.documentId,
           blobName: grant.blobName,
+          model: model || undefined,
         });
       }
 
@@ -185,9 +196,9 @@ export function UploadDocumentModal({
           ? `Bulk upload complete: ${selectedFiles.length} documents uploaded`
           : "Document uploaded successfully",
         {
-          description: isBulk
-            ? `${selectedFiles.length} documents queued for intake, OCR & classification.`
-            : `${selectedFiles[0].name} queued for intake, OCR & classification.`,
+          description: `${
+            isBulk ? `${selectedFiles.length} documents` : selectedFiles[0].name
+          } queued for intake, OCR & classification on ${picker.labelOf(model) || "the active model"}.`,
         }
       );
 
@@ -367,6 +378,8 @@ export function UploadDocumentModal({
               </p>
             )}
           </div>
+
+          <UploadModelSelect value={model} onChange={setModel} disabled={busy} picker={picker} />
 
           <DialogFooter className="mt-6 flex flex-row items-center justify-end gap-2 border-t border-slate-100 pt-4">
             <button

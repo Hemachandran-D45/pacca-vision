@@ -498,7 +498,7 @@ function enrichIncident(record: ObservabilityRecord, index: number): EnrichedCau
   } else if (record.stage === "extract") {
     category = "extract_grounding";
     severity = "Optimized";
-    title = `Prior Auth Field Extraction Grounded (${record.model_deployment || "gpt-5.4-mini"})`;
+    title = `Prior Auth Field Extraction Grounded (${record.model_deployment || "model not recorded"})`;
     step = "Stage 2 · Dual-Pass LLM Extraction";
     cause = "Classification and structured fields extracted and aligned with OCR coordinate polygons.";
     answer =

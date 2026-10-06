@@ -121,6 +121,30 @@ export async function computeAnalytics(container: Container) {
 
   const costPerDoc = documents > 0 ? spendUsd / documents : null;
 
+  // Spend per model, so a per-upload or global switch shows up as a cost
+  // difference rather than an anecdote. model_id is newer; fall back to the
+  // deployment name on records written before the model switch existed.
+  const byModelMap = new Map<string, { documents: number; spend: number; latency: number[]; review: number }>();
+  for (const row of extracts) {
+    const model = row.model_id || row.model_deployment || "unknown";
+    const entry = byModelMap.get(model) ?? { documents: 0, spend: 0, latency: [], review: 0 };
+    entry.documents += 1;
+    entry.spend += typeof row.total_cost_usd === "number" ? row.total_cost_usd : 0;
+    if (typeof row.e2e_latency_ms === "number") entry.latency.push(row.e2e_latency_ms);
+    if (row.needs_review) entry.review += 1;
+    byModelMap.set(model, entry);
+  }
+  const byModel = [...byModelMap.entries()]
+    .map(([model, e]) => ({
+      model,
+      documents: e.documents,
+      spendUsd: e.spend,
+      costPerDoc: e.documents > 0 ? e.spend / e.documents : null,
+      avgLatencyMs: e.latency.length ? e.latency.reduce((a, b) => a + b, 0) / e.latency.length : null,
+      reviewRate: e.documents > 0 ? e.review / e.documents : null,
+    }))
+    .sort((a, b) => b.documents - a.documents);
+
   return {
     totals: {
       documents,
@@ -193,6 +217,7 @@ export async function computeAnalytics(container: Container) {
       label: bucket.label,
       count: scores.filter((value) => value >= bucket.min && value < bucket.max).length,
     })),
+    byModel,
     costTrend: [...byDay.entries()]
       .map(([day, entry]) => ({ day, ...entry }))
       .sort((a, b) => a.day.localeCompare(b.day)),

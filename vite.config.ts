@@ -8,6 +8,16 @@ import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import { createSolution } from "./server/solutionsApi.js";
 import { handleSolutionsV2 } from "./server/solutionsV2Api.js";
 import { handleSenderra } from "./server/senderra/api.js";
+import { DEVELOPER, authorize, contextFrom } from "./server/auth.js";
+
+/** Solutions routes need Solution Developer or above, as on Vercel and Express. */
+function denied(req: { headers: Record<string, string | string[] | undefined> }, res: { writeHead: Function; end: Function }) {
+  const auth = authorize(contextFrom(req.headers), DEVELOPER);
+  if (auth.ok) return false;
+  res.writeHead(auth.status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: false, error: auth.error }));
+  return true;
+}
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -240,6 +250,7 @@ function vitePluginSolutionsV2Api(): Plugin {
       server.middlewares.use("/api/solutions-v2", (req, res, next) => {
         const method = (req.method || "GET").toUpperCase();
         if (method !== "GET" && method !== "POST" && method !== "PATCH" && method !== "DELETE") return next();
+        if (denied(req, res)) return;
 
         const url = new URL(req.url || "/", "http://localhost");
         const send = async (payload: unknown) => {
@@ -293,6 +304,7 @@ function vitePluginSolutionsApi(): Plugin {
         if (req.method !== "POST") {
           return next();
         }
+        if (denied(req, res)) return;
 
         const send = async (payload: unknown) => {
           const result = await createSolution(payload);
@@ -353,7 +365,7 @@ function vitePluginSenderraApi(): Plugin {
             key.startsWith("AZURE_STORAGE_") ||
             key.startsWith("SENDERRA_") ||
             key.startsWith("IVR_") ||
-            key === "PACCA_IVR_TRIGGER_ENABLED") &&
+            key.startsWith("PACCA_")) &&
           process.env[key] === undefined
         ) {
           process.env[key] = value;
@@ -369,8 +381,8 @@ function vitePluginSenderraApi(): Plugin {
         const url = new URL(req.url || "/", "http://localhost");
 
         const send = async (body: Record<string, unknown>) => {
-          const result = await handleSenderra(method, url.pathname, url.searchParams, body);
-          res.writeHead(result.status, { "Content-Type": "application/json" });
+          const result = await handleSenderra(method, url.pathname, url.searchParams, body, contextFrom(req.headers));
+          res.writeHead(result.status, { "Content-Type": "application/json", ...(result.headers ?? {}) });
           res.end(JSON.stringify(result.body));
         };
 

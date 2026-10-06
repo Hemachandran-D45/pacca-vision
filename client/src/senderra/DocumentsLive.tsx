@@ -161,6 +161,7 @@ export function DocumentsLive({ onOpen }: { onOpen: (documentId: string) => void
                   <th className="px-4 py-3">Confidence</th>
                   <th className="px-4 py-3">Flagged</th>
                   <th className="px-4 py-3">Pages</th>
+                  <th className="px-4 py-3">Model</th>
                   <th className="px-4 py-3">Cost</th>
                   <th className="px-4 py-3">Latency</th>
                   <th className="px-4 py-3">Received</th>
@@ -223,6 +224,10 @@ function DocumentRow({ doc, onOpen }: { doc: DocumentSummary; onOpen: (id: strin
         )}
       </td>
       <td className="px-4 py-3 tabular-nums text-[11px] text-slate-600">{doc.pages ?? "—"}</td>
+      <td className="px-4 py-3 text-[11px] text-slate-600" title={doc.modelSource ? `via ${doc.modelSource}` : undefined}>
+        {doc.modelId ?? "—"}
+        {doc.modelSource === "upload" && <span className="ml-1 text-[9px] font-bold text-[#47a2b0]">per upload</span>}
+      </td>
       <td className="px-4 py-3 tabular-nums text-[11px] text-slate-600">{usd(doc.costUsd, 3)}</td>
       <td className="px-4 py-3 tabular-nums text-[11px] text-slate-600">{duration(doc.latencyMs)}</td>
       <td className="px-4 py-3 text-[11px] text-slate-500">{relativeTime(doc.receivedAt)}</td>

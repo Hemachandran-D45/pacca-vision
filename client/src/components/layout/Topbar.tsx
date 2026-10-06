@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { MockUser } from "@/components/MockAuth";
+import type { AppUser } from "@/components/Auth";
 import { useQueueCount } from "@/contexts/QueueCountContext";
 import { cn } from "@/lib/utils";
 
@@ -35,10 +35,10 @@ export function Topbar({
   onMenu: () => void;
   collapsed: boolean;
   onCollapse: () => void;
-  user: MockUser;
-  authenticatedRole?: MockUser["role"];
-  availablePerspectives?: MockUser["role"][];
-  onRoleSwitch: (role: MockUser["role"]) => void;
+  user: AppUser;
+  authenticatedRole?: AppUser["role"];
+  availablePerspectives?: AppUser["role"][];
+  onRoleSwitch: (role: AppUser["role"]) => void;
 }) {
   const { notificationCount } = useQueueCount();
   const [, navigate] = useLocation();
@@ -189,7 +189,7 @@ export function Topbar({
                       <span className="text-[9px] text-emerald-600 font-bold">100% Healthy</span>
                     </div>
                     <p className="mt-0.5 text-[10px] text-slate-500 leading-relaxed">
-                      Azure AI Document Intelligence & OpenAI GPT-4o workers healthy. Latency 6.4s median.
+                      Content Understanding and the pipeline model are serving requests. Active model: Settings → AI model.
                     </p>
                   </div>
                 </div>

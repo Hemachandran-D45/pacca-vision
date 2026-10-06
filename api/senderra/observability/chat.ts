@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "../../../server/vercel-types.js";
 import { handleSenderra } from "../../../server/senderra/api.js";
+import { contextFrom } from "../../../server/auth.js";
 
 /**
  * Dedicated Vercel Serverless Function for POST /api/senderra/observability/chat
@@ -21,8 +22,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (req.body as Record<string, unknown>)
       : {};
 
-  const result = await handleSenderra("POST", "/observability/chat", url.searchParams, body);
+  const result = await handleSenderra("POST", "/observability/chat", url.searchParams, body, contextFrom(req.headers));
 
   res.setHeader("Cache-Control", "no-store");
+  for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value);
   return res.status(result.status).json(result.body);
 }

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { navSections } from "@/data/mockData";
-import type { MockUser } from "@/components/MockAuth";
+import type { AppUser } from "@/components/Auth";
 import { useQueueCount } from "@/contexts/QueueCountContext";
 
 export function Sidebar({
@@ -22,28 +22,19 @@ export function Sidebar({
   onNavigate: (path: string) => void;
   onCloseMobile: () => void;
   onLogout: () => void;
-  user: MockUser;
+  user: AppUser;
   allowedPaths: string[];
 }) {
   const { hilCount } = useQueueCount();
-  const DEMO_HIDDEN_PATHS = [
-    "/deployment",
-    "/infrastructure",
-    "/environment",
-    "/metadata-studio",
-    "/pipeline-studio",
-    "/rules",
-    "/integrations",
-    "/central-admin",
-    "/users",
-    "/settings",
-  ];
+  // `allowedPaths` already comes from shared/roles.ts with the hidden mock-up
+  // screens removed. A second, local hidden list used to live here and hid
+  // Settings even after the shared matrix allowed it for admins.
   const visibleSections = navSections
     .map((section) => ({
       ...section,
       items: section.items
         .filter(
-          (item) => allowedPaths.includes(item.path) && !DEMO_HIDDEN_PATHS.includes(item.path)
+          (item) => allowedPaths.includes(item.path)
         )
         .map((item) => {
           if (item.path === "/hil-review") {

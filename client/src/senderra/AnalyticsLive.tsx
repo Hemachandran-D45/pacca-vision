@@ -312,6 +312,40 @@ export function AnalyticsLive({ embedded = false }: { embedded?: boolean }) {
         </Card>
       </div>
 
+      {a.byModel.length > 0 && (
+        <Card
+          title="Spend by model"
+          hint="Per document, by the model it actually ran on — the global setting, a per-upload choice, or a re-extract override."
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-[11px]">
+              <thead className="text-[9px] uppercase tracking-[.12em] text-slate-400">
+                <tr>
+                  <th className="py-2 pr-3">Model</th>
+                  <th className="py-2 pr-3 text-right">Documents</th>
+                  <th className="py-2 pr-3 text-right">Total spend</th>
+                  <th className="py-2 pr-3 text-right">Per document</th>
+                  <th className="py-2 pr-3 text-right">Avg latency</th>
+                  <th className="py-2 text-right">Sent to review</th>
+                </tr>
+              </thead>
+              <tbody>
+                {a.byModel.map((row) => (
+                  <tr key={row.model} className="border-t border-slate-100 tabular-nums">
+                    <td className="py-2.5 pr-3 font-semibold text-slate-800">{row.model}</td>
+                    <td className="py-2.5 pr-3 text-right">{row.documents}</td>
+                    <td className="py-2.5 pr-3 text-right">{usd(row.spendUsd, 3)}</td>
+                    <td className="py-2.5 pr-3 text-right">{usd(row.costPerDoc, 4)}</td>
+                    <td className="py-2.5 pr-3 text-right">{duration(row.avgLatencyMs)}</td>
+                    <td className="py-2.5 text-right">{percent(row.reviewRate, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-2">
         <Card
           title="Why fields go to review"

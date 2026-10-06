@@ -165,7 +165,7 @@ export default function AnalyticsPage() {
       return Number((liveStats.stpRate * 100).toFixed(1));
     }
     if (liveDocs.length > 0) {
-      const stpCount = liveDocs.filter(d => !d.needsReview && d.status === "Succeeded").length;
+      const stpCount = liveDocs.filter(d => !d.needsReview && d.pipelineStatus === "Succeeded").length;
       return Number(((stpCount / liveDocs.length) * 100).toFixed(1));
     }
     return 50.0;

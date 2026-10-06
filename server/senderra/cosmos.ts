@@ -18,6 +18,7 @@ import type {
  * fetch, which on a cold Vercel function is most of the latency budget.
  */
 let cached: { container: Container; config: SenderraConfig } | null = null;
+let cachedClient: import("@azure/cosmos").CosmosClient | null = null;
 
 /**
  * The SDK is loaded lazily, on purpose.
@@ -49,11 +50,25 @@ export async function container(): Promise<
   }
 
   const client = new CosmosClient({ endpoint: config.cosmosEndpoint, key: config.cosmosKey });
+  cachedClient = client;
   cached = {
     container: client.database(config.cosmosDatabase).container(config.cosmosContainer),
     config,
   };
   return cached;
+}
+
+/**
+ * The `users` container (pk /username), same account and database as
+ * `documents`. Created empty by senderra-idp-sol's infra for whatever fronts
+ * the pipeline; this app keeps sign-in accounts there. Override the name with
+ * COSMOS_USERS_CONTAINER.
+ */
+export async function usersContainer(): Promise<Container | { error: string; missing: string[] }> {
+  const handle = await container();
+  if ("error" in handle) return handle;
+  const name = process.env.COSMOS_USERS_CONTAINER?.trim() || "users";
+  return cachedClient!.database(handle.config.cosmosDatabase).container(name);
 }
 
 /**
@@ -191,6 +206,10 @@ function toSummary(
     fieldCount: numberOrNull(extract?.field_count),
     fieldsNeedingReview: isApproved || isGapsResolved ? 0 : numberOrNull(extract?.fields_needing_review),
     costUsd: numberOrNull(extract?.total_cost_usd ?? ocr?.cost_cu_usd),
+    // model_id exists from senderra-idp-fa's model switch on; older records
+    // only carry the deployment name, which is the same string for GPT.
+    modelId: extract?.model_id ?? extract?.model_deployment ?? null,
+    modelSource: extract?.model_source ?? null,
     latencyMs: numberOrNull(extract?.e2e_latency_ms ?? ocr?.e2e_latency_ms),
     minPageConfidence: numberOrNull(ocr?.min_page_confidence),
     receivedAt: extract?.recorded_at ?? ocr?.recorded_at ?? null,

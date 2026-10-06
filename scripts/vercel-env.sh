@@ -11,9 +11,10 @@ set -euo pipefail
 ENVIRONMENT="${1:-production}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT/.env.local"
+[[ -f "$ENV_FILE" ]] || ENV_FILE="$ROOT/.env"   # the dev server reads either
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "No .env.local at $ENV_FILE — copy env.example and fill it in first." >&2
+  echo "No .env.local or .env in $ROOT — copy env.example and fill it in first." >&2
   exit 1
 fi
 
@@ -30,12 +31,17 @@ VARS=(
   IVR_TRIGGER_URL
   IVR_API_KEY
   IVR_TRIGGER_TIMEOUT
+  IVR_WRITEBACK_API_KEY
+  PACCA_JWT_SECRET
+  COSMOS_USERS_CONTAINER
+  SENDERRA_FUNCTION_URL
+  SENDERRA_FUNCTION_KEY
 )
 
 for name in "${VARS[@]}"; do
   value="$(grep -E "^${name}=" "$ENV_FILE" | head -1 | cut -d= -f2- || true)"
   value="${value%\"}"; value="${value#\"}"
-  if [[ -z "$value" || "$value" == "replace-me" ]]; then
+  if [[ -z "$value" || "$value" == replace-me* ]]; then
     echo "skip  $name (not set in .env.local)"
     continue
   fi
