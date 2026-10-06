@@ -869,8 +869,9 @@ function handleLogout(): ApiResult {
  *            is set (it has no user session to present)
  *   <Role>   that role or higher. Staff < Solution Developer < Platform Admin
  *
- * The client builds its tabs from the same matrix (rolePermissions in
- * client/src/components/Auth.tsx).
+ * The client builds its tabs from shared/roles.ts, and
+ * tests/server/page-routes.test.ts checks every visible page only calls
+ * routes its role may use.
  * Hiding a tab is presentation; this table is the control.
  */
 export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
@@ -890,6 +891,10 @@ export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
   "GET /models": STAFF,
   "GET /llm-settings": STAFF,
 
+  // Data for both Observability (Developer) and the Analytics page (Admin):
+  // pipeline totals, tokens, latency and cost. The Analytics *page* - the
+  // executive ROI view - stays Admin-only through the tab matrix.
+  "GET /analytics": DEVELOPER,
   "GET /observability": DEVELOPER,
   "GET /observability/gaps": DEVELOPER,
   "GET /observability-gaps": DEVELOPER,
@@ -900,7 +905,6 @@ export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
   "POST /kql": DEVELOPER,
   "POST /schemas/sync": DEVELOPER,
 
-  "GET /analytics": ADMIN,
   "POST /llm-settings": ADMIN,
 
   "POST /ivr-writeback": "machine",

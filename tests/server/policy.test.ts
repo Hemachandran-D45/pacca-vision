@@ -43,7 +43,8 @@ describe("route policy", () => {
   });
 
   it("matches the agreed matrix", () => {
-    expect(ROUTE_POLICY["GET /analytics"]).toBe(ADMIN);
+    expect(ROUTE_POLICY["GET /analytics"]).toBe(DEVELOPER);
+    expect(ROUTE_POLICY["POST /llm-settings"]).toBe(ADMIN);
     expect(ROUTE_POLICY["GET /observability"]).toBe(DEVELOPER);
     expect(ROUTE_POLICY["POST /upload-sas"]).toBe(STAFF);
     expect(ROUTE_POLICY["GET /health"]).toBe("public");

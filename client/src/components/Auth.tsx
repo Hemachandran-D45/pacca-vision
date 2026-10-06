@@ -16,8 +16,7 @@ import { signIn } from "@/senderra/api";
  * ROUTE_POLICY in server/senderra/api.ts — keep the two in step. Hiding a tab
  * is presentation only: the server refuses the API calls behind it regardless.
  */
-type Role =
-  "PACCA Platform Admin" | "PACCA Solution Developer" | "Client Staff";
+import { visiblePaths, type Role } from "@shared/roles";
 export type AppUser = {
   name: string;
   initials: string;
@@ -46,50 +45,11 @@ export function toAppUser(session: SessionUser): AppUser {
   };
 }
 
-/** Screens that exist but are still static mock-ups; hidden for every role. */
-export const DEMO_HIDDEN_PATHS = new Set([
-  "/environment",
-  "/users",
-  "/integrations",
-  "/pipeline-studio",
-  "/metadata-studio",
-  "/rules",
-  "/deployment",
-  "/infrastructure",
-  "/central-admin",
-]);
+export { DEMO_HIDDEN_PATHS, rolePermissions } from "@shared/roles";
 
-export const demoAllowedPaths = (role: Role): string[] =>
-  rolePermissions[role].filter(path => !DEMO_HIDDEN_PATHS.has(path));
-
-const STAFF_PATHS = ["/", "/documents", "/hil-review", "/monitor"];
-const DEVELOPER_PATHS = [
-  ...STAFF_PATHS,
-  "/observability",
-  "/solutions",
-  "/solutions-v2",
-  "/pipeline-studio",
-  "/metadata-studio",
-  "/rules",
-  "/integrations",
-  "/deployment",
-  "/infrastructure",
-];
-
-export const rolePermissions: Record<Role, string[]> = {
-  // Operates documents: upload (with a per-upload model), review, monitor.
-  "Client Staff": STAFF_PATHS,
-  // + doc types (Solutions) and pipeline diagnostics (Observability).
-  "PACCA Solution Developer": DEVELOPER_PATHS,
-  // + cost / ROI (Analytics), the global model switch (Settings) and users.
-  "PACCA Platform Admin": [
-    ...DEVELOPER_PATHS,
-    "/analytics",
-    "/settings",
-    "/users",
-    "/central-admin",
-  ],
-};
+/** Paths a role can open (hidden mock-ups removed). The matrix itself lives in
+ * shared/roles.ts so the page/route consistency test can read it. */
+export const demoAllowedPaths = (role: Role): string[] => visiblePaths(role);
 
 /** An admin can preview the app as a lower role; nobody can go upward. */
 export function getAvailablePerspectives(authenticatedRole: Role): Role[] {
