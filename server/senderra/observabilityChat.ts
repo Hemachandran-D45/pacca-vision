@@ -114,13 +114,14 @@ const OBSERVABILITY_TOOLS: ChatToolDefinition[] = [
     function: {
       name: "query_azure_monitor",
       description:
-        "Execute a KQL query against Azure Log Analytics to find infrastructure errors, Function App exceptions, Service Bus deadletters, Event Grid delivery failures, Blob storage issues, or Cosmos DB throttling. " +
+        "Execute a KQL query against Azure Log Analytics to find infrastructure errors, Function App exceptions, Service Bus deadletters, Event Grid delivery failures, Blob storage issues, Cosmos DB throttling, or Azure OpenAI token/rate limit errors. " +
         "Available tables: " +
         "AppTraces (Function App Python logs), " +
         "AppExceptions (Function App unhandled exceptions & stacktraces), " +
         "FunctionAppLogs (Function host execution & runtime errors), " +
-        "AzureDiagnostics (Service Bus deadletter/queue operational logs & Event Grid delivery failures), " +
+        "AzureDiagnostics (Service Bus deadletter/queue operational logs, Event Grid drops, OpenAI RequestResponse / 429 throttling & AzureOpenAIRequestUsage token metrics), " +
         "StorageBlobLogs (Blob upload/read failures & SAS auth errors), " +
+        "StorageFileLogs (Azure Files asset share read/mount errors), " +
         "CDBDataPlaneRequests (Cosmos DB 429 throttling & RU spikes).",
       parameters: {
         type: "object",
