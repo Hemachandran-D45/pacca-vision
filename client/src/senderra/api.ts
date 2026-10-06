@@ -132,6 +132,14 @@ export type SenderraStats = {
   byStatus: { status: string; count: number }[];
 };
 
+/** A failed call, with the HTTP status kept so callers can tell a 412 (stale
+ * ETag) from a 422 (refused) without parsing the message. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 /** Fired when any call comes back 401: the session expired or was never there.
  * Home listens and returns to the sign-in screen. */
 export const UNAUTHORIZED_EVENT = "pacca:unauthorized";
@@ -159,7 +167,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const body = payload as { ok?: boolean; error?: string };
   if (!response.ok || body?.ok === false) {
-    throw new Error(body?.error || `Request failed (${response.status}).`);
+    throw new ApiError(body?.error || `Request failed (${response.status}).`, response.status);
   }
   return payload as T;
 }
@@ -189,6 +197,95 @@ export async function fetchMe(): Promise<SessionUser | null> {
   } catch {
     return null;
   }
+}
+
+// --- model switch (proxied to the Function App; see server/senderra/models.ts) ---
+export type ModelInfo = {
+  id: string;
+  label: string;
+  deployment: string;
+  provider: string;
+  status: string;
+  enabled: boolean;
+  selectable: boolean;
+  not_selectable_reason: string | null;
+  phi_approved: boolean;
+  sku_tier: string;
+  capabilities: {
+    structured_output: string;
+    reasoning_effort: boolean;
+    prompt_cache_key: boolean;
+    token_param: string;
+  };
+  /** USD per 1M tokens: [input, cached input, output] per tier. */
+  pricing_per_1m: { global?: number[]; datazone?: number[] };
+  pricing_note: string | null;
+};
+
+export type ActiveModel = {
+  model: string;
+  deployment: string;
+  source: "override" | "upload" | "settings" | "env";
+  reasoning_effort: string | null;
+};
+
+export type ModelsResponse = {
+  default: string;
+  active: ActiveModel;
+  reasoning_efforts: string[];
+  phi_run_ids: string[];
+  require_phi_approved: boolean;
+  models: ModelInfo[];
+};
+
+export type LlmSettingChange = {
+  updated_at: string;
+  updated_by: string;
+  reason: string;
+  version: number;
+  from: { model: string | null; reasoning_effort: string | null };
+  to: { model: string; reasoning_effort: string | null };
+};
+
+export type LlmSettings = {
+  stored: {
+    model: string;
+    reasoning_effort?: string | null;
+    reason?: string;
+    updated_by?: string;
+    updated_at?: string;
+    version?: number;
+  } | null;
+  etag: string | null;
+  effective: {
+    model_id: string;
+    model_deployment: string;
+    model_source: ActiveModel["source"];
+    reasoning_effort: string | null;
+  };
+  ttl_sec: number;
+  /** Platform Admin only. */
+  history?: LlmSettingChange[];
+};
+
+export function fetchModels() {
+  return request<ModelsResponse>("/models");
+}
+
+export function fetchLlmSettings() {
+  return request<LlmSettings>("/llm-settings");
+}
+
+export function updateLlmSettings(input: {
+  model: string;
+  reasoning_effort?: string | null;
+  reason?: string;
+  etag?: string | null;
+}) {
+  return request<LlmSettings & { propagates_within_sec: number }>("/llm-settings", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function fetchDocuments(params: Record<string, string> = {}) {
