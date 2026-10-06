@@ -569,16 +569,50 @@ async function handleUploadSas(body: Record<string, unknown>): Promise<ApiResult
     return fail(400, "runId may only contain letters, digits, dot, dash and underscore.");
   }
 
+  // Optional per-upload model. Checked here so the uploader hears "not
+  // allowed" now, rather than finding later that the pipeline fell back to the
+  // active model. The Function App checks again when it processes the file,
+  // because the browser sets the metadata header itself and could change it.
+  let metadata: Record<string, string> | undefined;
+  const requested = typeof body.model === "string" ? body.model.trim() : "";
+  if (requested) {
+    const refusal = await checkUploadModel(requested, runId);
+    if (refusal) return refusal;
+    metadata = { llm_model: requested };
+  }
+
   const grants = [];
   for (const entry of files) {
     const name = typeof entry === "string" ? entry : (entry as { name?: unknown })?.name;
     if (typeof name !== "string" || !name.trim()) {
       return fail(400, "Every file needs a name.");
     }
-    grants.push(await mintUploadSas(config, runId, name.trim()));
+    grants.push({ ...(await mintUploadSas(config, runId, name.trim())), ...(metadata ? { metadata } : {}) });
   }
 
-  return { status: 200, body: { ok: true, runId, container: config.docsContainer, grants } };
+  return { status: 200, body: { ok: true, runId, container: config.docsContainer, model: requested || null, grants } };
+}
+
+/** null if `model` may be chosen for uploads into `runId`, else the refusal. */
+async function checkUploadModel(model: string, runId: string): Promise<ApiResult | null> {
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(model)) return fail(400, "Unknown model.");
+  const listed = await handleModels();
+  if (listed.status !== 200) {
+    const error = (listed.body as { error?: string })?.error ?? "unknown error";
+    return fail(502, `Could not check the model with the pipeline: ${error}`);
+  }
+  const catalog = listed.body as {
+    models?: { id: string; selectable: boolean; phi_approved: boolean }[];
+    phi_run_ids?: string[];
+    require_phi_approved?: boolean;
+  };
+  const spec = catalog.models?.find((m) => m.id === model);
+  if (!spec) return fail(422, `${model} is not in the pipeline's model list.`);
+  if (!spec.selectable) return fail(422, `${model} is not available.`);
+  if (catalog.require_phi_approved && catalog.phi_run_ids?.includes(runId) && !spec.phi_approved) {
+    return fail(422, `${model} is not approved for PHI, and uploads to ${runId}/ are treated as PHI.`);
+  }
+  return null;
 }
 
 async function handleReview(body: Record<string, unknown>): Promise<ApiResult> {

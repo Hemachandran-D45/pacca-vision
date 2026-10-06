@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CloudUpload, FileText, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { mintUploadGrants, uploadToBlob, bytes } from "./api";
+import { mintUploadGrants, uploadToBlob, bytes, fetchModels, type ModelsResponse } from "./api";
 
 type Queued = {
   file: File;
@@ -30,6 +30,20 @@ export function UploadPanel({
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Per-upload model. "" = the active model. Only models the pipeline would
+  // accept for PHI uploads are offered; the server and the Function App both
+  // check again. If the list cannot be loaded the picker simply hides.
+  const [models, setModels] = useState<ModelsResponse | null>(null);
+  const [model, setModel] = useState("");
+  useEffect(() => {
+    fetchModels().then(setModels).catch(() => setModels(null));
+  }, []);
+  const choices = (models?.models ?? []).filter(
+    (m) => m.selectable && (m.phi_approved || !models?.require_phi_approved)
+  );
+  const activeLabel =
+    models?.models.find((m) => m.id === models.active.model)?.label ?? models?.active.model;
+
   const add = useCallback((files: FileList | File[]) => {
     const incoming = [...files].filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
     const rejected = [...files].length - incoming.length;
@@ -56,7 +70,8 @@ export function UploadPanel({
     try {
       const { grants, runId: usedRunId } = await mintUploadGrants(
         pending.map((q) => ({ name: q.file.name })),
-        runId
+        runId,
+        model || undefined
       );
 
       setQueue((current) =>
@@ -91,7 +106,8 @@ export function UploadPanel({
       await Promise.all([worker(), worker(), worker()]);
 
       if (uploaded > 0) {
-        toast.success(`${uploaded} document(s) uploaded to ${usedRunId}/`, {
+        const on = model ? ` · processing on ${choices.find((m) => m.id === model)?.label ?? model}` : "";
+        toast.success(`${uploaded} document(s) uploaded to ${usedRunId}/${on}`, {
           description: "Event Grid starts stage 1 automatically. Watch them move Queued → Processing → Needs Review.",
         });
         onUploaded();
@@ -125,6 +141,29 @@ export function UploadPanel({
             processing API. Drop as many as you like.
           </p>
         </div>
+        {models && choices.length > 0 && (
+          <label className="shrink-0 text-right">
+            <span className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-slate-400">
+              Process with
+            </span>
+            <select
+              value={model}
+              disabled={busy}
+              onChange={(event) => setModel(event.target.value)}
+              title="Applies to the files uploaded in this batch only"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 outline-none focus:border-[#47a2b0]"
+            >
+              <option value="">Active model ({activeLabel})</option>
+              {choices
+                .filter((m) => m.id !== models.active.model)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <div

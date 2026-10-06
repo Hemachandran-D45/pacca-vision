@@ -548,12 +548,16 @@ export type UploadGrant = {
   documentId: string;
   container: string;
   uploadUrl: string;
+  /** Blob metadata to set on the PUT, e.g. {llm_model} for a per-upload model. */
+  metadata?: Record<string, string>;
 };
 
-export function mintUploadGrants(files: { name: string }[], runId?: string) {
-  return request<{ runId: string; container: string; grants: UploadGrant[] }>("/upload-sas", {
+/** `model` is optional: an id from /models to process these files on instead
+ * of the active model. Empty means "use the active model". */
+export function mintUploadGrants(files: { name: string }[], runId?: string, model?: string) {
+  return request<{ runId: string; container: string; model: string | null; grants: UploadGrant[] }>("/upload-sas", {
     method: "POST",
-    body: JSON.stringify({ files, ...(runId ? { runId } : {}) }),
+    body: JSON.stringify({ files, ...(runId ? { runId } : {}), ...(model ? { model } : {}) }),
   });
 }
 
@@ -571,6 +575,9 @@ export async function uploadToBlob(grant: UploadGrant, file: File): Promise<void
     headers: {
       "x-ms-blob-type": "BlockBlob",
       "Content-Type": file.type || "application/pdf",
+      // Blob metadata travels as x-ms-meta-* on the same PUT. fn_ocr reads
+      // llm_model from it and the Function App validates it again.
+      ...Object.fromEntries(Object.entries(grant.metadata ?? {}).map(([k, v]) => [`x-ms-meta-${k}`, v])),
     },
     body: file,
   });
