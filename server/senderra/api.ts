@@ -29,12 +29,18 @@ import { handleObservabilityChat } from "./observabilityChat.js";
 import { executeKql } from "./kqlEngine.js";
 import { detectPipelineGaps } from "./pipelineGaps.js";
 import {
+  ADMIN,
+  DEVELOPER,
+  STAFF,
+  authorize,
+  authorizeMachine,
   clearedSessionCookie,
   currentUser,
   jwtSecret,
   sessionCookie,
   signSession,
   type RequestContext,
+  type Role,
 } from "../auth.js";
 import { login } from "./users.js";
 
@@ -815,6 +821,50 @@ function handleLogout(): ApiResult {
   return { status: 200, body: { ok: true }, headers: { "Set-Cookie": clearedSessionCookie() } };
 }
 
+/**
+ * Who may call what. Checked before any handler runs; a route missing from
+ * this table is a 404 whether or not it exists, so a new route cannot ship
+ * unprotected by forgetting to list it.
+ *
+ *   public   no session (health, sign-in)
+ *   machine  the IVR system's callback: x-api-key when IVR_WRITEBACK_API_KEY
+ *            is set (it has no user session to present)
+ *   <Role>   that role or higher. Staff < Solution Developer < Platform Admin
+ *
+ * The client builds its tabs from the same matrix (client/src/auth/roles.ts).
+ * Hiding a tab is presentation; this table is the control.
+ */
+export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {
+  "POST /login": "public",
+  "POST /logout": "public",
+  "GET /me": "public",
+  "GET /health": "public",
+
+  "GET /documents": STAFF,
+  "GET /document": STAFF,
+  "GET /stats": STAFF,
+  "GET /schema": STAFF,
+  "POST /upload-sas": STAFF,
+  "POST /review": STAFF,
+  "POST /ivr-trigger": STAFF,
+  "GET /ivr-outreach": STAFF,
+
+  "GET /observability": DEVELOPER,
+  "GET /observability/gaps": DEVELOPER,
+  "GET /observability-gaps": DEVELOPER,
+  "POST /observability/chat": DEVELOPER,
+  "POST /observability-chat": DEVELOPER,
+  "POST /observability/diagnose": DEVELOPER,
+  "POST /observability-diagnose": DEVELOPER,
+  "POST /kql": DEVELOPER,
+  "POST /schemas/sync": DEVELOPER,
+
+  "GET /analytics": ADMIN,
+
+  "POST /ivr-writeback": "machine",
+  "POST /ivr-webhook": "machine",
+};
+
 async function handleObservability(query: URLSearchParams): Promise<ApiResult> {
   const config = readConfig();
   if (isConfigError(config)) return fail(503, config.error, { missing: config.missing });
@@ -847,6 +897,18 @@ export async function handleSenderra(
   ctx: RequestContext = {}
 ): Promise<ApiResult> {
   const route = `/${path.replace(/^\/+|\/+$/g, "")}`;
+
+  const policy = ROUTE_POLICY[`${method} ${route}`];
+  if (!policy) return fail(404, `No Senderra route ${method} ${route}.`);
+  if (policy === "machine") {
+    const machine = authorizeMachine(ctx, "IVR_WRITEBACK_API_KEY");
+    if (!machine.ok) return fail(machine.status, machine.error);
+  } else if (policy !== "public") {
+    const auth = authorize(ctx, policy);
+    if (!auth.ok) return fail(auth.status, auth.error);
+    // The acting identity is the session, never whatever the body claims.
+    if (route === "/review" || route === "/ivr-trigger") body = { ...body, by: auth.user.email };
+  }
 
   try {
     // Single-segment on purpose: multi-segment routes under the Vercel
