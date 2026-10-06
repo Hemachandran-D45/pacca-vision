@@ -4,35 +4,64 @@ import { toast } from "sonner";
 import {
   AccessDenied,
   demoAllowedPaths,
-  demoPersonas,
   getAvailablePerspectives,
   LoginScreen,
   SkeletonPage,
-} from "@/components/MockAuth";
-import type { MockUser } from "@/components/MockAuth";
+  toAppUser,
+} from "@/components/Auth";
+import type { AppUser, SessionUser } from "@/components/Auth";
+import { fetchMe, signOut, UNAUTHORIZED_EVENT } from "@/senderra/api";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AppRoutes } from "@/routes/AppRoutes";
 import { pageMeta } from "@/routes/pageMeta";
 
+/** Which role a Platform Admin or Developer is previewing as. UX only: the
+ * server always authorizes against the signed-in role. */
+const PERSPECTIVE_KEY = "pacca_perspective";
+
 export default function Home() {
   const [path, navigate] = useLocation();
-  const [authenticatedUser, setAuthenticatedUser] = useState<MockUser | null>(() => {
-    try {
-      const saved = localStorage.getItem("pacca_auth_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [activeUser, setActiveUser] = useState<MockUser | null>(() => {
-    try {
-      const saved = localStorage.getItem("pacca_active_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  // Identity comes from the server (GET /me reads the httpOnly session cookie);
+  // nothing about who you are is trusted from localStorage any more. The only
+  // thing kept locally is which lower role an admin is previewing as.
+  const [authenticatedUser, setAuthenticatedUser] = useState<AppUser | null>(null);
+  const [activeUser, setActiveUser] = useState<AppUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  function startSession(session: SessionUser) {
+    const user = toAppUser(session);
+    let perspective = user.role;
+    try {
+      const saved = localStorage.getItem(PERSPECTIVE_KEY) as AppUser["role"] | null;
+      if (saved && getAvailablePerspectives(user.role).includes(saved)) perspective = saved;
+    } catch {}
+    setAuthenticatedUser(user);
+    setActiveUser({ ...user, role: perspective });
+  }
+
+  function endSession() {
+    setAuthenticatedUser(null);
+    setActiveUser(null);
+    try {
+      localStorage.removeItem(PERSPECTIVE_KEY);
+    } catch {}
+  }
+
+  useEffect(() => {
+    try {
+      // Left over from the mock login, which trusted these blindly.
+      localStorage.removeItem("pacca_auth_user");
+      localStorage.removeItem("pacca_active_user");
+    } catch {}
+    void fetchMe().then((session) => {
+      if (session) startSession(session);
+      setCheckingSession(false);
+    });
+    const onUnauthorized = () => endSession();
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
 
   const user = activeUser;
   const allowedPaths = user ? demoAllowedPaths(user.role) : [];
@@ -49,17 +78,13 @@ export default function Home() {
   // workbench opens on that document instead of the top of the queue.
   const [hilFocus, setHilFocus] = useState<string | null>(null);
 
+  if (checkingSession) return <SkeletonPage />;
+
   if (!user) {
     return (
       <LoginScreen
-        onLogin={(nextUser) => {
-          const nextActive = { ...nextUser, experience: "client" as const, tenant: "Client", tenantCode: "CLIENT" };
-          setAuthenticatedUser(nextUser);
-          setActiveUser(nextActive);
-          try {
-            localStorage.setItem("pacca_auth_user", JSON.stringify(nextUser));
-            localStorage.setItem("pacca_active_user", JSON.stringify(nextActive));
-          } catch {}
+        onLogin={(session) => {
+          startSession(session);
           navigate("/documents");
         }}
       />
@@ -78,12 +103,12 @@ export default function Home() {
   const go = (next: string) => navigate(next);
   const hasAccess = allowedPaths.includes(basePath);
 
-  function switchRole(role: MockUser["role"]) {
+  function switchRole(role: AppUser["role"]) {
     if (!availablePerspectives.includes(role)) {
       toast.error(`Your authenticated persona does not have permission to switch to ${role}`);
       return;
     }
-    const next: MockUser = {
+    const next: AppUser = {
       ...authenticatedUser!,
       role,
       tenant: "Client",
@@ -92,7 +117,7 @@ export default function Home() {
     };
     setActiveUser(next);
     try {
-      localStorage.setItem("pacca_active_user", JSON.stringify(next));
+      localStorage.setItem(PERSPECTIVE_KEY, role);
     } catch {}
     const nextAllowed = demoAllowedPaths(role);
     if (!nextAllowed.includes(basePath) || basePath === "/central-admin") {
@@ -124,12 +149,7 @@ export default function Home() {
       availablePerspectives={availablePerspectives}
       onNavigate={go}
       onLogout={() => {
-        setAuthenticatedUser(null);
-        setActiveUser(null);
-        try {
-          localStorage.removeItem("pacca_auth_user");
-          localStorage.removeItem("pacca_active_user");
-        } catch {}
+        void signOut().finally(endSession);
       }}
       onRoleSwitch={switchRole}
     >

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-import type { MockUser } from "@/components/MockAuth";
+import type { AppUser } from "@/components/Auth";
 
 export function AppLayout({
   path,
@@ -20,13 +20,13 @@ export function AppLayout({
   path: string;
   title: string;
   subtitle: string;
-  user: MockUser;
+  user: AppUser;
   allowedPaths: string[];
-  authenticatedRole?: MockUser["role"];
-  availablePerspectives?: MockUser["role"][];
+  authenticatedRole?: AppUser["role"];
+  availablePerspectives?: AppUser["role"][];
   onNavigate: (path: string) => void;
   onLogout: () => void;
-  onRoleSwitch: (role: MockUser["role"]) => void;
+  onRoleSwitch: (role: AppUser["role"]) => void;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);

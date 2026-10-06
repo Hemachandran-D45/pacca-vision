@@ -831,7 +831,8 @@ function handleLogout(): ApiResult {
  *            is set (it has no user session to present)
  *   <Role>   that role or higher. Staff < Solution Developer < Platform Admin
  *
- * The client builds its tabs from the same matrix (client/src/auth/roles.ts).
+ * The client builds its tabs from the same matrix (rolePermissions in
+ * client/src/components/Auth.tsx).
  * Hiding a tab is presentation; this table is the control.
  */
 export const ROUTE_POLICY: Record<string, Role | "public" | "machine"> = {

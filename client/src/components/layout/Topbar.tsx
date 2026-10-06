@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { MockUser } from "@/components/MockAuth";
+import type { AppUser } from "@/components/Auth";
 import { useQueueCount } from "@/contexts/QueueCountContext";
 import { cn } from "@/lib/utils";
 
@@ -35,10 +35,10 @@ export function Topbar({
   onMenu: () => void;
   collapsed: boolean;
   onCollapse: () => void;
-  user: MockUser;
-  authenticatedRole?: MockUser["role"];
-  availablePerspectives?: MockUser["role"][];
-  onRoleSwitch: (role: MockUser["role"]) => void;
+  user: AppUser;
+  authenticatedRole?: AppUser["role"];
+  availablePerspectives?: AppUser["role"][];
+  onRoleSwitch: (role: AppUser["role"]) => void;
 }) {
   const { notificationCount } = useQueueCount();
   const [, navigate] = useLocation();

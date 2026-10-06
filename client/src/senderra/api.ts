@@ -132,12 +132,21 @@ export type SenderraStats = {
   byStatus: { status: string; count: number }[];
 };
 
+/** Fired when any call comes back 401: the session expired or was never there.
+ * Home listens and returns to the sign-in screen. */
+export const UNAUTHORIZED_EVENT = "pacca:unauthorized";
+
 /** Every failure the UI can show is an `Error` with the server's own message. */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
     ...init,
+    // Same-origin: the httpOnly session cookie rides along automatically.
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
+  if (response.status === 401 && path !== "/login" && path !== "/me") {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
   let payload: unknown = null;
   const rawText = await response.text().catch(() => "");
   try {
@@ -153,6 +162,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(body?.error || `Request failed (${response.status}).`);
   }
   return payload as T;
+}
+
+// --- session -----------------------------------------------------------------
+export type SessionUser = {
+  email: string;
+  name: string;
+  role: "Client Staff" | "PACCA Solution Developer" | "PACCA Platform Admin";
+};
+
+export function signIn(email: string, password: string) {
+  return request<{ user: SessionUser }>("/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function signOut() {
+  return request<{ ok: true }>("/logout", { method: "POST" });
+}
+
+/** The signed-in user, or null when there is no valid session. */
+export async function fetchMe(): Promise<SessionUser | null> {
+  try {
+    return (await request<{ user: SessionUser }>("/me")).user;
+  } catch {
+    return null;
+  }
 }
 
 export function fetchDocuments(params: Record<string, string> = {}) {

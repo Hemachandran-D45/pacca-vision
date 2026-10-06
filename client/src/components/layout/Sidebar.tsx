@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { navSections } from "@/data/mockData";
-import type { MockUser } from "@/components/MockAuth";
+import type { AppUser } from "@/components/Auth";
 import { useQueueCount } from "@/contexts/QueueCountContext";
 
 export function Sidebar({
@@ -22,7 +22,7 @@ export function Sidebar({
   onNavigate: (path: string) => void;
   onCloseMobile: () => void;
   onLogout: () => void;
-  user: MockUser;
+  user: AppUser;
   allowedPaths: string[];
 }) {
   const { hilCount } = useQueueCount();

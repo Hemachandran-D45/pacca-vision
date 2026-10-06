@@ -1,18 +1,24 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   ArrowRight,
-  Check,
-  ChevronDown,
   LockKeyhole,
   ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Logo } from "@/components/common/Logo";
+import { signIn } from "@/senderra/api";
 
+/**
+ * Who is signed in, and which tabs each role sees.
+ *
+ * The session itself lives in an httpOnly cookie the browser cannot read; the
+ * user object here comes from GET /api/senderra/me. `rolePermissions` mirrors
+ * ROUTE_POLICY in server/senderra/api.ts — keep the two in step. Hiding a tab
+ * is presentation only: the server refuses the API calls behind it regardless.
+ */
 type Role =
   "PACCA Platform Admin" | "PACCA Solution Developer" | "Client Staff";
-export type MockUser = {
+export type AppUser = {
   name: string;
   initials: string;
   email: string;
@@ -22,50 +28,25 @@ export type MockUser = {
   experience?: "central" | "client";
 };
 
-export const demoUsers: MockUser[] = [
-  {
-    name: "Suresh Kiran",
-    initials: "SK",
-    email: "suresh.kiran@pacca.demo",
-    role: "Client Staff",
-    tenant: "Client",
-    tenantCode: "CLIENT",
-    experience: "client",
-  },
-];
+export type SessionUser = { email: string; name: string; role: Role };
 
-export const demoPersonas: Record<Role, MockUser> = {
-  "PACCA Platform Admin": {
-    name: "Suresh Kiran",
-    initials: "SK",
-    email: "suresh.kiran@pacca.demo",
-    role: "PACCA Platform Admin",
+export function toAppUser(session: SessionUser): AppUser {
+  const initials = session.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]!.toUpperCase())
+    .join("");
+  return {
+    ...session,
+    initials: initials || session.email.slice(0, 2).toUpperCase(),
     tenant: "Client",
     tenantCode: "CLIENT",
     experience: "client",
-  },
-  "PACCA Solution Developer": {
-    name: "Suresh Kiran",
-    initials: "SK",
-    email: "suresh.kiran@pacca.demo",
-    role: "PACCA Solution Developer",
-    tenant: "Client",
-    tenantCode: "CLIENT",
-    experience: "client",
-  },
-  "Client Staff": {
-    name: "Suresh Kiran",
-    initials: "SK",
-    email: "suresh.kiran@pacca.demo",
-    role: "Client Staff",
-    tenant: "Client",
-    tenantCode: "CLIENT",
-    experience: "client",
-  },
-};
+  };
+}
 
-export const centralAdminUser: MockUser = demoPersonas["Client Staff"];
-
+/** Screens that exist but are still static mock-ups; hidden for every role. */
 export const DEMO_HIDDEN_PATHS = new Set([
   "/environment",
   "/users",
@@ -76,63 +57,41 @@ export const DEMO_HIDDEN_PATHS = new Set([
   "/deployment",
   "/infrastructure",
   "/central-admin",
-  "/settings",
 ]);
 
 export const demoAllowedPaths = (role: Role): string[] =>
   rolePermissions[role].filter(path => !DEMO_HIDDEN_PATHS.has(path));
 
+const STAFF_PATHS = ["/", "/documents", "/hil-review", "/monitor"];
+const DEVELOPER_PATHS = [
+  ...STAFF_PATHS,
+  "/observability",
+  "/solutions",
+  "/solutions-v2",
+  "/pipeline-studio",
+  "/metadata-studio",
+  "/rules",
+  "/integrations",
+  "/deployment",
+  "/infrastructure",
+];
+
 export const rolePermissions: Record<Role, string[]> = {
-  // Client Staff: Operates the client's published workspace and solutions
-  "Client Staff": [
-    "/",
-    "/documents",
-    "/hil-review",
-    "/monitor",
-    "/observability",
-    "/analytics",
-    "/solutions-v2",
-    "/solutions",
-  ],
-  // PACCA Solution Developer: Configure & Deploy solutions and pipelines (NO Administration / Settings / Users)
-  "PACCA Solution Developer": [
-    "/",
-    "/documents",
-    "/hil-review",
-    "/monitor",
-    "/observability",
-    "/analytics",
-    "/solutions",
-    "/solutions-v2",
-    "/pipeline-studio",
-    "/metadata-studio",
-    "/rules",
-    "/integrations",
-    "/deployment",
-    "/infrastructure",
-  ],
-  // PACCA Platform Admin: Full platform governance + Administration (Users, Settings, Central Portal)
+  // Operates documents: upload (with a per-upload model), review, monitor.
+  "Client Staff": STAFF_PATHS,
+  // + doc types (Solutions) and pipeline diagnostics (Observability).
+  "PACCA Solution Developer": DEVELOPER_PATHS,
+  // + cost / ROI (Analytics), the global model switch (Settings) and users.
   "PACCA Platform Admin": [
-    "/",
-    "/central-admin",
-    "/documents",
-    "/hil-review",
-    "/monitor",
-    "/observability",
+    ...DEVELOPER_PATHS,
     "/analytics",
-    "/solutions",
-    "/solutions-v2",
-    "/pipeline-studio",
-    "/metadata-studio",
-    "/rules",
-    "/integrations",
-    "/deployment",
-    "/infrastructure",
-    "/users",
     "/settings",
+    "/users",
+    "/central-admin",
   ],
 };
 
+/** An admin can preview the app as a lower role; nobody can go upward. */
 export function getAvailablePerspectives(authenticatedRole: Role): Role[] {
   if (authenticatedRole === "PACCA Platform Admin") {
     return ["PACCA Platform Admin", "PACCA Solution Developer", "Client Staff"];
@@ -143,13 +102,33 @@ export function getAvailablePerspectives(authenticatedRole: Role): Role[] {
   return [];
 }
 
-type LoginProps = { onLogin: (user: MockUser) => void };
+type LoginProps = { onLogin: (user: SessionUser) => void };
 
 export function LoginScreen({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState("suresh.kiran@pacca.demo");
-  const [password, setPassword] = useState("••••••••");
-  const [showDemo, setShowDemo] = useState(true);
-  const selected = demoUsers.find(user => user.email === email) ?? demoUsers[0];
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const normalised = email.trim().toLowerCase();
+    if (!normalised.endsWith("@emids.com")) {
+      setError("Use your @emids.com email address.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { user } = await signIn(normalised, password);
+      setPassword("");
+      onLogin(user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-[#0e0e0e] text-white">
@@ -206,7 +185,7 @@ export function LoginScreen({ onLogin }: LoginProps) {
               </div>
             </div>
 
-            <div className="mt-7 space-y-4">
+            <form className="mt-7 space-y-4" onSubmit={submit}>
               <div className="block">
                 <span className="mb-2 block text-[10px] font-bold text-slate-500">
                   Authorized workspace
@@ -224,6 +203,10 @@ export function LoginScreen({ onLogin }: LoginProps) {
                   Email
                 </span>
                 <input
+                  type="email"
+                  autoComplete="username"
+                  placeholder="name@emids.com"
+                  required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
@@ -236,75 +219,33 @@ export function LoginScreen({ onLogin }: LoginProps) {
                 </span>
                 <input
                   type="password"
+                  autoComplete="current-password"
+                  required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="h-11 w-full rounded-xl border border-slate-200 px-3 text-[11px] text-slate-700 outline-none focus:border-[#47a2b0]"
                 />
               </label>
 
-              <button
-                onClick={() =>
-                  onLogin({
-                    ...selected,
-                    tenant: "Client",
-                    tenantCode: "CLIENT",
-                  })
-                }
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] text-[11px] font-bold text-white shadow-[0_9px_20px_rgba(71,162,176,.22)] hover:bg-[#37828e]"
-              >
-                Continue to workspace <ArrowRight size={15} />
-              </button>
-            </div>
-
-            <div className="mt-6 border-t border-slate-100 pt-5">
-              <button
-                onClick={() => setShowDemo(!showDemo)}
-                className="flex w-full items-center justify-between text-left text-[10px] font-bold text-slate-500"
-              >
-                <span>Authorized Team Member</span>
-                <ChevronDown
-                  size={14}
-                  className={cn("transition", showDemo && "rotate-180")}
-                />
-              </button>
-              {showDemo && (
-                <div className="mt-3 grid gap-2">
-                  {demoUsers.map(user => (
-                    <button
-                      key={user.email}
-                      onClick={() => {
-                        setEmail(user.email);
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl border p-3 text-left transition",
-                        email === user.email
-                          ? "border-[#47a2b0] bg-[#ebf5f7]/70"
-                          : "border-slate-100 hover:bg-slate-50"
-                      )}
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ebf5f7] text-[9px] font-bold text-[#47a2b0]">
-                        {user.initials}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[10px] font-bold text-[#0e0e0e]">
-                          {user.name}
-                        </div>
-                        <div className="mt-0.5 text-[9px] text-slate-500 font-medium">
-                          Operations Lead · Authorized User
-                        </div>
-                      </div>
-                      {email === user.email && (
-                        <Check size={14} className="text-[#47a2b0]" />
-                      )}
-                    </button>
-                  ))}
+              {error && (
+                <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+                  {error}
                 </div>
               )}
-            </div>
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#47a2b0] text-[11px] font-bold text-white shadow-[0_9px_20px_rgba(71,162,176,.22)] hover:bg-[#37828e] disabled:opacity-60"
+              >
+                {busy ? "Signing in…" : "Continue to workspace"} <ArrowRight size={15} />
+              </button>
+            </form>
+
           </div>
           <div className="mt-5 flex items-center justify-center gap-2 text-[9px] text-slate-500">
-            <LockKeyhole size={12} /> Mock authentication · single client
-            workspace
+            <LockKeyhole size={12} /> Signed session · @emids.com accounts
+            only
           </div>
         </div>
       </div>
@@ -360,9 +301,8 @@ export function AccessDenied({
           Permission required
         </h2>
         <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-          Your current persona, <strong>{role}</strong>, does not have access to
-          this workspace. Choose another allowed area or sign in as a different
-          demo user.
+          Your current role, <strong>{role}</strong>, does not have access to
+          this area. Choose another area, or ask a Platform Admin for access.
         </p>
         <button
           onClick={() => onNavigate("/")}

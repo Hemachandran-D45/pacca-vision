@@ -12,7 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { MockUser } from "@/components/MockAuth";
+import type { AppUser } from "@/components/Auth";
 
 export function CentralAdminPortal({
   user,
@@ -21,11 +21,11 @@ export function CentralAdminPortal({
   onRoleSwitch,
   availablePerspectives = ["PACCA Platform Admin", "PACCA Solution Developer", "Client Staff"],
 }: {
-  user: MockUser;
+  user: AppUser;
   onLogout: () => void;
   onClientWorkspace: (client?: string) => void;
-  onRoleSwitch?: (role: MockUser["role"]) => void;
-  availablePerspectives?: MockUser["role"][];
+  onRoleSwitch?: (role: AppUser["role"]) => void;
+  availablePerspectives?: AppUser["role"][];
 }) {
   const clients = [
     ["Client 1", "Active", "Invoice Processing", "#1f9b72"],
@@ -63,7 +63,7 @@ export function CentralAdminPortal({
                 <select
                   aria-label="Switch demo perspective"
                   value={user.role}
-                  onChange={(e) => onRoleSwitch(e.target.value as MockUser["role"])}
+                  onChange={(e) => onRoleSwitch(e.target.value as AppUser["role"])}
                   className="cursor-pointer bg-transparent font-semibold text-white outline-none hover:text-[#47a2b0] transition"
                 >
                   {availablePerspectives.map((p) => (
