@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { CloudUpload, FileText, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { mintUploadGrants, uploadToBlob, bytes, fetchModels, type ModelsResponse } from "./api";
+import { mintUploadGrants, uploadToBlob, bytes } from "./api";
+import { useUploadModels } from "./UploadModelPicker";
 
 type Queued = {
   file: File;
@@ -30,19 +31,10 @@ export function UploadPanel({
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Per-upload model. "" = the active model. Only models the pipeline would
-  // accept for PHI uploads are offered; the server and the Function App both
-  // check again. If the list cannot be loaded the picker simply hides.
-  const [models, setModels] = useState<ModelsResponse | null>(null);
+  // Per-upload model; see UploadModelPicker.
+  const picker = useUploadModels();
+  const { models, choices, activeLabel } = picker;
   const [model, setModel] = useState("");
-  useEffect(() => {
-    fetchModels().then(setModels).catch(() => setModels(null));
-  }, []);
-  const choices = (models?.models ?? []).filter(
-    (m) => m.selectable && (m.phi_approved || !models?.require_phi_approved)
-  );
-  const activeLabel =
-    models?.models.find((m) => m.id === models.active.model)?.label ?? models?.active.model;
 
   const add = useCallback((files: FileList | File[]) => {
     const incoming = [...files].filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
