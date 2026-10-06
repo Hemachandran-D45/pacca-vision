@@ -6,6 +6,7 @@ import { loadLocalEnv } from "./loadLocalEnv.js";
 import { createSolution } from "./solutionsApi.js";
 import { handleSolutionsV2 } from "./solutionsV2Api.js";
 import { handleSenderra } from "./senderra/api.js";
+import { contextFrom } from "./auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,8 +39,9 @@ async function startServer() {
       return;
     }
     const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
-    const result = await handleSenderra(method, route, url.searchParams, body);
+    const result = await handleSenderra(method, route, url.searchParams, body, contextFrom(req.headers));
     res.setHeader("Cache-Control", "no-store");
+    for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value);
     res.status(result.status).json(result.body);
   });
 

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "../../server/vercel-types.js";
 import { handleSenderra } from "../../server/senderra/api.js";
+import { contextFrom } from "../../server/auth.js";
 
 /**
  * Vercel catch-all for `/api/senderra/*`.
@@ -35,11 +36,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (req.body as Record<string, unknown>)
       : {};
 
-  const result = await handleSenderra(method, route, url.searchParams, body);
+  const result = await handleSenderra(method, route, url.searchParams, body, contextFrom(req.headers));
 
   // Every response here is per-request live state — a cached document list is
   // worse than a slow one, because it shows a document as Queued after it has
   // finished.
   res.setHeader("Cache-Control", "no-store");
+  for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value);
   return res.status(result.status).json(result.body);
 }

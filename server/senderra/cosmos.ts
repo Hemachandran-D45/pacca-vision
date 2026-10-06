@@ -18,6 +18,7 @@ import type {
  * fetch, which on a cold Vercel function is most of the latency budget.
  */
 let cached: { container: Container; config: SenderraConfig } | null = null;
+let cachedClient: import("@azure/cosmos").CosmosClient | null = null;
 
 /**
  * The SDK is loaded lazily, on purpose.
@@ -49,11 +50,25 @@ export async function container(): Promise<
   }
 
   const client = new CosmosClient({ endpoint: config.cosmosEndpoint, key: config.cosmosKey });
+  cachedClient = client;
   cached = {
     container: client.database(config.cosmosDatabase).container(config.cosmosContainer),
     config,
   };
   return cached;
+}
+
+/**
+ * The `users` container (pk /username), same account and database as
+ * `documents`. Created empty by senderra-idp-sol's infra for whatever fronts
+ * the pipeline; this app keeps sign-in accounts there. Override the name with
+ * COSMOS_USERS_CONTAINER.
+ */
+export async function usersContainer(): Promise<Container | { error: string; missing: string[] }> {
+  const handle = await container();
+  if ("error" in handle) return handle;
+  const name = process.env.COSMOS_USERS_CONTAINER?.trim() || "users";
+  return cachedClient!.database(handle.config.cosmosDatabase).container(name);
 }
 
 /**

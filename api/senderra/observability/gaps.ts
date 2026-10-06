@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "../../../server/vercel-types.js";
 import { handleSenderra } from "../../../server/senderra/api.js";
+import { contextFrom } from "../../../server/auth.js";
 
 /**
  * Dedicated Vercel Serverless Function for GET /api/senderra/observability/gaps
@@ -17,8 +18,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const url = new URL(req.url || "/", "http://localhost");
-  const result = await handleSenderra("GET", "/observability/gaps", url.searchParams, {});
+  const result = await handleSenderra("GET", "/observability/gaps", url.searchParams, {}, contextFrom(req.headers));
 
   res.setHeader("Cache-Control", "no-store");
+  for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value);
   return res.status(result.status).json(result.body);
 }

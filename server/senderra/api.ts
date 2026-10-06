@@ -28,8 +28,18 @@ import type { DocumentSummary, ExtractItem, OcrItem } from "./types.js";
 import { handleObservabilityChat } from "./observabilityChat.js";
 import { executeKql } from "./kqlEngine.js";
 import { detectPipelineGaps } from "./pipelineGaps.js";
+import {
+  clearedSessionCookie,
+  currentUser,
+  jwtSecret,
+  sessionCookie,
+  signSession,
+  type RequestContext,
+} from "../auth.js";
+import { login } from "./users.js";
 
-export type ApiResult = { status: number; body: unknown };
+/** `headers` lets a route set a cookie; every entry point copies them onto the response. */
+export type ApiResult = { status: number; body: unknown; headers?: Record<string, string> };
 
 const MAX_UPLOAD_BATCH = 50;
 
@@ -783,6 +793,28 @@ async function getObservabilityFromCosmos(limitNum: number, runIdFilter?: string
   };
 }
 
+// --- sessions ------------------------------------------------------------------
+async function handleLogin(body: Record<string, unknown>): Promise<ApiResult> {
+  const secret = jwtSecret();
+  if (!secret) return fail(503, "Sign-in is not configured on the server (PACCA_JWT_SECRET, 32+ characters).");
+  const result = await login(body.email, body.password);
+  if (!result.ok) return fail(result.status, result.error);
+  return {
+    status: 200,
+    body: { ok: true, user: result.user },
+    headers: { "Set-Cookie": sessionCookie(signSession(result.user, secret)) },
+  };
+}
+
+function handleMe(ctx: RequestContext): ApiResult {
+  const user = currentUser(ctx);
+  return user ? { status: 200, body: { ok: true, user } } : fail(401, "Not signed in.");
+}
+
+function handleLogout(): ApiResult {
+  return { status: 200, body: { ok: true }, headers: { "Set-Cookie": clearedSessionCookie() } };
+}
+
 async function handleObservability(query: URLSearchParams): Promise<ApiResult> {
   const config = readConfig();
   if (isConfigError(config)) return fail(503, config.error, { missing: config.missing });
@@ -811,11 +843,18 @@ export async function handleSenderra(
   method: string,
   path: string,
   query: URLSearchParams,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  ctx: RequestContext = {}
 ): Promise<ApiResult> {
   const route = `/${path.replace(/^\/+|\/+$/g, "")}`;
 
   try {
+    // Single-segment on purpose: multi-segment routes under the Vercel
+    // catch-all have 404'd before (see api/senderra/observability/).
+    if (method === "POST" && route === "/login") return await handleLogin(body);
+    if (method === "POST" && route === "/logout") return handleLogout();
+    if (method === "GET" && route === "/me") return handleMe(ctx);
+
     if (method === "GET" && route === "/health") return await handleHealth();
     if (method === "GET" && route === "/documents") return await handleDocuments(query);
     if (method === "GET" && route === "/document") return await handleDocument(query);

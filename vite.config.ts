@@ -8,6 +8,7 @@ import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import { createSolution } from "./server/solutionsApi.js";
 import { handleSolutionsV2 } from "./server/solutionsV2Api.js";
 import { handleSenderra } from "./server/senderra/api.js";
+import { contextFrom } from "./server/auth.js";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -353,7 +354,7 @@ function vitePluginSenderraApi(): Plugin {
             key.startsWith("AZURE_STORAGE_") ||
             key.startsWith("SENDERRA_") ||
             key.startsWith("IVR_") ||
-            key === "PACCA_IVR_TRIGGER_ENABLED") &&
+            key.startsWith("PACCA_")) &&
           process.env[key] === undefined
         ) {
           process.env[key] = value;
@@ -369,8 +370,8 @@ function vitePluginSenderraApi(): Plugin {
         const url = new URL(req.url || "/", "http://localhost");
 
         const send = async (body: Record<string, unknown>) => {
-          const result = await handleSenderra(method, url.pathname, url.searchParams, body);
-          res.writeHead(result.status, { "Content-Type": "application/json" });
+          const result = await handleSenderra(method, url.pathname, url.searchParams, body, contextFrom(req.headers));
+          res.writeHead(result.status, { "Content-Type": "application/json", ...(result.headers ?? {}) });
           res.end(JSON.stringify(result.body));
         };
 
