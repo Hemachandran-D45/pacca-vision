@@ -20,6 +20,9 @@ export type DocumentSummary = {
   fieldCount: number | null;
   fieldsNeedingReview: number | null;
   costUsd: number | null;
+  /** The model this document ran on, and why (settings | upload | override | env). */
+  modelId: string | null;
+  modelSource: string | null;
   latencyMs: number | null;
   minPageConfidence: number | null;
   receivedAt: string | null;
@@ -326,6 +329,14 @@ export type SenderraAnalytics = {
     avgFieldScore: number | null; pages: number; needsReview: number;
   }[];
   confidenceHistogram: { label: string; count: number }[];
+  byModel: {
+    model: string;
+    documents: number;
+    spendUsd: number;
+    costPerDoc: number | null;
+    avgLatencyMs: number | null;
+    reviewRate: number | null;
+  }[];
   costTrend: { day: string; spend: number; documents: number }[];
   guards: {
     contextualizationUsd: number; contextualizationTokens: number; pagesBasic: number;

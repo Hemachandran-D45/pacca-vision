@@ -9,12 +9,21 @@ import {
   formatFieldValue,
   humanize,
   percent,
+  usd,
   relativeTime,
   usePolled,
 } from "./api";
 import { ErrorBlock, LoadingBlock, StatusPill } from "./parts";
 import { FieldProvenanceBadge } from "./FieldProvenance";
 import { IvrOutreachButton } from "./IvrOutreachButton";
+
+/** How the pipeline picked the model for this document. */
+const MODEL_SOURCE: Record<string, string> = {
+  settings: "active model",
+  upload: "chosen at upload",
+  override: "re-extract override",
+  env: "app default",
+};
 
 /**
  * Freezes the iframe src per documentId so the browser never reloads or flickers the PDF
@@ -294,6 +303,8 @@ export function DocumentDetailLive({
                 ["Pages", summary.pages != null ? String(summary.pages) : "—"],
                 ["Processing time", duration(summary.latencyMs)],
                 ["Confidence", percent(summary.confidence, 1)],
+                ["Model", summary.modelId ? `${summary.modelId}${summary.modelSource ? ` · ${MODEL_SOURCE[summary.modelSource] ?? summary.modelSource}` : ""}` : "—"],
+                ["Cost", usd(summary.costUsd, 4)],
                 ["Correlation ID", summary.runId || "cor_7f42a9"],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 p-3">

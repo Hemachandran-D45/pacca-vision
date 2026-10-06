@@ -206,6 +206,10 @@ function toSummary(
     fieldCount: numberOrNull(extract?.field_count),
     fieldsNeedingReview: isApproved || isGapsResolved ? 0 : numberOrNull(extract?.fields_needing_review),
     costUsd: numberOrNull(extract?.total_cost_usd ?? ocr?.cost_cu_usd),
+    // model_id exists from senderra-idp-fa's model switch on; older records
+    // only carry the deployment name, which is the same string for GPT.
+    modelId: extract?.model_id ?? extract?.model_deployment ?? null,
+    modelSource: extract?.model_source ?? null,
     latencyMs: numberOrNull(extract?.e2e_latency_ms ?? ocr?.e2e_latency_ms),
     minPageConfidence: numberOrNull(ocr?.min_page_confidence),
     receivedAt: extract?.recorded_at ?? ocr?.recorded_at ?? null,

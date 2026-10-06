@@ -96,6 +96,8 @@ function pendingToSummary(p: {
     fieldCount: null,
     fieldsNeedingReview: null,
     costUsd: null,
+    modelId: null,
+    modelSource: null,
     latencyMs: null,
     minPageConfidence: null,
     receivedAt: p.uploadedAt,

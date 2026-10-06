@@ -219,8 +219,8 @@ function CostCard({
 
   const modelBreakdown = useMemo(
     () => [
-      { label: "GPT-4o (Extraction)", value: totalCost * 0.48, percent: 48, color: "#47a2b0" },
-      { label: "GPT-4o-mini (Classification)", value: totalCost * 0.24, percent: 24, color: "#45bd8d" },
+      { label: "LLM extraction call", value: totalCost * 0.48, percent: 48, color: "#47a2b0" },
+      { label: "LLM classification call", value: totalCost * 0.24, percent: 24, color: "#45bd8d" },
       { label: "Layout Analysis (Azure OCR)", value: totalCost * 0.2, percent: 20, color: "#b89dcb" },
       { label: "Embedding & Verification", value: totalCost * 0.08, percent: 8, color: "#00b0f0" },
     ],

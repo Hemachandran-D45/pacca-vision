@@ -189,7 +189,7 @@ export function Topbar({
                       <span className="text-[9px] text-emerald-600 font-bold">100% Healthy</span>
                     </div>
                     <p className="mt-0.5 text-[10px] text-slate-500 leading-relaxed">
-                      Azure AI Document Intelligence & OpenAI GPT-4o workers healthy. Latency 6.4s median.
+                      Content Understanding and the pipeline model are serving requests. Active model: Settings → AI model.
                     </p>
                   </div>
                 </div>

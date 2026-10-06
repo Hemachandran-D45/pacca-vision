@@ -88,7 +88,7 @@ const DEFAULT_RULES: ValidationRule[] = [
 
 const DEFAULT_INTEGRATIONS = [
   ["Azure AI Document Intelligence", "Document understanding", "Connected", "2.3M calls"],
-  ["Azure OpenAI Service", "GPT-4o / GPT-4o-mini", "Connected", "48.2K calls"],
+  ["Azure OpenAI Service", "Pipeline model — see Settings → AI model", "Connected", "48.2K calls"],
   ["Microsoft OneDrive", "Source connector", "Connected", "1,204 docs"],
   ["Client 1 intake", "Source connector", "Attention", "Credential expires in 8d"],
 ];

@@ -71,6 +71,10 @@ export type ExtractItem = {
   total_cost_usd?: number;
   pages_billed?: number;
   model_deployment?: string;
+  /** Registry id the pipeline resolved (senderra-idp-fa models.json). */
+  model_id?: string;
+  /** Where it came from: settings | upload | override | env. */
+  model_source?: string;
   extract_ms?: number;
   classify_ms?: number;
   e2e_latency_ms?: number;
@@ -230,6 +234,9 @@ export type DocumentSummary = {
   fieldCount: number | null;
   fieldsNeedingReview: number | null;
   costUsd: number | null;
+  /** The model this document ran on, and why (settings | upload | override | env). */
+  modelId: string | null;
+  modelSource: string | null;
   latencyMs: number | null;
   minPageConfidence: number | null;
   receivedAt: string | null;
