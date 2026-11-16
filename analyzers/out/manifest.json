@@ -1,0 +1,134 @@
+{
+  "version": 3,
+  "api_version": "2025-11-01",
+  "model": "gpt-5.4-mini",
+  "analyzers": [
+    "senderra_layout.v1",
+    "senderra_read.v1"
+  ],
+  "types": [
+    {
+      "key": "referralForm",
+      "named_fields": 38,
+      "leaf_fields": 48,
+      "spec_field_count": 48,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 27,
+        "B": 7,
+        "C": 0,
+        "D": 4
+      }
+    },
+    {
+      "key": "prescriptionOrder",
+      "named_fields": 27,
+      "leaf_fields": 37,
+      "spec_field_count": 37,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 18,
+        "B": 6,
+        "C": 0,
+        "D": 3
+      }
+    },
+    {
+      "key": "insuranceCard",
+      "named_fields": 17,
+      "leaf_fields": 17,
+      "spec_field_count": 17,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 14,
+        "B": 2,
+        "C": 0,
+        "D": 1
+      }
+    },
+    {
+      "key": "clinicalNote",
+      "named_fields": 24,
+      "leaf_fields": 38,
+      "spec_field_count": 38,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 16,
+        "B": 2,
+        "C": 5,
+        "D": 1
+      }
+    },
+    {
+      "key": "labReport",
+      "named_fields": 18,
+      "leaf_fields": 23,
+      "spec_field_count": 23,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 13,
+        "B": 3,
+        "C": 0,
+        "D": 2
+      }
+    },
+    {
+      "key": "letterOfMedicalNecessity",
+      "named_fields": 25,
+      "leaf_fields": 33,
+      "spec_field_count": 33,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 14,
+        "B": 5,
+        "C": 5,
+        "D": 1
+      }
+    },
+    {
+      "key": "paDeterminationLetter",
+      "named_fields": 35,
+      "leaf_fields": 37,
+      "spec_field_count": 37,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 24,
+        "B": 6,
+        "C": 3,
+        "D": 2
+      }
+    },
+    {
+      "key": "paResponseFax",
+      "named_fields": 24,
+      "leaf_fields": 24,
+      "spec_field_count": 24,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 18,
+        "B": 4,
+        "C": 2,
+        "D": 0
+      }
+    },
+    {
+      "key": "explanationOfBenefits",
+      "named_fields": 31,
+      "leaf_fields": 35,
+      "spec_field_count": 35,
+      "todo_from_workbook": 0,
+      "class_mix": {
+        "A": 26,
+        "B": 3,
+        "C": 1,
+        "D": 1
+      }
+    }
+  ],
+  "totals": {
+    "named_fields": 239,
+    "leaf_fields": 292,
+    "spec_field_count": 292,
+    "todo_from_workbook": 0
+  }
+}

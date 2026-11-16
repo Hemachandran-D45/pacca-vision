@@ -1,0 +1,437 @@
+import { memo, useEffect, useRef, useState } from "react";
+import { ArrowLeft, Copy, Download, FileText, MoreHorizontal, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/common/SectionHeading";
+import {
+  duration,
+  fetchDocument,
+  formatFieldValue,
+  humanize,
+  percent,
+  usd,
+  relativeTime,
+  usePolled,
+} from "./api";
+import { ErrorBlock, LoadingBlock, StatusPill } from "./parts";
+import { FieldProvenanceBadge } from "./FieldProvenance";
+import { IvrOutreachButton } from "./IvrOutreachButton";
+
+/** How the pipeline picked the model for this document. */
+const MODEL_SOURCE: Record<string, string> = {
+  settings: "active model",
+  upload: "chosen at upload",
+  override: "re-extract override",
+  env: "app default",
+};
+
+/**
+ * Freezes the iframe src per documentId so the browser never reloads or flickers the PDF
+ * during 5-second live polling ticks.
+ */
+const MemoizedPdfViewer = memo(
+  function MemoizedPdfViewer({
+    documentId,
+    url,
+    title,
+    className,
+  }: {
+    documentId: string;
+    url: string | null;
+    title: string;
+    className?: string;
+  }) {
+    const frozenUrlRef = useRef<{ id: string; url: string }>({ id: "", url: "" });
+
+    if (url && frozenUrlRef.current.id !== documentId) {
+      const clean = url.split("#")[0];
+      frozenUrlRef.current = {
+        id: documentId,
+        url: `${clean}#toolbar=0&navpanes=0&view=FitH`,
+      };
+    }
+
+    const currentFrozenUrl = frozenUrlRef.current.id === documentId ? frozenUrlRef.current.url : "";
+
+    if (!currentFrozenUrl) {
+      return (
+        <div className="flex h-full w-full items-center justify-center text-slate-400 text-xs">
+          Source document streaming
+        </div>
+      );
+    }
+
+    return (
+      <iframe
+        src={currentFrozenUrl}
+        title={title}
+        className={className || "h-full w-full max-w-[430px] rounded-md bg-white shadow-sm"}
+      />
+    );
+  },
+  (prev, next) => prev.documentId === next.documentId && Boolean(prev.url) === Boolean(next.url)
+);
+
+export function DocumentDetailLive({
+  documentId,
+  onBack,
+  onReview,
+}: {
+  documentId: string;
+  onBack: () => void;
+  onReview: (documentId: string) => void;
+}) {
+  const [interval, setInterval] = useState<number | null>(5000);
+  const { data, error, loading, refresh } = usePolled(
+    () => fetchDocument(documentId),
+    interval,
+    [documentId]
+  );
+
+  // If this document needs human review, auto-redirect directly to the HIL Review workbench
+  useEffect(() => {
+    if (!data) return;
+    const status = data.summary.uiStatus;
+
+    /*
+     * A document out on an IVR call is NOT awaiting a human decision, even
+     * though `needsReview` is still true — that flag is the pipeline's
+     * extract-time routing decision, and routing to IVR is what was done
+     * about it. Sending it to HIL landed on "No documents awaiting review",
+     * because `/documents?needsReview=true` deliberately excludes
+     * `routed_to_ivr`: the redirect aimed at a queue that is defined to not
+     * contain it. Its status and the outreach control live on this page.
+     */
+    const outOnCall =
+      status === "Routed to IVR" ||
+      data.summary.reviewStatus === "routed_to_ivr" ||
+      data.outreach?.gapStatus === "in_progress";
+
+    if (!outOnCall) {
+      if (data.summary.needsReview && data.summary.reviewStatus !== "approved") {
+        onReview(documentId);
+        return;
+      }
+      if (status === "In HIL Review" || status === "Needs Review") {
+        onReview(documentId);
+        return;
+      }
+    }
+
+    // Keep polling while the call is live so the page settles on its own when
+    // the outreach completes, rather than stranding the reviewer on a stale
+    // "Routed to IVR".
+    const inFlight = outOnCall || status === "Queued" || status === "Processing";
+    setInterval(inFlight ? 5000 : null);
+  }, [data, documentId, onReview]);
+
+  if (loading && !data) {
+    return (
+      <div className="p-4 sm:p-7 lg:p-9">
+        <LoadingBlock />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 sm:p-7 lg:p-9">
+        <ErrorBlock error={error} onRetry={() => void refresh()} />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { summary, fields, pdfUrl } = data;
+  const fieldEntries = Object.entries(fields?.fields ?? {});
+
+  const handleDownload = () => {
+    if (pdfUrl) {
+      const a = document.createElement("a");
+      a.href = pdfUrl;
+      a.download = summary.file;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Download started");
+    } else {
+      toast("Download prepared");
+    }
+  };
+
+  const isQueued = summary.uiStatus === "Queued" || summary.uiStatus === "Processing";
+  const timeline = isQueued
+    ? [
+        ["Ingest", summary.uiStatus === "Queued" ? "Queued" : "Completed", relativeTime(summary.receivedAt), summary.uiStatus === "Queued" ? "blue" : "green"],
+        ["Preprocess", "Waiting", "—", "gray"],
+        ["Understand / Classify", "Waiting", "—", "gray"],
+        ["Extract", "Waiting", "—", "gray"],
+        ["Validate", "Waiting", "—", "gray"],
+        ["HIL Review", "Not yet", "—", "gray"],
+        ["Deliver", "Waiting", "—", "gray"],
+      ]
+    : [
+        ["Ingest", "Completed", "14:01:02", "green"],
+        ["Preprocess", "Completed", "14:01:03", "green"],
+        ["Understand / Classify", "Completed", "14:01:04", "green"],
+        ["Extract", "Completed", "14:01:06", "green"],
+        ["Validate", "Completed", "14:01:07", "green"],
+        ["HIL Review", "Not required (STP)", "—", "gray"],
+        ["Deliver", "Completed", "14:02:18", "green"],
+      ];
+
+  return (
+    <div className="space-y-5 p-4 sm:p-7 lg:p-9">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-2 text-[11px] font-bold text-[#47a2b0] hover:text-[#37828e]"
+      >
+        <ArrowLeft size={15} /> Back to documents
+      </button>
+
+      {/* Top Title & Metadata Strip (Image 5 style) */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ebf5f7] text-[#47a2b0]">
+            <FileText size={22} />
+          </div>
+          <div>
+            <div className="font-display text-[22px] font-bold tracking-[-.04em] text-[#0e0e0e]">
+              {summary.file}
+            </div>
+            <div className="mt-1 font-mono text-[10px] font-bold text-[#47a2b0]">{summary.documentId}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusPill status={summary.uiStatus} />
+              <span className="text-[10px] text-slate-400">Received {relativeTime(summary.receivedAt)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <IvrOutreachButton
+            documentId={documentId}
+            outreach={data.outreach}
+            onDone={() => void refresh()}
+          />
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            <Download size={14} /> Download
+          </button>
+          <button
+            onClick={() => toast("Document action menu")}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Duplicate Document Alert Banner */}
+      {summary.isDuplicate && (
+        <div className="flex items-start gap-3 rounded-2xl border border-purple-200 bg-purple-50/70 p-4 text-purple-900 shadow-xs">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 mt-0.5">
+            <Copy size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[13px] font-bold">Duplicate Document Detected</span>
+              <span className="rounded-full bg-purple-200/80 px-2 py-0.5 text-[9px] font-bold text-purple-800">
+                Already Processed
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-purple-800">
+              {summary.duplicateReason ||
+                `This document matches identical extracted patient and clinical signatures to ${summary.duplicateOf || "an earlier record"}, which was already processed on ${summary.duplicateOriginalReceivedAt ? new Date(summary.duplicateOriginalReceivedAt).toLocaleDateString() : "a previous run"}.`}
+            </p>
+            {summary.duplicateOf && (
+              <div className="mt-2 flex items-center gap-2 text-[10px]">
+                <span className="font-semibold text-purple-700">Original record:</span>
+                <span className="font-mono font-bold text-purple-900 bg-white/80 px-2 py-0.5 rounded-md border border-purple-200">
+                  {summary.duplicateOf}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Top 2-Column Grid: Left Document Preview + Right Summary & Timeline (Image 5 style) */}
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+        {/* Document Preview */}
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <SectionHeading
+            title="Document preview"
+            eyebrow={summary.pages != null ? `Page 1 of ${summary.pages} · source rendition` : "Queued · awaiting pipeline"}
+          />
+          <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-[#edf1f5] p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">
+                Source document · extracted input
+              </span>
+              {pdfUrl && (
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[9px] font-bold text-[#47a2b0] hover:text-[#37828e]"
+                >
+                  Open PDF ↗
+                </a>
+              )}
+            </div>
+            <div className="flex h-[470px] items-start justify-center overflow-auto rounded-lg bg-slate-100 p-4">
+              <MemoizedPdfViewer
+                documentId={documentId}
+                url={pdfUrl}
+                title={`Source document ${summary.file}`}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Processing Summary & Timeline */}
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <SectionHeading title="Processing summary" />
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                ["Solution", humanize(summary.docType)],
+                ["Source", summary.source || "MOS Auto-Intake"],
+                ["Pages", summary.pages != null ? String(summary.pages) : "—"],
+                ["Processing time", duration(summary.latencyMs)],
+                ["Confidence", percent(summary.confidence, 1)],
+                ["Model", summary.modelId ? `${summary.modelId}${summary.modelSource ? ` · ${MODEL_SOURCE[summary.modelSource] ?? summary.modelSource}` : ""}` : "—"],
+                ["Cost", usd(summary.costUsd, 4)],
+                ["Correlation ID", summary.runId || "cor_7f42a9"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-slate-50 p-3">
+                  <div className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">{label}</div>
+                  <div className="mt-1 truncate text-[11px] font-semibold text-[#0e0e0e]">{value}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <SectionHeading title="Processing timeline" />
+            <div className="mt-4 space-y-4">
+              {timeline.map(([label, state, time, color], index) => (
+                <div key={label} className="flex items-start gap-3">
+                  <div className="relative mt-0.5">
+                    <div
+                      className={cn(
+                        "h-2.5 w-2.5 rounded-full",
+                        color === "green"
+                          ? "bg-[#45bd8d]"
+                          : color === "amber"
+                            ? "bg-[#f2c94c]"
+                            : color === "blue"
+                              ? "bg-[#47a2b0]"
+                              : "bg-slate-300"
+                      )}
+                    />
+                    {index < timeline.length - 1 && <div className="absolute left-[5px] top-3 h-7 w-px bg-slate-200" />}
+                  </div>
+                  <div className="flex flex-1 items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#0e0e0e]">{label}</div>
+                      <div className="text-[9px] text-slate-400">
+                        {state} · {time}
+                      </div>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">{state}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Bottom Extracted Fields Card (Image 5 style) */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionHeading
+            title="Extracted Fields"
+            eyebrow={`${humanize(summary.docType)} Metadata Schema · ${isQueued ? "Pipeline in progress" : "Processed Output"}`}
+          />
+          <div className="flex items-center gap-2">
+            {isQueued ? (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-600">
+                Queued · waiting for OCR / extract
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#45bd8d]/25 bg-[#45bd8d]/10 px-3 py-2 text-[10px] font-bold text-[#1f845d]">
+                ✓ Validated · Straight-Through Processing (STP)
+              </span>
+            )}
+            <button
+              onClick={() => toast("Metadata schema configuration")}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+            >
+              <Pencil size={13} /> Edit schema
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {fieldEntries.length === 0 ? (
+            <div className="col-span-full rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-[11px] font-semibold text-slate-500">
+              {isQueued
+                ? "Fields will appear after the pipeline extracts this document."
+                : "No extracted fields for this document."}
+            </div>
+          ) : (
+            fieldEntries.map(([name, field]) => {
+              // The server has already merged the gaps item and the review
+              // item over the extraction, and recorded which one won in
+              // `provenance` — re-deriving the effective value here would only
+              // give the two layers a chance to disagree.
+              const provenance = field.provenance;
+              const formatted = formatFieldValue(field.value);
+              const req = field.class === "A" ? "Required" : "Optional";
+
+              return (
+                <div
+                  key={name}
+                  className={cn(
+                    "rounded-xl border bg-white p-3 shadow-xs",
+                    provenance?.origin === "ivr"
+                      ? "border-indigo-200 bg-indigo-50/20"
+                      : provenance?.origin === "reviewer"
+                      ? "border-violet-200 bg-violet-50/20"
+                      : "border-slate-100"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-[10px] font-bold text-[#0e0e0e]">{humanize(name)}</div>
+                    <span
+                      className={cn(
+                        "rounded-md px-1.5 py-0.5 text-[8px] font-bold",
+                        req === "Required"
+                          ? "bg-[#ebf5f7] text-[#47a2b0]"
+                          : "bg-slate-100 text-slate-500"
+                      )}
+                    >
+                      {req}
+                    </span>
+                  </div>
+                  <div className="mt-2 truncate text-[12px] font-semibold text-[#0e0e0e]" title={formatted}>
+                    {formatted}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 text-[9px]">
+                    <FieldProvenanceBadge provenance={provenance} />
+                    <span className="ml-auto font-bold text-[#45bd8d]">✓ Valid</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}

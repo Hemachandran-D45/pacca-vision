@@ -1,0 +1,922 @@
+{
+  "name": "senderra_explanationOfBenefits",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "PatientName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientDOB": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "MemberID": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "GroupNumber": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PayerName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderNPI": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DrugName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DrugNDC": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DateOfService": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AppealDeadlineDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ClaimNumber": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "StatementDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ClaimStatus": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Paid",
+              "Denied",
+              "Partially paid",
+              "Pending",
+              "Reversed",
+              "Adjusted",
+              "Applied to deductible",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PharmacyName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PharmacyNPI": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "QuantityDispensed": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DaysSupply": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "BilledAmount": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AllowedAmount": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PlanPaidAmount": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientResponsibility": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CopayAmount": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CoinsuranceAmount": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DeductibleApplied": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AdjustmentReasonCodes": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "One adjustment reason code and its printed meaning.",
+              "properties": {
+                "Code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The code exactly as printed, for example CO-197."
+                },
+                "Description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The explanation printed beside the code or in the legend. Null when the statement prints the code alone \u2014 do not supply the standard wording from knowledge."
+                }
+              },
+              "required": [
+                "Code",
+                "Description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RemarkCodes": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "One remark code and its printed meaning.",
+              "properties": {
+                "Code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The remark code exactly as printed."
+                },
+                "Description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The explanation printed beside it or in the legend. Null when the code appears alone."
+                }
+              },
+              "required": [
+                "Code",
+                "Description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ClaimDenialReason": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PriorAuthorizationOnFile": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Yes",
+              "No",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "YearToDateDeductible": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "YearToDateOutOfPocket": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "PatientName",
+      "PatientDOB",
+      "MemberID",
+      "GroupNumber",
+      "PayerName",
+      "ProviderName",
+      "ProviderNPI",
+      "DrugName",
+      "DrugNDC",
+      "DateOfService",
+      "AppealDeadlineDate",
+      "ClaimNumber",
+      "StatementDate",
+      "ClaimStatus",
+      "PharmacyName",
+      "PharmacyNPI",
+      "QuantityDispensed",
+      "DaysSupply",
+      "BilledAmount",
+      "AllowedAmount",
+      "PlanPaidAmount",
+      "PatientResponsibility",
+      "CopayAmount",
+      "CoinsuranceAmount",
+      "DeductibleApplied",
+      "AdjustmentReasonCodes",
+      "RemarkCodes",
+      "ClaimDenialReason",
+      "PriorAuthorizationOnFile",
+      "YearToDateDeductible",
+      "YearToDateOutOfPocket"
+    ],
+    "additionalProperties": false
+  }
+}

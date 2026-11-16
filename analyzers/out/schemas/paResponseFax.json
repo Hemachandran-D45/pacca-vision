@@ -1,0 +1,692 @@
+{
+  "name": "senderra_paResponseFax",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "PatientName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientDOB": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "MemberID": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PayerName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CaseNumber": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AuthorizationNumber": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PAOutcome": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Approved",
+              "Denied",
+              "Partially approved",
+              "Pending",
+              "Cancelled",
+              "Not stated",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderNPI": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderFax": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DrugName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ResponseDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RequestReceivedDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "FormOrPortalName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ApprovedThroughDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ApprovedQuantity": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PendingReason": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Additional clinical information required",
+              "Under clinical review",
+              "Awaiting peer-to-peer",
+              "Member eligibility verification",
+              "Referred to medical director",
+              "Not applicable",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "InformationRequested": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "One item of information the payer still requires."
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ResponseDueDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DenialReasonCode": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ContinuationOfTherapy": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Yes",
+              "No",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewerName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CallbackPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ReturnFaxNumber": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "PatientName",
+      "PatientDOB",
+      "MemberID",
+      "PayerName",
+      "CaseNumber",
+      "AuthorizationNumber",
+      "PAOutcome",
+      "ProviderName",
+      "ProviderNPI",
+      "ProviderFax",
+      "DrugName",
+      "ResponseDate",
+      "RequestReceivedDate",
+      "FormOrPortalName",
+      "ApprovedThroughDate",
+      "ApprovedQuantity",
+      "PendingReason",
+      "InformationRequested",
+      "ResponseDueDate",
+      "DenialReasonCode",
+      "ContinuationOfTherapy",
+      "ReviewerName",
+      "CallbackPhone",
+      "ReturnFaxNumber"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "clinicalNote": {
+    "guidance": "",
+    "department": "Clinical Operations"
+  },
+  "explanationOfBenefits": {
+    "guidance": "",
+    "department": "Billing & Claims"
+  },
+  "insuranceCard": {
+    "guidance": "",
+    "department": "Billing & Claims"
+  },
+  "labReport": {
+    "guidance": "",
+    "department": "Clinical Operations"
+  },
+  "letterOfMedicalNecessity": {
+    "guidance": "",
+    "department": "Clinical Operations"
+  },
+  "paDeterminationLetter": {
+    "guidance": "",
+    "department": "Prior Authorization"
+  },
+  "paResponseFax": {
+    "guidance": "",
+    "department": "Prior Authorization"
+  },
+  "prescriptionOrder": {
+    "guidance": "",
+    "department": "Pharmacy Operations"
+  },
+  "referralForm": {
+    "guidance": "",
+    "department": "Patient Intake"
+  },
+  "pharmacyOrders": {
+    "guidance": "Format all dates as YYYY-MM-DD.  order id should be 6 digits.",
+    "department": "Prior Authorization"
+  }
+}

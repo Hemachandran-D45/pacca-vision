@@ -1,0 +1,858 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const BASE = "/api/senderra";
+
+export type DocumentSummary = {
+  documentId: string;
+  runId: string;
+  docId: string;
+  file: string;
+  docType: string | null;
+  pipelineStatus: string;
+  uiStatus: "Processed" | "Needs Review" | "In HIL Review" | "Processing" | "Queued" | "Triage" | "Failed" | "Routed to IVR" | "Duplicate";
+  confidence: number | null;
+  classifyConfidence: number | null;
+  pages: number | null;
+  fileBytes: number | null;
+  needsReview: boolean;
+  reviewReasons: string[];
+  reviewFields: string[];
+  fieldCount: number | null;
+  fieldsNeedingReview: number | null;
+  costUsd: number | null;
+  /** The model this document ran on, and why (settings | upload | override | env). */
+  modelId: string | null;
+  modelSource: string | null;
+  latencyMs: number | null;
+  minPageConfidence: number | null;
+  receivedAt: string | null;
+  source: string | null;
+  reviewStatus: string | null;
+  reviewedBy: string | null;
+  claimedBy: string | null;
+  correctionCount: number;
+  isDuplicate?: boolean;
+  duplicateOf?: string | null;
+  duplicateOriginalReceivedAt?: string | null;
+  duplicateReason?: string | null;
+};
+
+/**
+ * Where the value the UI is showing actually came from — see the server's
+ * `FieldProvenance`. Absent means the model extracted it off the page.
+ */
+export type FieldProvenance = {
+  origin: "ivr" | "reviewer";
+  by?: string | null;
+  at?: string | null;
+  askedAs?: string | null;
+  callId?: string | null;
+  requestId?: string | number | null;
+};
+
+export type ExtractedField = {
+  value: string | number | boolean | null;
+  quote?: string | null;
+  class?: string;
+  provenance?: FieldProvenance;
+  grounding?: {
+    grounded?: boolean;
+    match?: string;
+    page?: number;
+    polygon?: string;
+    ocr_confidence?: number;
+    ocr_min_confidence?: number;
+    quote_in_document?: boolean;
+  };
+  scores?: {
+    model_confidence?: number | null;
+    grounding_score?: number | null;
+    ocr_score?: number | null;
+    field_score?: number | null;
+    weakest_signal?: string | null;
+  };
+  needs_review?: boolean;
+  review_reasons?: string[];
+};
+
+export type ReviewAudit = {
+  at: string;
+  by: string;
+  action: string;
+  field?: string;
+  old_value?: unknown;
+  new_value?: unknown;
+  note?: string | null;
+};
+
+export type ReviewItem = {
+  status?: string;
+  corrections?: Record<string, { value: unknown; by: string; at: string }>;
+  audit?: ReviewAudit[];
+  claimed_by?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  note?: string | null;
+};
+
+export type OutreachHint = {
+  visible: boolean;
+  enabled: boolean;
+  skipReason: string | null;
+  openCount: number;
+  patientAskableOpen: number;
+  blankRequiredCount: number;
+  gapStatus: string | null;
+  callDirection: string | null;
+  hasGapsItem: boolean;
+};
+
+export type DocumentDetail = {
+  summary: DocumentSummary;
+  ocr: Record<string, unknown> | null;
+  extract: Record<string, unknown> | null;
+  fields: { docType?: string; fields?: Record<string, ExtractedField> } | null;
+  review: ReviewItem | null;
+  gaps?: Record<string, unknown> | null;
+  pdfUrl: string | null;
+  outreach?: OutreachHint;
+};
+
+export type SenderraStats = {
+  documents: number;
+  processed: number;
+  pendingReview: number;
+  reviewed: number;
+  stpCount: number;
+  stpRate: number | null;
+  avgFieldScore: number | null;
+  avgOcrConfidence: number | null;
+  avgCacheHit: number | null;
+  avgLatencyMs: number | null;
+  totalCostUsd: number;
+  pagesBilled: number;
+  byDocType: { docType: string; count: number }[];
+  byStatus: { status: string; count: number }[];
+};
+
+/** A failed call, with the HTTP status kept so callers can tell a 412 (stale
+ * ETag) from a 422 (refused) without parsing the message. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+/** Fired when any call comes back 401: the session expired or was never there.
+ * Home listens and returns to the sign-in screen. */
+export const UNAUTHORIZED_EVENT = "pacca:unauthorized";
+
+/** Every failure the UI can show is an `Error` with the server's own message. */
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    ...init,
+    // Same-origin: the httpOnly session cookie rides along automatically.
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+  });
+  if (response.status === 401 && path !== "/login" && path !== "/me") {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
+  let payload: unknown = null;
+  const rawText = await response.text().catch(() => "");
+  try {
+    payload = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`Endpoint unavailable (${response.status}: ${response.statusText || "Not Found"}).`);
+    }
+    throw new Error("The server returned an unreadable response.");
+  }
+  const body = payload as { ok?: boolean; error?: string };
+  if (!response.ok || body?.ok === false) {
+    throw new ApiError(body?.error || `Request failed (${response.status}).`, response.status);
+  }
+  return payload as T;
+}
+
+// --- session -----------------------------------------------------------------
+export type SessionUser = {
+  email: string;
+  name: string;
+  role: "Client Staff" | "PACCA Solution Developer" | "PACCA Platform Admin";
+};
+
+export function signIn(email: string, password: string) {
+  return request<{ user: SessionUser }>("/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function signOut() {
+  return request<{ ok: true }>("/logout", { method: "POST" });
+}
+
+/** The signed-in user, or null when there is no valid session. */
+export async function fetchMe(): Promise<SessionUser | null> {
+  try {
+    return (await request<{ user: SessionUser }>("/me")).user;
+  } catch {
+    return null;
+  }
+}
+
+// --- model switch (proxied to the Function App; see server/senderra/models.ts) ---
+export type ModelInfo = {
+  id: string;
+  label: string;
+  deployment: string;
+  provider: string;
+  status: string;
+  enabled: boolean;
+  selectable: boolean;
+  not_selectable_reason: string | null;
+  phi_approved: boolean;
+  sku_tier: string;
+  capabilities: {
+    structured_output: string;
+    reasoning_effort: boolean;
+    prompt_cache_key: boolean;
+    token_param: string;
+  };
+  /** USD per 1M tokens: [input, cached input, output] per tier. */
+  pricing_per_1m: { global?: number[]; datazone?: number[] };
+  pricing_note: string | null;
+};
+
+export type ActiveModel = {
+  model: string;
+  deployment: string;
+  source: "override" | "upload" | "settings" | "env";
+  reasoning_effort: string | null;
+};
+
+export type ModelsResponse = {
+  default: string;
+  active: ActiveModel;
+  reasoning_efforts: string[];
+  phi_run_ids: string[];
+  require_phi_approved: boolean;
+  models: ModelInfo[];
+};
+
+export type LlmSettingChange = {
+  updated_at: string;
+  updated_by: string;
+  reason: string;
+  version: number;
+  from: { model: string | null; reasoning_effort: string | null };
+  to: { model: string; reasoning_effort: string | null };
+};
+
+export type LlmSettings = {
+  stored: {
+    model: string;
+    reasoning_effort?: string | null;
+    reason?: string;
+    updated_by?: string;
+    updated_at?: string;
+    version?: number;
+  } | null;
+  etag: string | null;
+  effective: {
+    model_id: string;
+    model_deployment: string;
+    model_source: ActiveModel["source"];
+    reasoning_effort: string | null;
+  };
+  ttl_sec: number;
+  /** Platform Admin only. */
+  history?: LlmSettingChange[];
+};
+
+export function fetchModels() {
+  return request<ModelsResponse>("/models");
+}
+
+export function fetchLlmSettings() {
+  return request<LlmSettings>("/llm-settings");
+}
+
+export function updateLlmSettings(input: {
+  model: string;
+  reasoning_effort?: string | null;
+  reason?: string;
+  etag?: string | null;
+}) {
+  return request<LlmSettings & { propagates_within_sec: number }>("/llm-settings", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchDocuments(params: Record<string, string> = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
+  return request<{ documents: DocumentSummary[]; runIds: string[]; docTypes: string[] }>(
+    `/documents?${query.toString()}`
+  );
+}
+
+export function fetchDocument(documentId: string) {
+  return request<DocumentDetail>(`/document?documentId=${encodeURIComponent(documentId)}`);
+}
+
+export function fetchStats() {
+  return request<{ stats: SenderraStats }>("/stats");
+}
+
+export type SenderraAnalytics = {
+  totals: {
+    documents: number; succeeded: number; pagesBilled: number; spendUsd: number;
+    cuUsd: number; llmUsd: number; llmUncachedUsd: number; cacheSavingUsd: number;
+    costPerDoc: number | null; costPerPage: number | null; costPer1kPages: number | null;
+  };
+  tokens: { prompt: number; cached: number; completion: number; reasoning: number; cacheHitFrac: number | null };
+  latency: {
+    queueWaitMs: number | null; stage1Ms: number | null; stage2Ms: number | null;
+    cuMs: number | null; classifyMs: number | null; extractMs: number | null;
+    pipelineMeanMs: number | null; pipelineMaxMs: number; composedFloor: boolean;
+  };
+  quality: {
+    stpRate: number | null; stpCount: number; avgFieldScore: number | null;
+    avgGroundedFrac: number | null; quoteNotFound: number; fieldsNeedingReview: number;
+    fieldsTotal: number; avgOcrConf: number | null; minPageConfidence: number;
+  };
+  gates: { documentReasons: { reason: string; count: number }[]; fieldReasons: { reason: string; count: number }[] };
+  byDocType: {
+    docType: string; count: number; spendUsd: number; avgCostUsd: number | null;
+    avgFieldScore: number | null; pages: number; needsReview: number;
+  }[];
+  confidenceHistogram: { label: string; count: number }[];
+  byModel: {
+    model: string;
+    documents: number;
+    spendUsd: number;
+    costPerDoc: number | null;
+    avgLatencyMs: number | null;
+    reviewRate: number | null;
+  }[];
+  costTrend: { day: string; spend: number; documents: number }[];
+  guards: {
+    contextualizationUsd: number; contextualizationTokens: number; pagesBasic: number;
+    pagesStandard: number; throttleCount: number; analyzers: string[]; models: string[];
+  };
+};
+
+export function fetchAnalytics() {
+  return request<{ analytics: SenderraAnalytics }>("/analytics");
+}
+
+export type ObservabilityRecord = {
+  run_id: string;
+  doc_id: string;
+  stage: string;
+  status?: string;
+  trace_id?: string;
+  span_id?: string;
+  trace_context?: Record<string, string>;
+  business_baggage?: { run_id?: string; doc_id?: string };
+  queue_wait_ms?: number | null;
+  genai_tool_call_dropout?: boolean;
+  error_message?: string;
+  recorded_at?: string;
+  model_deployment?: string;
+  cu_latency_ms?: number;
+  ivr_trigger_status?: string;
+};
+
+export function fetchObservability(params: { limit?: string; runId?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.set("limit", params.limit);
+  if (params.runId) query.set("runId", params.runId);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<{
+    live: true;
+    records: ObservabilityRecord[];
+    sampling: { sampler: string; ratio: number };
+    retention_days: number;
+    aggregates: {
+      record_count: number;
+      failure_count: number;
+      genai_dropout_count: number;
+      queue_wait_avg_ms: number | null;
+      queue_wait_max_ms: number | null;
+    };
+    dependency_telemetry: Record<string, {
+      available: boolean;
+      observed?: number;
+      failures?: number;
+      dropouts?: number;
+      queue_wait_samples?: number;
+      queue_wait_avg_ms?: number | null;
+      queue_wait_max_ms?: number | null;
+    }>;
+  }>(`/observability${suffix}`);
+}
+
+export type ToolCallExecutedLog = {
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+};
+
+export type ObservabilityChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+  kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: ToolCallExecutedLog[];
+};
+
+export type ExecutedKqlLog = {
+  title: string;
+  query: string;
+  rowCount: number;
+  executionTimeMs: number;
+  sampleData?: Array<Record<string, unknown>>;
+};
+
+export type ObservabilityChatResponse = {
+  ok: boolean;
+  reply: string;
+  suggestedQuestions?: string[];
+  kqlExecuted?: ExecutedKqlLog[];
+  toolCallsExecuted?: ToolCallExecutedLog[];
+  telemetrySnapshot?: {
+    recordCount: number;
+    failureCount: number;
+    dropoutCount: number;
+    avgQueueWaitMs: number | null;
+  };
+};
+
+export async function postObservabilityChat(payload: {
+  messages: ObservabilityChatMessage[];
+  contextIncident?: Record<string, unknown>;
+  runId?: string;
+}) {
+  try {
+    return await request<ObservabilityChatResponse>("/observability/chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    return await request<ObservabilityChatResponse>("/observability-chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+}
+
+export type KqlQueryResult = {
+  ok: boolean;
+  query: string;
+  executionTimeMs: number;
+  totalRows: number;
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  summary?: string;
+  error?: string;
+};
+
+export function runKqlQuery(query: string) {
+  return request<KqlQueryResult>("/kql", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+}
+
+export type PipelineGapEvent = {
+  gapId: string;
+  severity: "critical" | "warning" | "info";
+  category:
+    | "event_grid_gap"
+    | "ocr_stuck"
+    | "extract_missing"
+    | "dlq_overflow"
+    | "long_running"
+    | "duplicate_orphan";
+  documentId: string;
+  runId: string;
+  docId: string;
+  blobPath: string | null;
+  uploadedAt: string | null;
+  stuckForMs: number | null;
+  ocrStatus: string | null;
+  extractStatus: string | null;
+  lastCosmosTs: string | null;
+  investigateKql: string;
+  rootCauseHypothesis: string;
+  remediation: string;
+};
+
+export type PipelineGapSummary = {
+  ok: boolean;
+  checkedAt: string;
+  blobCount: number;
+  cosmosCount: number;
+  gaps: PipelineGapEvent[];
+  eventGridGaps: number;
+  ocrStuck: number;
+  extractMissing: number;
+  longRunning: number;
+  estimatedDlqDepth: number;
+};
+
+export async function fetchPipelineGaps(runId?: string) {
+  const query = runId ? `?runId=${encodeURIComponent(runId)}` : "";
+  try {
+    return await request<PipelineGapSummary>(`/observability/gaps${query}`);
+  } catch (err) {
+    return await request<PipelineGapSummary>(`/observability-gaps${query}`);
+  }
+}
+
+export type DiagnoseResult = {
+  ok: boolean;
+  docId: string;
+  runId: string;
+  gaps: PipelineGapEvent[];
+  traces: Array<Record<string, unknown>>;
+  exceptions: Array<Record<string, unknown>>;
+  pipelineSummary: {
+    blobCount: number;
+    cosmosCount: number;
+    eventGridGaps: number;
+    ocrStuck: number;
+    extractMissing: number;
+    estimatedDlqDepth: number;
+  };
+};
+
+export async function diagnoseDocument(payload: { docId?: string; runId?: string }) {
+  try {
+    return await request<DiagnoseResult>("/observability/diagnose", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    return await request<DiagnoseResult>("/observability-diagnose", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+}
+
+export function fetchHealth() {
+  return request<{
+    configured: boolean;
+    cosmos?: string;
+    storage?: string;
+    uploadRunId?: string;
+    ivrTriggerEnabled?: boolean;
+    ivrUrlSet?: boolean;
+  }>("/health");
+}
+
+export type UploadGrant = {
+  blobName: string;
+  documentId: string;
+  container: string;
+  uploadUrl: string;
+  /** Blob metadata to set on the PUT, e.g. {llm_model} for a per-upload model. */
+  metadata?: Record<string, string>;
+};
+
+/** `model` is optional: an id from /models to process these files on instead
+ * of the active model. Empty means "use the active model". */
+export function mintUploadGrants(files: { name: string }[], runId?: string, model?: string) {
+  return request<{ runId: string; container: string; model: string | null; grants: UploadGrant[] }>("/upload-sas", {
+    method: "POST",
+    body: JSON.stringify({ files, ...(runId ? { runId } : {}), ...(model ? { model } : {}) }),
+  });
+}
+
+/**
+ * PUT straight to Azure Blob Storage with the minted SAS.
+ *
+ * The bytes never touch our API — Vercel caps a serverless request body at
+ * 4.5 MB and a multi-page scan is routinely larger. `x-ms-blob-type` is not
+ * optional: without it the service rejects the PUT with 400, because it has no
+ * way to know whether this is a block, page or append blob.
+ */
+export async function uploadToBlob(grant: UploadGrant, file: File): Promise<void> {
+  const response = await fetch(grant.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "x-ms-blob-type": "BlockBlob",
+      "Content-Type": file.type || "application/pdf",
+      // Blob metadata travels as x-ms-meta-* on the same PUT. fn_ocr reads
+      // llm_model from it and the Function App validates it again.
+      ...Object.fromEntries(Object.entries(grant.metadata ?? {}).map(([k, v]) => [`x-ms-meta-${k}`, v])),
+    },
+    body: file,
+  });
+  if (!response.ok) {
+    throw new Error(`Upload failed (${response.status} ${response.statusText}).`);
+  }
+}
+
+export function postReview(payload: {
+  documentId: string;
+  action: "claim" | "release" | "correct" | "approve" | "reject";
+  by: string;
+  note?: string | null;
+  corrections?: Record<string, unknown>;
+}) {
+  return request<{ review: ReviewItem }>("/review", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type IvrTriggerResult = {
+  trigger_status: string;
+  triggered_at?: string;
+  skipReason?: string | null;
+  call_id?: string | null;
+  call_status?: string | null;
+  request_id?: string | null;
+  trigger_error?: string;
+  trigger_http_status?: number;
+  will_ask?: unknown;
+  skipped?: unknown;
+  test_mode?: unknown;
+  patched?: boolean;
+  uiStatus?: string;
+};
+
+export function triggerIvr(documentId: string) {
+  return request<IvrTriggerResult>("/ivr-trigger", {
+    method: "POST",
+    body: JSON.stringify({ documentId }),
+  });
+}
+
+export type IvrOutreachDetail = {
+  request_id: number | string;
+  member_id?: string;
+  status: string;
+  failure_reason?: string | null;
+  sync_status?: string | null;
+  sync_detail?: string | null;
+  call_context_id?: string | null;
+  requested_at?: string | null;
+  fields?: {
+    field: string;
+    asked_as?: string;
+    status: string;
+    value?: unknown;
+  }[];
+};
+
+export function fetchIvrOutreach(params: { requestId?: string | number; documentId?: string }) {
+  const query = new URLSearchParams();
+  if (params.requestId) query.set("requestId", String(params.requestId));
+  if (params.documentId) query.set("documentId", params.documentId);
+  return request<{ outreach: IvrOutreachDetail }>(`/ivr-outreach?${query.toString()}`);
+}
+
+/**
+ * Poll-based live data.
+ *
+ * Polling rather than a socket is a deliberate limit, not a shortcut: a
+ * document takes 20-40 seconds end to end, so a 5-second tick is well inside
+ * the resolution anyone can perceive, and it survives any serverless host.
+ * The in-flight guard matters — a slow Cosmos scan under a fast interval would
+ * otherwise stack requests until the browser's connection pool is exhausted.
+ */
+export function usePolled<T>(
+  load: () => Promise<T>,
+  intervalMs: number | null,
+  deps: unknown[] = []
+) {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const inFlight = useRef(false);
+  const mounted = useRef(true);
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
+  const refresh = useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const next = await loadRef.current();
+      if (!mounted.current) return;
+      setData(next);
+      setError(null);
+    } catch (caught) {
+      if (!mounted.current) return;
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    setLoading(true);
+    void refresh();
+    if (intervalMs === null) return () => { mounted.current = false; };
+    const timer = window.setInterval(() => void refresh(), intervalMs);
+    return () => {
+      mounted.current = false;
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intervalMs, ...deps]);
+
+  return { data, error, loading, refresh };
+}
+
+// ---------------------------------------------------------------------------
+// Presentation helpers, shared by every live surface
+// ---------------------------------------------------------------------------
+
+/**
+ * Two tokens per status, not one.
+ *
+ * `STATUS_COLOR` is the chip and dot fill - vivid, so the state reads at a
+ * glance. `STATUS_INK` is the same hue darkened until the label clears WCAG AA
+ * against the 10% tint it sits on; the vivid values measure 2.1:1 to 4.3:1 as
+ * text, which is unreadable for the amber ones. Every status is always rendered
+ * with its label, so colour is reinforcement and never the sole encoding.
+ */
+export const STATUS_COLOR: Record<DocumentSummary["uiStatus"], string> = {
+  Processed: "#1f9b72",
+  "Needs Review": "#ed9a25",
+  "In HIL Review": "#7c5cd6",
+  "Routed to IVR": "#6366f1",
+  Processing: "#4779de",
+  Queued: "#8496ad",
+  Triage: "#c2761c",
+  Failed: "#d6455d",
+  Duplicate: "#8b5cf6",
+};
+
+export const STATUS_INK: Record<DocumentSummary["uiStatus"], string> = {
+  Processed: "#0e6b4d",
+  "Needs Review": "#8a5606",
+  "In HIL Review": "#5733a6",
+  "Routed to IVR": "#4338ca",
+  Processing: "#2a52a0",
+  Queued: "#495a70",
+  Triage: "#8a5209",
+  Failed: "#a3213a",
+  Duplicate: "#6d28d9",
+};
+
+/** Human labels for the pipeline's reason codes. The codes stay authoritative. */
+export const REASON_LABEL: Record<string, string> = {
+  extraction_needs_review: "Quality score below floor",
+  classification_needs_review: "Document type uncertain",
+  ocr_needs_review: "Page scan legibility below floor",
+  low_model_confidence: "Low model certainty (< 75%)",
+  low_ocr_confidence: "Faint / low OCR confidence",
+  ungrounded: "Hallucination Risk · Quote not found in PDF",
+  weak_grounding: "Weak grounding match on page",
+};
+
+export const FIELD_CLASS_LABEL: Record<string, string> = {
+  A: "Class A · deterministic anchor",
+  B: "Class B · derived",
+  C: "Class C · inference",
+};
+
+export function percent(value: number | null | undefined, digits = 0): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+export function usd(value: number | null | undefined, digits = 2): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return `$${value.toFixed(digits)}`;
+}
+
+export function duration(ms: number | null | undefined): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "—";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
+}
+
+export function bytes(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "—";
+  const seconds = Math.round((Date.now() - then) / 1000);
+  if (seconds < 60) return `${Math.max(seconds, 0)}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function formatTimestamp(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/** Prettifies `doc_type_predicted` / field names without hiding the real token. */
+export function humanize(value: string | null | undefined): string {
+  if (!value) return "—";
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+/** Formats field values gracefully (including address objects, arrays, and primitives) without rendering [object Object]. */
+export function formatFieldValue(val: unknown): string {
+  if (val === null || val === undefined || val === "") return "—";
+  if (typeof val === "object") {
+    if (Array.isArray(val)) {
+      return val.map((v) => (typeof v === "object" ? formatFieldValue(v) : String(v))).join(", ");
+    }
+    const rec = val as Record<string, unknown>;
+    // Handle structured address objects
+    const addressParts = [
+      rec.street,
+      rec.unit || rec.suite,
+      rec.city,
+      rec.state,
+      rec.zip || rec.postal_code,
+    ].filter(Boolean);
+    if (addressParts.length > 0) {
+      return addressParts.join(", ");
+    }
+    const entries = Object.entries(rec);
+    if (entries.length === 0) return "—";
+    if (entries.every(([, v]) => typeof v !== "object")) {
+      return entries.map(([, v]) => v).filter(Boolean).join(", ");
+    }
+    return entries
+      .map(([k, v]) => (v ? `${humanize(k)}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}` : null))
+      .filter(Boolean)
+      .join(", ");
+  }
+  return String(val);
+}
+

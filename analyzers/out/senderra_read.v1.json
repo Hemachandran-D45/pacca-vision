@@ -1,0 +1,18 @@
+{
+  "analyzerId": "senderra_read.v1",
+  "description": "OCR only. Basic meter, $1.00 per 1,000 pages.",
+  "baseAnalyzerId": "prebuilt-document",
+  "config": {
+    "enableOcr": true,
+    "enableLayout": false,
+    "returnDetails": true,
+    "enableFormula": false,
+    "enableBarcode": false,
+    "enableFigureDescription": false,
+    "enableFigureAnalysis": false,
+    "enableSegment": false
+  },
+  "fieldSchema": {
+    "fields": {}
+  }
+}

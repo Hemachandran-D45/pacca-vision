@@ -1,0 +1,491 @@
+{
+  "name": "senderra_insuranceCard",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "PatientName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "MemberID": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "GroupNumber": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PayerName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RxBIN": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RxPCN": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RxGroup": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PlanName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "SubscriberName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PlanType": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Commercial PPO",
+              "Commercial HMO",
+              "Commercial EPO or POS",
+              "Medicare Advantage",
+              "Medicare Part D",
+              "Medicaid",
+              "Medicaid managed care",
+              "TRICARE",
+              "Other",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PayerID": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "EffectiveDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CopayInformation": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "MemberServicesPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PharmacyHelpDeskPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CardSide": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Front only",
+              "Back only",
+              "Front and back",
+              "Not determinable",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "PatientName",
+      "PatientPhone",
+      "MemberID",
+      "GroupNumber",
+      "PayerName",
+      "RxBIN",
+      "RxPCN",
+      "RxGroup",
+      "PlanName",
+      "SubscriberName",
+      "PlanType",
+      "PayerID",
+      "EffectiveDate",
+      "CopayInformation",
+      "MemberServicesPhone",
+      "PharmacyHelpDeskPhone",
+      "CardSide"
+    ],
+    "additionalProperties": false
+  }
+}

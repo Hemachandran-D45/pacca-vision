@@ -1,0 +1,43 @@
+# Tests on the production branch. Every pull request into main, and every push
+# to main, must pass `pnpm check` and `pnpm test` before it is merged or
+# deployed. Nothing here deploys, and the job needs no secrets: the test suite
+# fakes Azure, OpenAI and IVR, and refuses any non-loopback connection.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: check + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: pnpm check (ESM imports + tsc)
+        run: pnpm check
+
+      - name: pnpm test
+        run: pnpm test

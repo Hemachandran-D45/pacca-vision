@@ -1,0 +1,13 @@
+Update type_catalog.txt so the classifier can recognize the document type below.
+
+Append or revise the entry for this type. Keep every existing type.
+
+Type key: {{typeKey}}
+Type name: {{typeName}}
+Operator guidance:
+{{guidance}}
+Fields:
+{{fieldsJson}}
+
+Current file:
+{{file}}

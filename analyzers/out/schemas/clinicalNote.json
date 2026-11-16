@@ -1,0 +1,856 @@
+{
+  "name": "senderra_clinicalNote",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "PatientName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientDOB": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientGender": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Male",
+              "Female",
+              "Other",
+              "Unknown",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientAddress": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "AddressLine1": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Street number and street name."
+              },
+              "AddressLine2": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Apartment, suite, unit, or floor. Empty if not present."
+              },
+              "City": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "City name."
+              },
+              "State": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Two-letter US state code."
+              },
+              "ZipCode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Five or nine digit US ZIP code."
+              }
+            },
+            "required": [
+              "AddressLine1",
+              "AddressLine2",
+              "City",
+              "State",
+              "ZipCode"
+            ],
+            "additionalProperties": false
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderNPI": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DateOfService": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PrimaryDiagnosisCode": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PrimaryDiagnosisDescription": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "Signature": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Present",
+              "Absent",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "NoteType": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Office visit",
+              "Progress note",
+              "Consultation",
+              "Hospital discharge summary",
+              "Telehealth visit",
+              "Procedure note",
+              "Other",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "FacilityName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ChiefComplaint": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientWeight": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientHeight": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "SecondaryDiagnoses": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "One additional diagnosis as listed.",
+              "properties": {
+                "Code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "ICD-10-CM code as printed. Null when the note names a condition without a code \u2014 do not supply one from knowledge."
+                },
+                "Description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Condition name as printed."
+                }
+              },
+              "required": [
+                "Code",
+                "Description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "Allergies": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "CurrentMedications": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "One medication line, copied as printed."
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PriorTherapies": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "One previously tried therapy.",
+              "properties": {
+                "DrugName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Drug or therapy name as written in the note."
+                },
+                "Duration": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "How long it was taken, or the date range, as described \u2014 for example \"6 months\" or \"2023 to early 2024\". Null if not stated."
+                },
+                "Outcome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Why it was stopped or how it performed, in the note's own words \u2014 typically an inadequate response, a loss of response, an intolerance, an adverse reaction, or a contraindication."
+                }
+              },
+              "required": [
+                "DrugName",
+                "Duration",
+                "Outcome"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "StepTherapyDocumented": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Yes",
+              "No",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RelevantLabValues": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "One laboratory observation as quoted in the note.",
+              "properties": {
+                "TestName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Test or analyte name as written, for example CRP or Hemoglobin."
+                },
+                "Value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The result value as printed, without the units."
+                },
+                "Units": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Units as printed. Null when the note gives none."
+                },
+                "CollectionDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Date of the specimen or result if the note states one, copied as printed. Null otherwise."
+                }
+              },
+              "required": [
+                "TestName",
+                "Value",
+                "Units",
+                "CollectionDate"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "TBScreeningResult": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Negative",
+              "Positive",
+              "Indeterminate",
+              "Not documented",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "TreatmentPlan": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "PatientName",
+      "PatientDOB",
+      "PatientGender",
+      "PatientAddress",
+      "PatientPhone",
+      "ProviderName",
+      "ProviderNPI",
+      "DateOfService",
+      "PrimaryDiagnosisCode",
+      "PrimaryDiagnosisDescription",
+      "Signature",
+      "NoteType",
+      "FacilityName",
+      "ChiefComplaint",
+      "PatientWeight",
+      "PatientHeight",
+      "SecondaryDiagnoses",
+      "Allergies",
+      "CurrentMedications",
+      "PriorTherapies",
+      "StepTherapyDocumented",
+      "RelevantLabValues",
+      "TBScreeningResult",
+      "TreatmentPlan"
+    ],
+    "additionalProperties": false
+  }
+}

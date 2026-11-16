@@ -1,0 +1,793 @@
+{
+  "name": "senderra_letterOfMedicalNecessity",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "PatientName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientDOB": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PatientPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PayerName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "MemberID": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderNPI": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderAddress": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "AddressLine1": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Street number and street name."
+              },
+              "AddressLine2": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Suite, floor, or building. Empty if not present."
+              },
+              "City": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "City name."
+              },
+              "State": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Two-letter US state code."
+              },
+              "ZipCode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Five or nine digit US ZIP code."
+              }
+            },
+            "required": [
+              "AddressLine1",
+              "AddressLine2",
+              "City",
+              "State",
+              "ZipCode"
+            ],
+            "additionalProperties": false
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderPhone": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderFax": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PrimaryDiagnosisCode": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PrimaryDiagnosisDescription": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DrugName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "DrugStrength": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "Signature": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Present",
+              "Absent",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "LetterDate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AddresseeName": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RequestedRegimen": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "RequestedDuration": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ClinicalRationale": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "PriorTherapiesTried": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "One previously tried therapy as described in the letter.",
+              "properties": {
+                "DrugName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Drug or therapy name as written."
+                },
+                "Duration": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "How long it was tried, or the dates, as stated. Null if the letter does not say."
+                },
+                "Outcome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "What happened, in the letter's own terms \u2014 inadequate response, loss of response, intolerance, adverse reaction, or contraindication."
+                }
+              },
+              "required": [
+                "DrugName",
+                "Duration",
+                "Outcome"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "ContraindicationsStated": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "EvidenceCited": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "One citation as written in the letter."
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "AttachmentsReferenced": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "One referenced attachment, as the letter names it."
+            }
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "UrgencyRequested": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Standard",
+              "Expedited or urgent",
+              "Not stated",
+              null
+            ]
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "quote",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "PatientName",
+      "PatientDOB",
+      "PatientPhone",
+      "PayerName",
+      "MemberID",
+      "ProviderName",
+      "ProviderNPI",
+      "ProviderAddress",
+      "ProviderPhone",
+      "ProviderFax",
+      "PrimaryDiagnosisCode",
+      "PrimaryDiagnosisDescription",
+      "DrugName",
+      "DrugStrength",
+      "Signature",
+      "LetterDate",
+      "AddresseeName",
+      "RequestedRegimen",
+      "RequestedDuration",
+      "ClinicalRationale",
+      "PriorTherapiesTried",
+      "ContraindicationsStated",
+      "EvidenceCited",
+      "AttachmentsReferenced",
+      "UrgencyRequested"
+    ],
+    "additionalProperties": false
+  }
+}

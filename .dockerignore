@@ -1,0 +1,23 @@
+# Dependencies and build output are produced inside the image.
+node_modules
+dist
+
+# Secrets and local state never go into the image.
+.env
+.env.*
+.vercel
+.git
+.manus-logs
+CLAUDE.local.md
+
+# Vercel-only: the container runs server/index.ts, not the api/ functions.
+api
+vercel.json
+.vercelignore
+
+# Not needed to build or run.
+tests
+docs
+*.md
+*.xlsx
+package-lock.json

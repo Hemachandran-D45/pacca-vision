@@ -1,0 +1,2180 @@
+# Senderra IDP — source of truth for OCR analyzers and extraction prompts
+#
+# ONE file defines everything the pipeline needs. Run `python3 build_prompts.py`
+# to emit validated assets into ./out/:
+#
+#   senderra_read.v1.json    CU analyzer, OCR only,   basic meter    $1.00/1K pages
+#   senderra_layout.v1.json  CU analyzer, OCR+layout, standard meter $5.00/1K pages
+#   type_catalog.txt         the classification prompt block (LLM call 1)
+#   schemas/<type>.json      strict OpenAI json_schema per type      (LLM call 2)
+#   field_meta.json          field -> class/type, read by bench/score.py
+#   manifest.json            counts, and any shortfall against the agreed spec
+#
+# THE THREE USE CASES THIS FILE SERVES  (see usecases.txt)
+#   1. Rx & Referral Intake — fax/PDF extraction
+#      referralForm · prescriptionOrder · insuranceCard
+#      The highest-volume intake point. IDP runs first and the per-field
+#      null + confidence output IS the gap list that downstream outreach acts
+#      on — which is why every field is nullable and every value carries a
+#      confidence. We do not ask the model to name its own missing fields;
+#      that is computed from the nulls, deterministically.
+#   2. Prior Authorization Supporting Documentation
+#      clinicalNote · labReport · letterOfMedicalNecessity
+#      Clinical evidence — ICD-10 codes, prior therapy history, lab values —
+#      lifted out of chart exports and lab PDFs to populate PA request fields.
+#   3. Payer Correspondence — Determination & Denial Letters
+#      paDeterminationLetter · paResponseFax · explanationOfBenefits
+#      Outcome, denial reason code, appeal deadline and suggested alternatives,
+#      structured instead of read by a human.
+#
+#   Scope is IDP only. Nothing here models call flows or outreach; this file
+#   produces the structured record and the gap signal, and stops there.
+#
+# WHAT CHANGED FROM THE PURE-CU DESIGN
+#   Content Understanding no longer extracts fields. Both analyzers carry an
+#   EMPTY fieldSchema, which is what keeps the contextualisation and LLM meters
+#   at zero — $0.050/file, $27,000/year. Field extraction happens in our own two
+#   chat-completion calls, so the `description` text below is now OUR prompt,
+#   not CU's. It is still billed as input tokens, so it is still worth writing
+#   once, well.
+#
+# CONVENTIONS
+#   class:  A transcription | B resolution | C inference | D detection
+#           Design-time metadata. The runtime never reads it; the scorer does,
+#           so §7.3 of the benchmark plan (accuracy by field class) works.
+#   method: extract | classify | generate. No longer a CU parameter, but it
+#           still drives the wording of the field instruction the generator
+#           writes into the prompt, so keep it accurate. An `enum` field is
+#           never `extract` — a fixed vocabulary is a classify by definition,
+#           and the build warns if you write it the other way.
+#   spec_field_count: the agreed leaf-field count for the type. The generator
+#           reports any shortfall between this and what is actually defined,
+#           and never hides it. Raise it first when scoping new fields, so the
+#           gap is visible in manifest.json until the work is done.
+#
+version: 3
+api_version: "2025-11-01"
+analyzer_id_suffix: ".v1"
+
+# ---------------------------------------------------------------------------
+# The two CU analyzers. This is the ENTIRE Content Understanding surface.
+#
+# `fieldSchema.fields: {}` is the switch that turns CU into a pure OCR engine.
+# Learn: "analyzers that only perform content extraction don't incur LLM
+# charges", and contextualisation bills only "whenever you use generative
+# capabilities (field extraction, figure analysis, segmentation, categorization,
+# training)". None of those are on below, so usage.contextualizationTokens must
+# come back 0 and usage.tokens must come back empty. shared/costs.py warns
+# loudly if they do not — that assertion is the whole $27,000/year.
+# ---------------------------------------------------------------------------
+ocr_analyzers:
+  senderra_read:
+    description: OCR only. Basic meter, $1.00 per 1,000 pages.
+    config:
+      enableOcr: true
+      enableLayout: false
+      returnDetails: true # ⭐ required for pages[].words[] — span, polygon, confidence
+      enableFormula: false # defaults true; no maths in prior-auth documents
+      enableBarcode: false # defaults true
+      enableFigureDescription: false
+      enableFigureAnalysis: false
+      enableSegment: false # confirmed: one document per file
+  senderra_layout:
+    description: >-
+      OCR plus layout analysis — tables, sections, selection marks. Standard
+      meter, $5.00 per 1,000 pages. Selected 2026-08-03. The 5x meter costs
+      $108,000/year at 27M pages and buys structured markdown plus the only
+      reliable read on the 8 Class D checkbox and signature fields. Flip the
+      CU_ANALYZER_ID app setting to senderra_read.v1 to A/B it — benchmark E1.
+    config:
+      enableOcr: true
+      enableLayout: true
+      returnDetails: true
+      enableBarcode: true # insurance cards encode the member ID — free cross-check
+      enableFormula: false
+      enableFigureDescription: false
+      enableFigureAnalysis: false
+      enableSegment: false
+
+# ---------------------------------------------------------------------------
+# Extraction settings — our own chat completions, not CU.
+# ---------------------------------------------------------------------------
+extraction:
+  model: gpt-5.4-mini
+  # Every field in the emitted json_schema is {value, quote, confidence}.
+  #   value      the extracted value, or null
+  #   quote      verbatim text copied from the markdown. Grounding is then a
+  #              deterministic string search; a quote that is absent from the
+  #              markdown is a hallucination caught for free.
+  #   confidence the model's own 0-1 score. Calibration quality is unknown until
+  #              measured — that is §7.4 of the benchmark plan.
+  emit_quote: true
+  emit_confidence: true
+
+# ---------------------------------------------------------------------------
+# Field library — the shared core entities. Authored once, referenced by name.
+#
+# A field earns a place here when two or more document types need it with the
+# SAME meaning. Anything used by exactly one type lives in that type's own
+# `fields:` block, where its description can be specific to the page it is read
+# from. A type-local definition of a library name overrides it, loudly.
+# ---------------------------------------------------------------------------
+field_library:
+  # -- patient identity -----------------------------------------------------
+  PatientName:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Patient first and last name, usually at the top of the page or in a
+      demographics block. May be labeled Patient, Patient Name, Member, or
+      appear as Last, First. On an insurance card this is the member name.
+
+  PatientDOB:
+    class: A
+    type: date
+    method: extract
+    description: >-
+      Patient date of birth. Labeled DOB, D.O.B., Date of Birth, or Birth Date.
+      Typically MM/DD/YYYY. Do not confuse with the date the form was written,
+      the date of service, or a coverage effective date.
+
+  PatientGender:
+    class: B
+    type: string
+    method: classify
+    enum: [ Male, Female, Other, Unknown ]
+    description: >-
+      Patient gender or sex as recorded. Usually a checkbox pair labeled M/F or
+      Male/Female, or a Sex field in a demographics header. Return Unknown if no
+      box is marked or the marking is ambiguous.
+
+  PatientAddress:
+    class: A
+    type: object
+    method: extract
+    description: >-
+      Patient mailing or shipping address. Often spans two lines; the second
+      line may hold an apartment, suite, or unit number.
+    properties:
+      AddressLine1:
+        type: string
+        description: Street number and street name.
+      AddressLine2:
+        type: string
+        description: Apartment, suite, unit, or floor. Empty if not present.
+      City:
+        type: string
+        description: City name.
+      State:
+        type: string
+        description: Two-letter US state code.
+      ZipCode:
+        type: string
+        description: Five or nine digit US ZIP code.
+
+  PatientPhone:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Patient telephone number. Labeled Phone, Home Phone, Mobile, Cell, or
+      Contact Number. Capture digits as printed, including area code.
+
+  # -- prescriber identity --------------------------------------------------
+  ProviderName:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Prescribing or treating provider name, sometimes with a credential such as
+      MD, DO, NP, or PA. Labeled Provider, Prescriber, Physician, Ordering
+      Provider, or Doctor. Not the practice or facility name.
+
+  ProviderNPI:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Prescribing provider National Provider Identifier. Always exactly 10
+      digits. Labeled NPI, NPI #, Provider NPI, or NPI Number. If more than one
+      NPI appears, take the one belonging to the prescribing or ordering
+      provider, not the facility, group or dispensing pharmacy.
+
+  ProviderDEA:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Prescriber DEA registration number, printed near the signature line on
+      prescriptions and enrolment forms. Two letters followed by seven digits,
+      for example BJ1234563. Labeled DEA, DEA #, or DEA Number.
+
+  ProviderAddress:
+    class: A
+    type: object
+    method: extract
+    description: >-
+      Provider or practice address, usually in the letterhead or prescriber
+      block. Distinct from the patient address and from the ship-to address.
+    properties:
+      AddressLine1:
+        type: string
+        description: Street number and street name.
+      AddressLine2:
+        type: string
+        description: Suite, floor, or building. Empty if not present.
+      City:
+        type: string
+        description: City name.
+      State:
+        type: string
+        description: Two-letter US state code.
+      ZipCode:
+        type: string
+        description: Five or nine digit US ZIP code.
+
+  ProviderPhone:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Provider office telephone number, from the letterhead or prescriber block.
+      Not the fax number, and not a payer or pharmacy help-desk number.
+
+  ProviderFax:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Fax number for the provider office, as printed. Labeled Fax, Fax #, or Fax
+      Number. On payer correspondence this is the fax the response is to be
+      returned to; take the provider-side number when both appear.
+
+  # -- benefit and payer identity -------------------------------------------
+  PayerName:
+    class: B
+    type: string
+    method: extract
+    description: >-
+      Insurance company, health plan, or pharmacy benefit manager name that
+      issued or administers this document. Usually in the letterhead or the card
+      face — for example Aetna, UnitedHealthcare, Blue Cross Blue Shield of
+      Texas, Express Scripts, CVS Caremark, OptumRx.
+
+  MemberID:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Insurance member or subscriber identifier. Labeled Member ID, Member #,
+      Subscriber ID, Policy ID, Identification Number, or ID. Copy the
+      alphanumerics exactly as printed, including any leading letters.
+
+  GroupNumber:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Employer or plan group number. Labeled Group, Group #, Group Number, or
+      Grp. Distinct from the member ID and from RxGroup.
+
+  RxBIN:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Pharmacy benefit BIN, the six-digit bank identification number that routes
+      a pharmacy claim. Labeled RxBIN, BIN, or Rx BIN. Six digits.
+
+  RxPCN:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Pharmacy benefit processor control number. Labeled RxPCN, PCN, or Rx PCN.
+      Alphanumeric. Frequently absent even when RxBIN is present — return null
+      rather than reusing the BIN.
+
+  RxGroup:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Pharmacy benefit group identifier. Labeled RxGRP, RxGroup, or Rx Group.
+      Distinct from the medical GroupNumber, though the two sometimes match.
+
+  # -- request and case identity --------------------------------------------
+  CaseNumber:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Payer case, reference or tracking number for this request. Labeled Case #,
+      Reference #, Ref #, Request ID, or Determination ID. This identifies the
+      REQUEST; AuthorizationNumber identifies a granted authorization.
+
+  AuthorizationNumber:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Authorization or certification number granted by the payer. Labeled Auth
+      #, Authorization Number, Certification Number, or PA Number. Return null
+      when nothing was authorized, even if a case number is present.
+
+  PAOutcome:
+    class: B
+    type: string
+    method: classify
+    enum: [ Approved, Denied, Partially approved, Pending, Cancelled, Not stated ]
+    description: >-
+      The determination this document communicates. Read the decision sentence
+      or the status field in the body, never the letterhead or the subject line.
+      Partially approved covers an approval granted at a reduced quantity,
+      duration or strength. Pending covers a request still in review or held for
+      more information.
+
+  AppealDeadlineDate:
+    class: A
+    type: date
+    method: extract
+    description: >-
+      The calendar date by which an appeal must be filed, where the document
+      prints one. Copy the printed date. If the document only states a window
+      such as "within 60 days of this notice" and prints no date, this is null —
+      do not calculate it.
+
+  # -- clinical and drug ----------------------------------------------------
+  PrimaryDiagnosisCode:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Primary diagnosis code, normally ICD-10-CM — a letter, two digits, then an
+      optional dot and up to four more characters, for example M05.79 or L40.50.
+      Labeled ICD-10, ICD, Diagnosis Code, or Dx. Where several are listed take
+      the one marked primary, or the first if none is marked.
+
+  PrimaryDiagnosisDescription:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      Text description of the primary diagnosis as printed next to or in place
+      of the code, for example "Rheumatoid arthritis with rheumatoid factor of
+      multiple sites" or "Plaque psoriasis". Do not expand a code you were not
+      given a description for.
+
+  DrugName:
+    class: B
+    type: string
+    method: extract
+    description: >-
+      Drug or therapy name as written, brand or generic, including any strength
+      printed alongside it — for example "Humira (adalimumab) 40 mg/0.8 mL" or
+      "Stelara 90 mg". Copy what is on the page; reference-data resolution
+      happens downstream.
+
+  DrugStrength:
+    class: B
+    type: string
+    method: extract
+    description: >-
+      Strength with units as printed, for example 40 mg/0.8 mL, 90 mg/mL, or 300
+      mg. May be a checkbox selection rather than free text. Return null when
+      only a drug name appears.
+
+  DrugNDC:
+    class: A
+    type: string
+    method: extract
+    description: >-
+      National Drug Code for the product, 10 or 11 digits usually printed with
+      hyphens as 5-4-2 or 5-3-2, for example 00074-3799-02. Labeled NDC or NDC
+      #. Copy the hyphenation exactly as printed.
+
+  DateOfService:
+    class: A
+    type: date
+    method: extract
+    description: >-
+      Date the care described in this document was delivered. Labeled Date of
+      Service, DOS, Visit Date, Service Date, or Encounter Date. Not the date
+      the document was printed, signed or mailed.
+
+  Signature:
+    class: D
+    type: string
+    method: classify
+    enum: [ Present, Absent ]
+    description: >-
+      Whether a handwritten or electronic provider signature mark appears in the
+      signature area. Detect the presence of a mark; do not transcribe a name. A
+      printed name on the signature line with no mark over it is Absent. Text
+      such as "Electronically signed by" is Present.
+
+# ---------------------------------------------------------------------------
+# Classification — the prompt for LLM call 1.
+#
+# The generator renders this whole block into out/type_catalog.txt, which
+# becomes the SYSTEM message of call 1. That message is byte-identical for every
+# document, so after the first document of a run it is always a prompt-cache
+# read at 10% of list price. Length here is therefore nearly free: ~2,000 tokens
+# costs $0.0004/file cached. Write these descriptions generously.
+#
+# CU's 120-character-per-category limit is GONE — it applied to CU
+# contentCategories, which this design does not use.
+#
+# `tell_apart` renders as an explicit disambiguation section. The highest-risk
+# pairs here are referralForm vs prescriptionOrder (an enrolment packet contains
+# a real Rx block) and paDeterminationLetter vs explanationOfBenefits (both
+# arrive on payer letterhead and both name an outcome). Approval and denial are
+# deliberately NOT separate types — the outcome is a field, PAOutcome, so a
+# misread decision is a wrong value routed to review rather than a wrong type
+# routed to the wrong schema.
+# ---------------------------------------------------------------------------
+classification:
+  instruction: >-
+    You are classifying a single scanned document arriving at a specialty
+    pharmacy hub. It is one of three kinds of work: a new prescription or
+    referral coming in, clinical evidence supporting a prior-authorization
+    request, or correspondence back from a payer. Exactly one document type
+    applies to the whole file. Read the whole document before deciding — the
+    decisive evidence is often a single sentence in the body, not the letterhead
+    or the title.
+  categories:
+    # ---- use case 1: Rx & Referral Intake ----------------------------------
+    referralForm:
+      description: >-
+        A specialty pharmacy referral, enrolment or start form — the packet a
+        prescriber's office faxes to open a case. Multi-section and
+        field-and-value throughout: patient demographics, medical AND pharmacy
+        insurance, a clinical block with diagnosis and ICD-10 code, a
+        prescription block, shipping or delivery preferences, and prescriber
+        attestation and patient consent signatures. Often drug-specific and
+        branded by the manufacturer or the pharmacy. This is the intake
+        workhorse and it is usually the longest document in the queue.
+      signals:
+        - '"Referral Form", "Enrollment Form", "Prescription & Enrollment Form",
+          "Start Form"'
+        - separate Patient Information, Insurance Information and Prescriber
+          Information sections
+        - both medical plan and pharmacy benefit identifiers on one page (RxBIN,
+          RxPCN, RxGRP)
+        - a shipping or ship-to section, and delivery preference checkboxes
+        - patient consent, HIPAA authorisation or assignment-of-benefits block
+        - '"Fax completed form to", multi-page with page 1 of 3 style footers'
+    prescriptionOrder:
+      description: >-
+        A prescription or medication order on its own — written, printed or
+        e-prescribed by a prescriber for one patient. Names a drug with strength
+        and dose form, a quantity, refills, and SIG dosing directions, and
+        carries a prescriber signature line with a DEA or NPI number. Its whole
+        purpose is to order the drug; it does not collect insurance, shipping or
+        consent information.
+      signals:
+        - Rx symbol, "Prescription", "Medication Order", "Rx Order"
+        - drug name with strength, e.g. "Adalimumab 40 mg/0.8 mL"
+        - '"Sig:", "Directions:", "Dispense:", "Refills:", "Days Supply"'
+        - '"Dispense as Written", "Substitution Permitted", DAW checkbox pair'
+        - prescriber signature line with DEA and NPI beneath it
+        - e-prescription footer such as "Electronically signed" or a Surescripts
+          stamp
+    insuranceCard:
+      description: >-
+        A scan or photograph of a medical or pharmacy benefit card, usually
+        front and back reproduced on one page. Very short — almost entirely
+        identifier fields with no prose at all. The pharmacy routing numbers are
+        the defining content.
+      signals:
+        - RxBIN, RxPCN, RxGRP printed together
+        - Member ID, Group Number, plan and payer logo
+        - copay grid such as "Office Visit $30 / Specialist $60 / ER $250"
+        - member services and pharmacy help desk phone numbers on the reverse
+        - a barcode, magnetic stripe image, or "This card does not guarantee
+          coverage"
+    # ---- use case 2: PA Supporting Documentation ---------------------------
+    clinicalNote:
+      description: >-
+        A clinical, progress, office-visit, consultation or discharge note
+        written by a clinician documenting an encounter. Narrative prose
+        organised into clinical sections, describing history, examination,
+        results and a plan, and often carrying an embedded medication list and
+        recent lab values. Its purpose is to record care — it requests nothing
+        and decides nothing.
+      signals:
+        - '"Chief Complaint", "HPI", "Review of Systems", "Assessment and Plan"'
+        - '"Subjective", "Objective", "Assessment", "Plan" section headers'
+        - past medical history, allergies, current medication list
+        - prior therapy history — drugs tried, duration, and why they were
+          stopped
+        - dated encounter with a rendering provider and an EHR footer
+    labReport:
+      description: >-
+        A laboratory results report issued by a testing laboratory. Dominated by
+        a results table: test name, result value, units, reference range and an
+        abnormal flag, one row per analyte. Carries specimen collection and
+        report dates, an accession number, and the performing laboratory's name
+        and CLIA number. Reports results, interprets nothing.
+      signals:
+        - a results table with a "Reference Range" or "Reference Interval" column
+        - H, L, A or CRITICAL abnormal flags beside values
+        - '"Accession", "Specimen Collected", "Specimen Received", "Report
+          Status: Final"'
+        - performing laboratory name and CLIA number, laboratory director
+        - LOINC codes, or "Performed at" with a laboratory address
+    letterOfMedicalNecessity:
+      description: >-
+        A letter written BY a prescriber TO a payer arguing that a therapy is
+        medically necessary for a named patient. Argumentative in tone: it
+        states the diagnosis, recounts therapies already tried and failed, cites
+        clinical guidance, and asks for coverage. Written before or during an
+        appeal. It is a request, never a decision.
+      signals:
+        - '"Letter of Medical Necessity", "LMN", "To Whom It May Concern"'
+        - '"I am writing on behalf of my patient", "I am requesting coverage"'
+        - failed prior therapies with dates, durations and reasons for failure
+        - contraindications to formulary alternatives, step-therapy history
+        - cited guidelines or labelling, then a closing request for approval
+        - prescriber letterhead and signature, addressed to a plan or PBM
+    # ---- use case 3: Payer Correspondence ----------------------------------
+    paDeterminationLetter:
+      description: >-
+        A letter from a payer, plan or PBM communicating the DECISION on a
+        prior-authorization request for one named patient — approved, denied, or
+        approved in part. Letter prose addressed to the patient or the
+        prescriber. An approval carries an authorization number and a validity
+        period; a denial carries a reason and, because it is an adverse
+        determination, is legally required to describe appeal rights and
+        deadlines. Choose this type for BOTH outcomes — the decision itself is
+        captured in the PAOutcome field, not by picking a different type.
+      signals:
+        - '"approved", "certified", "authorized", "coverage has been approved"'
+        - '"denied", "not approved", "adverse determination", "does not meet
+          criteria"'
+        - authorization number with effective and valid-through dates
+        - a stated denial reason and the medical policy or criteria it cites
+        - '"you have the right to appeal", an appeal deadline in days'
+        - formulary alternatives suggested, peer-to-peer review offered
+        - external or independent review organisation contact details
+    paResponseFax:
+      description: >-
+        A payer prior-authorization response that is a FORM rather than a letter
+        — a fax-back response sheet, a portal determination printout, or an
+        outcome or status notice laid out as fields and boxes. May report
+        approved, denied, partially approved or, very commonly, pending with a
+        list of information the payer still needs. Choose this when the document
+        is clearly a determination or status update but is a form or status
+        report rather than correspondence.
+      signals:
+        - '"PA Response", "Determination Notice", "Request Status", "Outcome"'
+        - a status field with a value beside it rather than a decision sentence
+        - '"Additional information required", a list of items to return'
+        - '"Fax this page back to", a response-due date'
+        - reviewer name and credentials, callback or nurse-line number
+        - form, grid or checkbox layout with little or no prose
+    explanationOfBenefits:
+      description: >-
+        An explanation of benefits or pharmacy claim remittance — a statement
+        about a claim that has ALREADY been adjudicated, showing what was
+        billed, what the plan allowed, what it paid, and what the patient owes.
+        Dominated by dollar amounts and adjustment codes. About money for a
+        claim already processed, not permission for a therapy not yet dispensed.
+      signals:
+        - '"Explanation of Benefits", "This is not a bill", "Claim Detail"'
+        - columns for Billed / Allowed / Plan Paid / Patient Responsibility
+        - copay, coinsurance and deductible amounts in dollars
+        - claim number and a date of service, with a claim status
+        - CARC and RARC adjustment codes such as CO-50, CO-197, PR-1, N130
+        - year-to-date deductible or out-of-pocket accumulator totals
+    other:
+      # ⚠️ MANDATORY. Without an explicit escape hatch the model forces every
+      # document into one of the nine above — a silent wrong answer with no
+      # error raised. Documents landing here go to the exception queue, not to
+      # extraction, and the rate is a headline reliability metric.
+      description: >-
+        Anything that is none of the nine above — fax cover sheets, blank or
+        illegible pages, financial assistance and copay-card paperwork, shipping
+        manifests, correspondence unrelated to a prior authorization, or a
+        document type not in this list. Choose this rather than forcing a poor
+        fit. Choosing it is correct behaviour, not a failure.
+      signals:
+        - fax banner or cover page with a page count and no clinical content
+        - unreadable, blank, upside-down, or non-English content
+        - copay card, foundation grant or patient assistance enrolment
+        - a genuine document type absent from this list
+  tell_apart:
+    - pair: [ referralForm, prescriptionOrder ]
+      guidance: >-
+        This is the most common confusion in the intake queue, because a
+        referral packet CONTAINS a genuine prescription block — drug, strength,
+        SIG, quantity, signature. Decide on the sections around it. If the
+        document also collects insurance identifiers, shipping or delivery
+        preferences, patient consent, or clinical background, it is a
+        referralForm no matter how complete the Rx block is. Choose
+        prescriptionOrder only when the page is the medication order and
+        essentially nothing else.
+    - pair: [ insuranceCard, referralForm ]
+      guidance: >-
+        Both carry Member ID, Group, RxBIN, RxPCN and RxGRP. An insurance card
+        is a reproduction of a physical card — a small bordered rectangle, or
+        two of them, with a logo and no sentences. A referral form is a
+        full-page form in which those identifiers occupy one section among many.
+        If there is a prescriber block, a diagnosis, or a signature line, it is
+        not a card.
+    - pair: [ clinicalNote, letterOfMedicalNecessity ]
+      guidance: >-
+        Both are written by a clinician and both contain clinical narrative. The
+        difference is the audience and the ask. A letter of medical necessity is
+        addressed to a payer and requests coverage. A clinical note documents an
+        encounter and asks for nothing. If it contains "I am writing to request"
+        or is addressed to a plan or PBM, it is a letterOfMedicalNecessity —
+        even though it recounts the same history a note would.
+    - pair: [ labReport, clinicalNote ]
+      guidance: >-
+        Clinical notes routinely quote recent lab values inside the objective
+        section, so the presence of lab data decides nothing. A labReport is
+        ISSUED BY a laboratory: it names the performing lab, an accession number
+        and a specimen collection date, and its body is a results table. If the
+        lab values sit inside narrative prose written by a clinician alongside
+        history and a plan, it is a clinicalNote.
+    - pair: [ paDeterminationLetter, paResponseFax ]
+      guidance: >-
+        Both report a payer determination, so the OUTCOME never decides this —
+        an approval and a denial can each be either type. Decide on format. A
+        letter has a salutation, paragraphs and a closing signature block. A
+        response fax is a form: labelled boxes, a status field, checkboxes, and
+        usually an instruction to fax the sheet back. A pending status with a
+        list of information still required is almost always paResponseFax.
+    - pair: [ paDeterminationLetter, explanationOfBenefits ]
+      guidance: >-
+        Both arrive on payer letterhead and both state an outcome, but they
+        concern different things. A determination is permission for a therapy
+        BEFORE it is dispensed: it names an authorization, a validity period, or
+        appeal rights. An EOB accounts for a claim ALREADY adjudicated: it has
+        dollar columns, a patient-responsibility amount, and CARC or RARC
+        adjustment codes. Dollar amounts for billed and allowed charges are
+        near-conclusive evidence of explanationOfBenefits.
+    - pair: [ explanationOfBenefits, paResponseFax ]
+      guidance: >-
+        A denied claim on an EOB and a denied PA on a response fax both read as
+        a refusal with a code beside it. An EOB settles money — it will show
+        what was billed and what the patient owes. A response fax settles
+        authorization — it will reference the request, the requested drug, and
+        what to submit or where to fax back. If there is no dollar figure
+        anywhere, it is not an EOB.
+
+# ---------------------------------------------------------------------------
+# The nine document-type extraction schemas, grouped by use case.
+#
+# Order matters only for readability; the generator emits one schema and one
+# prompt per entry regardless. Every key here must also appear as a
+# classification category above, and vice versa — the build fails otherwise.
+# ---------------------------------------------------------------------------
+types:
+  # =========================================================================
+  # USE CASE 1 — Rx & Referral Intake
+  # =========================================================================
+  - key: referralForm
+    description: >-
+      Specialty pharmacy referral and enrolment forms — the intake packet a
+      prescriber's office faxes to open a case. Extracts patient demographics
+      and contact details, medical and pharmacy benefit identifiers, prescriber
+      identity, the clinical block, the prescription block, and the shipping and
+      consent sections. This is the highest-volume document in the queue and the
+      one whose missing fields drive downstream outreach, so an honest null on a
+      blank field matters more here than anywhere else.
+    spec_field_count: 48
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        PatientGender,
+        PatientAddress,
+        PatientPhone,
+        PayerName,
+        MemberID,
+        GroupNumber,
+        RxBIN,
+        RxPCN,
+        RxGroup,
+        ProviderName,
+        ProviderNPI,
+        ProviderDEA,
+        ProviderAddress,
+        ProviderPhone,
+        ProviderFax,
+        PrimaryDiagnosisCode,
+        PrimaryDiagnosisDescription,
+        DrugName,
+        DrugStrength,
+        Signature
+      ]
+    fields:
+      ReferralDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the referral was completed or submitted. Labeled Date, Referral
+          Date, or Date Submitted, usually beside the prescriber signature. Not
+          a fax transmission timestamp printed in the page banner.
+      ReferralSource:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Prescriber office,
+            Health system or clinic,
+            Hub or manufacturer program,
+            Payer,
+            Patient self-referral,
+            Another pharmacy,
+            Not documented
+          ]
+        description: >-
+          Who sent this referral, from a "Referral Source" or "Referred By"
+          field or from the letterhead of the sending organisation. Not
+          documented when nothing on the page identifies the sender.
+      PatientEmail:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Patient email address, where the form collects one. Copy exactly,
+          including the domain.
+      PreferredLanguage:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Patient's preferred spoken or written language, from a Preferred
+          Language field or an interpreter-needed checkbox group.
+      SecondaryPayerName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Name of a secondary or supplemental plan, where the insurance section
+          collects one. Null when only one plan is listed.
+      PatientAllergies:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Known drug allergies as written, verbatim. NKDA and "No known drug
+          allergies" are real values, not absences — record them as printed.
+          Null only when the field itself is blank.
+      PatientWeight:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Patient weight with units as recorded, for example 168 lb or 76.2 kg.
+          Collected because many specialty drugs are weight-banded.
+      DrugDirections:
+        class: B
+        type: string
+        method: extract
+        description: >-
+          Dosing directions or SIG, verbatim and in full. May describe loading,
+          induction and maintenance dosing in one block. Capture the whole text
+          rather than summarising — it is mapped to a structured SIG code
+          downstream and the mapping needs the original wording.
+      Quantity:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Quantity to dispense, with units if printed — for example 2 syringes,
+          4 pens, or 30 tablets.
+      Refills:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Number of refills authorised, as printed. May be a numeral, a word,
+          PRN, or NR. Null if the field is blank.
+      DaysSupply:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Days supply for one fill, as printed. Labeled Days Supply or DS.
+      RequestedStartDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date therapy is requested to begin, or the requested delivery date.
+          Labeled Start Date, Requested Start, or Needed By.
+      ShipToLocation:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Patient home,
+            Prescriber office,
+            Clinic or infusion site,
+            Alternate address,
+            Not documented
+          ]
+        description: >-
+          Where the medication is to be shipped, from the shipping or delivery
+          section's checkbox group. Not documented if no box is marked.
+      PriorAuthorizationRequired:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether a prior-authorization-required box on the form is marked, or
+          the form states that a PA has already been initiated. Read the
+          checkbox; do not reason about whether the drug would need one.
+      PatientConsentSignature:
+        class: D
+        type: string
+        method: classify
+        enum: [ Present, Absent ]
+        description: >-
+          Whether a patient or authorised-representative signature mark appears
+          in the consent, HIPAA authorisation or assignment-of-benefits block.
+          Distinct from the prescriber Signature field. Detect a mark, do not
+          transcribe a name.
+      InsuranceCardAttached:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether the packet indicates insurance card copies are attached —
+          either a ticked "cards attached" box or a reproduced card image on the
+          page. No when the box is present and unticked.
+
+  - key: prescriptionOrder
+    description: >-
+      Standalone prescriptions and medication orders, whether faxed,
+      handwritten, or printed from an e-prescribing system. Extracts patient and
+      prescriber identity, the full drug order — name, strength, dose form,
+      route, SIG, quantity, refills and days supply — plus the substitution
+      selection and signature presence.
+    spec_field_count: 37
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        PatientGender,
+        PatientAddress,
+        PatientPhone,
+        ProviderName,
+        ProviderNPI,
+        ProviderDEA,
+        ProviderAddress,
+        ProviderPhone,
+        ProviderFax,
+        PrimaryDiagnosisCode,
+        PrimaryDiagnosisDescription,
+        DrugName,
+        DrugStrength,
+        DrugNDC,
+        Signature
+      ]
+    fields:
+      DateWritten:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the prescriber wrote or signed the prescription. Labeled Date,
+          Date Written, or Date Signed. Not the patient date of birth and not
+          the fax transmission date.
+      DoseForm:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Tablet,
+            Capsule,
+            Injection,
+            Prefilled syringe,
+            Autoinjector,
+            Pen,
+            Vial,
+            Solution,
+            Suspension,
+            Cream or ointment,
+            Inhaler,
+            Other,
+            Not documented
+          ]
+        description: >-
+          Dose form of the product ordered, from an explicit dose-form field, a
+          checkbox group, or the form named in the drug line itself. Not
+          documented if the order does not say.
+      RouteOfAdministration:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Oral,
+            Subcutaneous,
+            Intravenous,
+            Intramuscular,
+            Topical,
+            Inhalation,
+            Ophthalmic,
+            Other,
+            Not documented
+          ]
+        description: >-
+          Route the drug is to be given by, from an explicit route field or
+          stated plainly in the directions — "inject subcutaneously" is
+          Subcutaneous. Do not infer the route from the drug's identity.
+      DrugDirections:
+        class: B
+        type: string
+        method: extract
+        description: >-
+          Dosing directions or SIG, verbatim and in full, including any loading
+          or titration schedule. Capture the whole block rather than summarising
+          it.
+      Quantity:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Quantity dispensed, with units if printed — for example 2 syringes or
+          30 tablets.
+      Refills:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Number of refills authorised, as printed. May be a numeral, a word,
+          PRN, or NR. Null if not stated.
+      DaysSupply:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Days supply for one fill, as printed. Labeled Days Supply or DS.
+      DispenseAsWritten:
+        class: D
+        type: string
+        method: classify
+        enum: [ Substitution permitted, Dispense as written, Not indicated ]
+        description: >-
+          Which substitution instruction the prescriber selected. Prescriptions
+          often print two signature lines or two boxes — one meaning
+          substitution is allowed, one meaning brand medically necessary or
+          dispense as written. Read which is marked or signed. Not indicated
+          when neither is.
+      SupervisingPhysicianNPI:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Supervising or collaborating physician NPI, printed when a nurse
+          practitioner or physician assistant is the prescriber. Exactly 10
+          digits and distinct from ProviderNPI. Null when only one NPI appears.
+      PrescriptionOrigin:
+        class: D
+        type: string
+        method: classify
+        enum:
+          [
+            Electronic prescription printout,
+            Handwritten,
+            Typed or printed form,
+            Not determinable
+          ]
+        description: >-
+          How the order was produced, judged from the page itself: an
+          e-prescribing footer or "Electronically signed by" means electronic;
+          handwritten field entries mean handwritten; a filled typed form means
+          typed or printed. Not determinable when the scan is too poor to tell.
+
+  - key: insuranceCard
+    description: >-
+      Scans and photographs of medical and pharmacy benefit cards, usually front
+      and back on one page. Extracts the member, group and plan identifiers, the
+      pharmacy claim routing numbers, the printed copay information and the
+      plan's service phone numbers. Short documents with almost no prose — most
+      fields are a single line each.
+    spec_field_count: 17
+    core_fields:
+      [
+        PatientName,
+        PatientPhone,
+        MemberID,
+        GroupNumber,
+        PayerName,
+        RxBIN,
+        RxPCN,
+        RxGroup
+      ]
+    fields:
+      PlanName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Product or plan name printed on the card, for example "Choice Plus
+          PPO" or "Blue Advantage HMO". Distinct from the payer name, though the
+          two sometimes appear on the same line.
+      SubscriberName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Name of the policy subscriber where the card names one separately from
+          the member. Null when only one name is printed.
+      PlanType:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Commercial PPO,
+            Commercial HMO,
+            Commercial EPO or POS,
+            Medicare Advantage,
+            Medicare Part D,
+            Medicaid,
+            Medicaid managed care,
+            TRICARE,
+            Other,
+            Not documented
+          ]
+        description: >-
+          Plan type as printed on the card. Read the plan or product label, and
+          any Medicare or Medicaid branding. Not documented when the card gives
+          no indication.
+      PayerID:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Electronic payer identifier for medical claims, printed on the back of
+          many cards. Labeled Payer ID, Payor ID, or EDI Payer ID. Distinct from
+          RxBIN, which routes pharmacy claims.
+      EffectiveDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date coverage takes effect, where the card prints one. Labeled
+          Effective Date or Coverage Effective.
+      CopayInformation:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          The copay grid as printed, verbatim, including the labels — for
+          example "PCP $25 / Specialist $50 / ER $250 / Rx Tier 1 $10". Capture
+          the whole block on one line rather than picking one figure.
+      MemberServicesPhone:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Member or customer services telephone number, usually on the reverse.
+          Not the pharmacy help desk number.
+      PharmacyHelpDeskPhone:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Pharmacy or provider help desk telephone number, printed beside the Rx
+          routing numbers on the reverse. Null when only one number appears and
+          it is labeled for members.
+      CardSide:
+        class: D
+        type: string
+        method: classify
+        enum: [ Front only, Back only, Front and back, Not determinable ]
+        description: >-
+          Which faces of the card this scan reproduces. Front and back when two
+          card rectangles appear on the page. Judge from the layout, not from
+          which fields you managed to read.
+
+  # =========================================================================
+  # USE CASE 2 — Prior Authorization Supporting Documentation
+  # =========================================================================
+  - key: clinicalNote
+    description: >-
+      Clinical, progress and consultation notes. Extracts patient and provider
+      identity, the encounter metadata, and the clinical evidence a prior
+      authorization actually turns on: the diagnosis codes, the prior therapy
+      history with outcomes, the lab values quoted in the note, and the
+      screening results required before a biologic can start.
+    spec_field_count: 38
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        PatientGender,
+        PatientAddress,
+        PatientPhone,
+        ProviderName,
+        ProviderNPI,
+        DateOfService,
+        PrimaryDiagnosisCode,
+        PrimaryDiagnosisDescription,
+        Signature
+      ]
+    fields:
+      NoteType:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Office visit,
+            Progress note,
+            Consultation,
+            Hospital discharge summary,
+            Telehealth visit,
+            Procedure note,
+            Other,
+            Not documented
+          ]
+        description: >-
+          What kind of encounter this note documents, from its title or header
+          block. Not documented when the note is untitled.
+      FacilityName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Practice, clinic or health system the note was written at, usually in
+          the header or the EHR footer. Not the provider's personal name.
+      ChiefComplaint:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          The chief complaint or reason for visit, verbatim from that labeled
+          line. Do not substitute the diagnosis.
+      PatientWeight:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Patient weight with units from the vitals block, for example 168 lb or
+          76.2 kg.
+      PatientHeight:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Patient height as recorded, for example 5 ft 9 in or 175 cm.
+      SecondaryDiagnoses:
+        class: A
+        type: array
+        method: extract
+        description: >-
+          Every diagnosis listed in the note other than the primary one, from
+          the assessment, problem list or diagnosis block. Empty array when the
+          note lists only one.
+        items:
+          type: object
+          description: One additional diagnosis as listed.
+          properties:
+            Code:
+              type: string
+              description: >-
+                ICD-10-CM code as printed. Null when the note names a condition
+                without a code — do not supply one from knowledge.
+            Description:
+              type: string
+              description: Condition name as printed.
+      Allergies:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Allergies as recorded, verbatim. NKDA and "No known drug allergies"
+          are real values — record them as printed rather than as null.
+      CurrentMedications:
+        class: A
+        type: array
+        method: extract
+        description: >-
+          The current medication list as printed, one entry per line of the
+          list, each with its strength and directions if given. Medication lists
+          routinely straddle page breaks, so read the whole document before
+          deciding the list has ended.
+        items:
+          type: string
+          description: One medication line, copied as printed.
+      PriorTherapies:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          Therapies the patient has ALREADY tried for the condition under
+          treatment, and what happened. This is the single most important field
+          on this document — step-therapy criteria are decided on it. Gather
+          from wherever the note records it: a past-medications section, the HPI
+          narrative, or the assessment. Include only drugs described as
+          previously tried, stopped, failed or not tolerated — not the current
+          medication list. Empty array when the note records no prior therapy.
+        items:
+          type: object
+          description: One previously tried therapy.
+          properties:
+            DrugName:
+              type: string
+              description: Drug or therapy name as written in the note.
+            Duration:
+              type: string
+              description: >-
+                How long it was taken, or the date range, as described — for
+                example "6 months" or "2023 to early 2024". Null if not stated.
+            Outcome:
+              type: string
+              description: >-
+                Why it was stopped or how it performed, in the note's own words
+                — typically an inadequate response, a loss of response, an
+                intolerance, an adverse reaction, or a contraindication.
+      StepTherapyDocumented:
+        class: C
+        type: string
+        method: generate
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether this note documents a trial of, and failure or intolerance to,
+          at least one prior therapy for the condition being treated. Yes
+          requires both the trial and its unsatisfactory outcome to be stated. A
+          note listing prior drugs with no outcome is Not documented.
+      RelevantLabValues:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          Laboratory values quoted anywhere in this note — in the objective
+          section, an embedded results table, or the narrative. Take only values
+          actually printed in the document. Empty array when the note quotes
+          none.
+        items:
+          type: object
+          description: One laboratory observation as quoted in the note.
+          properties:
+            TestName:
+              type: string
+              description: Test or analyte name as written, for example CRP or Hemoglobin.
+            Value:
+              type: string
+              description: The result value as printed, without the units.
+            Units:
+              type: string
+              description: Units as printed. Null when the note gives none.
+            CollectionDate:
+              type: string
+              description: >-
+                Date of the specimen or result if the note states one, copied as
+                printed. Null otherwise.
+      TBScreeningResult:
+        class: C
+        type: string
+        method: generate
+        enum: [ Negative, Positive, Indeterminate, Not documented ]
+        description: >-
+          Result of tuberculosis screening, which payers require before most
+          biologics start. Infer from a QuantiFERON-TB Gold or T-SPOT result, a
+          PPD or tuberculin skin test reading, or a chest X-ray finding, read
+          together with the assessment. Not documented when the note is silent —
+          that absence is itself the finding, so do not guess.
+      TreatmentPlan:
+        class: C
+        type: string
+        method: generate
+        description: >-
+          The plan for this patient going forward, summarised from the plan or
+          assessment-and-plan section — what is being started, changed,
+          continued or ordered. Two or three sentences. Base it only on what the
+          note states.
+
+  - key: labReport
+    description: >-
+      Laboratory results reports. Extracts patient and ordering provider
+      identity, the performing laboratory and its accession and specimen
+      metadata, the full results table with units, reference ranges and abnormal
+      flags, and the report's status.
+    spec_field_count: 23
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        PatientGender,
+        PatientPhone,
+        ProviderName,
+        ProviderNPI
+      ]
+    fields:
+      PerformingLabName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Name of the laboratory that performed the testing, from the letterhead
+          or the "Performed at" block — for example Quest Diagnostics or
+          LabCorp.
+      PerformingLabCLIA:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          CLIA certificate number of the performing laboratory, printed in the
+          header or footer. Ten characters, typically two digits then the letter
+          D then seven digits. Labeled CLIA or CLIA #.
+      LabDirector:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Laboratory director or pathologist named on the report, usually in the
+          footer with a credential.
+      AccessionNumber:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Laboratory accession, requisition or specimen number identifying this
+          report. Labeled Accession, Accession #, Requisition, or Specimen ID.
+      SpecimenType:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Serum,
+            Plasma,
+            Whole blood,
+            Urine,
+            Tissue,
+            Stool,
+            Other,
+            Not documented
+          ]
+        description: >-
+          Specimen material tested, from a Specimen or Source field. Not
+          documented when the report does not say.
+      SpecimenCollectedDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the specimen was collected or drawn. Labeled Collected,
+          Collection Date, or Drawn. Not the received date and not the report
+          date — payers date step-therapy evidence from this one.
+      SpecimenReceivedDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the laboratory received the specimen. Labeled Received.
+      ReportDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the report was issued or resulted. Labeled Reported, Report Date,
+          or Final Report Date.
+      ReportStatus:
+        class: B
+        type: string
+        method: classify
+        enum: [ Final, Preliminary, Corrected, Amended, Not documented ]
+        description: >-
+          Status the report declares for itself, usually printed beside the
+          title or on each result. A corrected or preliminary report is not
+          acceptable evidence for some payers, so read the label rather than
+          assuming Final.
+      Results:
+        class: A
+        type: array
+        method: extract
+        description: >-
+          Every row of the results table, in the order printed. One entry per
+          analyte. Read the whole table including any rows continuing onto a
+          second page.
+        items:
+          type: object
+          description: One row of the results table.
+          properties:
+            TestName:
+              type: string
+              description: Analyte or test name exactly as printed in the row.
+            Value:
+              type: string
+              description: >-
+                Result as printed, without units — a number, or a word such as
+                Negative, Positive, or Detected.
+            Units:
+              type: string
+              description: Units as printed. Null when the row gives none.
+            ReferenceRange:
+              type: string
+              description: >-
+                Reference range or interval as printed, for example 0.0 - 5.0 or
+                "< 0.8". Null when the row gives none.
+            AbnormalFlag:
+              type: string
+              description: >-
+                The flag printed beside the value — typically H, L, A, HH, LL,
+                or CRITICAL. Null when the row is unflagged. Copy the flag
+                character; do not decide for yourself whether a value is
+                abnormal.
+      AbnormalResultsPresent:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not determinable" ]
+        description: >-
+          Whether any row on the report carries an abnormal flag. Read the flag
+          column; do not compare values against ranges yourself. Not
+          determinable when the report prints no flag column at all.
+      CriticalResultsPresent:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not determinable" ]
+        description: >-
+          Whether any row is marked critical, panic, or alert, or the report
+          records a critical-value callback. Distinct from merely abnormal.
+
+  - key: letterOfMedicalNecessity
+    description: >-
+      Letters of medical necessity written by a prescriber to a payer. Extracts
+      patient, prescriber and payer identity, the requested therapy and regimen,
+      the clinical rationale, the prior therapies tried and their outcomes, the
+      evidence cited, and the urgency requested.
+    spec_field_count: 33
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        PatientPhone,
+        PayerName,
+        MemberID,
+        ProviderName,
+        ProviderNPI,
+        ProviderAddress,
+        ProviderPhone,
+        ProviderFax,
+        PrimaryDiagnosisCode,
+        PrimaryDiagnosisDescription,
+        DrugName,
+        DrugStrength,
+        Signature
+      ]
+    fields:
+      LetterDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the letter was written, from the dateline above the salutation.
+          Not the date of service described inside it.
+      AddresseeName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Who the letter is addressed to — a named medical director, a review
+          department, or a plan. Copy the addressee block's first line. "To Whom
+          It May Concern" is a real value here.
+      RequestedRegimen:
+        class: B
+        type: string
+        method: extract
+        description: >-
+          The dosing regimen being requested, verbatim — dose, route, frequency
+          and any loading schedule, for example "40 mg subcutaneously every
+          other week following an 80 mg loading dose".
+      RequestedDuration:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          How long coverage is requested for, as stated — for example 12 months
+          or 6 months. Null when the letter does not ask for a period.
+      ClinicalRationale:
+        class: C
+        type: string
+        method: generate
+        description: >-
+          The prescriber's argument for why this therapy is medically necessary
+          for this patient, summarised in three or four sentences from the body
+          of the letter. Keep the prescriber's stated grounds — disease
+          severity, functional impact, failure of alternatives — rather than
+          generalising to "clinically indicated". Use only what the letter says.
+      PriorTherapiesTried:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          Therapies the letter states the patient has already tried, with what
+          happened. This is what step-therapy review is decided on. Empty array
+          if the letter names none.
+        items:
+          type: object
+          description: One previously tried therapy as described in the letter.
+          properties:
+            DrugName:
+              type: string
+              description: Drug or therapy name as written.
+            Duration:
+              type: string
+              description: >-
+                How long it was tried, or the dates, as stated. Null if the
+                letter does not say.
+            Outcome:
+              type: string
+              description: >-
+                What happened, in the letter's own terms — inadequate response,
+                loss of response, intolerance, adverse reaction, or
+                contraindication.
+      ContraindicationsStated:
+        class: C
+        type: string
+        method: generate
+        description: >-
+          Reasons the letter gives that formulary alternatives cannot be used
+          for this patient — contraindications, comorbidities, prior adverse
+          reactions. Null when the letter argues only on efficacy and names no
+          barrier to alternatives.
+      EvidenceCited:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          Published guidance, labelling or literature the letter cites in
+          support — for example an ACR treatment guideline, an NCCN compendium
+          listing, or FDA prescribing information. One entry per citation, as
+          the letter names it. Empty array when nothing is cited.
+        items:
+          type: string
+          description: One citation as written in the letter.
+      AttachmentsReferenced:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          Documents the letter says are enclosed or attached — chart notes, lab
+          results, imaging, a pharmacy claims history. One entry each, as named.
+          Empty array when the letter references no enclosures. This list is
+          checked against what actually arrived, so record only what the letter
+          itself claims.
+        items:
+          type: string
+          description: One referenced attachment, as the letter names it.
+      UrgencyRequested:
+        class: B
+        type: string
+        method: classify
+        enum: [ Standard, Expedited or urgent, Not stated ]
+        description: >-
+          Whether the letter asks for expedited review, using language such as
+          urgent, expedited, or a stated risk of harm from delay. Not stated
+          when the letter makes no request about timing.
+
+  # =========================================================================
+  # USE CASE 3 — Payer Correspondence: Determination & Denial Letters
+  # =========================================================================
+  - key: paDeterminationLetter
+    description: >-
+      Payer letters communicating a prior-authorization decision — approved,
+      denied, or approved in part. Extracts patient, payer and case identity,
+      the outcome, the approved period and quantity when granted, the denial
+      reason code and the criteria not met when refused, the suggested formulary
+      alternatives, and the appeal rights and deadline.
+
+      One type covers all outcomes deliberately. The decision lives in
+      PAOutcome, so a misread decision surfaces as a wrong value routed to
+      review rather than as a wrong document type routed to the wrong schema.
+      Approval-only fields are null on a denial and denial-only fields are null
+      on an approval; that is expected, not a miss.
+    spec_field_count: 37
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        MemberID,
+        GroupNumber,
+        PayerName,
+        CaseNumber,
+        AuthorizationNumber,
+        PAOutcome,
+        ProviderName,
+        ProviderNPI,
+        ProviderFax,
+        DrugName,
+        PrimaryDiagnosisCode,
+        AppealDeadlineDate
+      ]
+    fields:
+      LetterDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date printed on the letter itself, in the dateline. Appeal windows are
+          usually counted from this date.
+      DeterminationDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the decision was made, where the letter states one separately
+          from the letter date. Labeled Determination Date, Decision Date, or
+          Date of Determination. Null when only one date appears.
+      ReviewType:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Standard,
+            Expedited,
+            Concurrent,
+            Retrospective,
+            Appeal decision,
+            Not stated
+          ]
+        description: >-
+          What kind of review produced this decision, as the letter describes
+          it. Appeal decision when the letter is deciding an appeal of an
+          earlier denial rather than an initial request.
+      ApprovalEffectiveDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          First date the authorization is valid. Labeled Effective Date, Valid
+          From, or Start Date. Null on a denial.
+      ApprovalExpiryDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Last date the authorization is valid. Labeled Valid Through, Expiry
+          Date, End Date, or Approved Through. Null on a denial.
+      ApprovedQuantity:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Quantity, units, visits or doses authorised, as printed — for example
+          "2 syringes per 28 days". Copy the whole phrase including any period
+          it is expressed over. Null on a denial.
+      ApprovedDaysSupply:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Days supply authorised per fill, where the letter states one.
+      DenialReasonCode:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          The reason code the payer prints beside its denial. May be a claim
+          adjustment reason code such as CO-50, CO-197 or PR-1, or a
+          plan-specific code such as PA-014. Copy it exactly as printed,
+          including any prefix and hyphen. Null when the letter gives a reason
+          in words with no code.
+      DenialReasonCategory:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Not medically necessary,
+            Step therapy not met,
+            Non-formulary,
+            Quantity limit exceeded,
+            Missing clinical documentation,
+            Benefit exclusion,
+            Not covered under this plan,
+            Prescriber or pharmacy out of network,
+            Duplicate or concurrent therapy,
+            Member not eligible,
+            Experimental or investigational,
+            Other,
+            Not applicable
+          ]
+        description: >-
+          The payer's stated grounds, mapped to the closest category. Read the
+          rationale paragraph, not the code. Not applicable when the outcome is
+          an approval. Use Other when the letter states a reason that fits none
+          of these, rather than forcing the nearest one.
+      DenialReasonNarrative:
+        class: C
+        type: string
+        method: generate
+        description: >-
+          Why the request was refused, summarised from the rationale section in
+          two or three sentences. Preserve what the payer actually said — which
+          criterion was unmet, which document was missing, which alternative had
+          not been tried — rather than paraphrasing into a generic reason. This
+          text is read by staff and by patients asking why they were denied, so
+          accuracy matters more than brevity. Null on an approval.
+      CriteriaNotMet:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          The specific coverage criteria the letter says were not satisfied, one
+          entry each, as the letter words them. Denial letters commonly list
+          these as bullets under the rationale. Empty array on an approval or
+          when the letter gives no itemised criteria.
+        items:
+          type: string
+          description: One unmet criterion, as stated in the letter.
+      SuggestedAlternatives:
+        class: A
+        type: array
+        method: extract
+        description: >-
+          Formulary or preferred alternatives the letter suggests instead of the
+          requested drug, from a "covered alternatives" or "preferred agents"
+          section. Empty array when the letter suggests none.
+        items:
+          type: object
+          description: One suggested alternative therapy.
+          properties:
+            DrugName:
+              type: string
+              description: Alternative drug name as printed.
+            Notes:
+              type: string
+              description: >-
+                Any qualifier printed with it — a tier, a step position, or a
+                note that it also requires authorization. Null if none.
+      MedicalPolicyReference:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          The coverage policy, criteria document or guideline the decision
+          cites, as identified — for example "Pharmacy Policy PH-0142" or a
+          named clinical policy bulletin. Null when the letter cites none.
+      AppealWindowDays:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          The number of days allowed to file an appeal, as printed — for example
+          60 or 180. Read the number the letter states; do not derive it from
+          AppealDeadlineDate, and do not supply a typical value.
+      AppealLevel:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            First level internal,
+            Second level internal,
+            External or independent review,
+            Peer-to-peer,
+            Not stated
+          ]
+        description: >-
+          The next appeal step this letter offers. Where several are described,
+          take the first one available to the requester.
+      AppealRightsSummary:
+        class: C
+        type: string
+        method: generate
+        description: >-
+          How to appeal, summarised from the appeal-rights section — who may
+          file, by when, where to send it, and what to include. Two or three
+          sentences. Null when the letter describes no appeal rights, which is
+          itself notable on a denial.
+      AppealSubmissionFax:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Fax number appeals are to be sent to, from the appeal-rights section.
+          Distinct from the provider fax in the letterhead.
+      AppealSubmissionPhone:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Telephone number given for appeals or for questions about the decision.
+      PeerToPeerOffered:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether the letter offers a peer-to-peer or physician-to-physician
+          discussion with the plan's reviewer, and usually a number or window to
+          arrange it. Not documented when the letter does not mention one.
+      ExternalReviewRightsStated:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether the letter describes the right to an external or independent
+          review after internal appeals are exhausted, typically naming an
+          independent review organisation or a state insurance department.
+      ReviewerName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Name and credential of the clinical reviewer or medical director who
+          signed the determination, where the letter names one.
+
+  - key: paResponseFax
+    description: >-
+      Payer prior-authorization response sheets and portal determination
+      printouts — determinations laid out as a form rather than a letter.
+      Extracts patient, payer and case identity, the outcome and any pending
+      status, the approved period when granted, and — the field that matters
+      most on a pending response — the itemised list of information the payer is
+      still waiting for.
+    spec_field_count: 24
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        MemberID,
+        PayerName,
+        CaseNumber,
+        AuthorizationNumber,
+        PAOutcome,
+        ProviderName,
+        ProviderNPI,
+        ProviderFax,
+        DrugName
+      ]
+    fields:
+      ResponseDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the payer issued this response, from the form's date field. Not
+          the fax transmission timestamp in the page banner.
+      RequestReceivedDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the payer records having received the original request. Labeled
+          Received, Date Received, or Request Date.
+      FormOrPortalName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Title of the response form or the portal it was printed from, as it
+          appears at the top of the page — for example "Prior Authorization
+          Determination Notice" or "CoverMyMeds Request Summary".
+      ApprovedThroughDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Last date of the authorised period, where the response grants one.
+          Null unless the outcome is an approval.
+      ApprovedQuantity:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Quantity or days supply authorised, as printed, including the period
+          it applies over.
+      PendingReason:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Additional clinical information required,
+            Under clinical review,
+            Awaiting peer-to-peer,
+            Member eligibility verification,
+            Referred to medical director,
+            Not applicable,
+            Not documented
+          ]
+        description: >-
+          Why the request is not yet decided. Not applicable when the response
+          reports a final outcome. Not documented when it reports pending
+          without saying why.
+      InformationRequested:
+        class: C
+        type: array
+        method: generate
+        description: >-
+          Exactly what the payer is asking for before it will decide — chart
+          notes for a date range, a specific lab result, a step-therapy
+          attestation, a corrected NDC. One entry per item, worded as the form
+          words it. This list is what a follow-up to the prescriber's office is
+          built from, so keep each item specific enough to act on and do not
+          merge two requests into one entry. Empty array when nothing further is
+          requested.
+        items:
+          type: string
+          description: One item of information the payer still requires.
+      ResponseDueDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date by which the requested information must be returned before the
+          request is closed or denied. Labeled Response Due, Reply By, or
+          Information Due.
+      DenialReasonCode:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Reason code printed beside a denied outcome, exactly as it appears.
+          Null when the outcome is not a denial or no code is given.
+      ContinuationOfTherapy:
+        class: C
+        type: string
+        method: generate
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether this authorises continuation of therapy the patient is already
+          receiving rather than a new start. Infer from renewal,
+          reauthorization, or continued-use language on the form.
+      ReviewerName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Name of the reviewer, nurse or coordinator who completed the response,
+          with any credential printed beside it.
+      CallbackPhone:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Telephone number the form gives for questions about this response.
+      ReturnFaxNumber:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Fax number the completed sheet or the requested information is to be
+          returned to, usually beside a "fax this back to" instruction.
+
+  - key: explanationOfBenefits
+    description: >-
+      Explanation of benefits statements and pharmacy claim remittances for
+      claims already adjudicated. Extracts patient, payer, provider and drug
+      identity, the claim identifiers and status, the full money breakdown from
+      billed through to patient responsibility, and the adjustment and remark
+      codes that explain any reduction or refusal.
+    spec_field_count: 35
+    core_fields:
+      [
+        PatientName,
+        PatientDOB,
+        MemberID,
+        GroupNumber,
+        PayerName,
+        ProviderName,
+        ProviderNPI,
+        DrugName,
+        DrugNDC,
+        DateOfService,
+        AppealDeadlineDate
+      ]
+    fields:
+      ClaimNumber:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Claim identifier assigned by the payer. Labeled Claim #, Claim Number,
+          ICN, or Document Control Number.
+      StatementDate:
+        class: A
+        type: date
+        method: extract
+        description: >-
+          Date the statement was issued, from the header. Not the date of
+          service.
+      ClaimStatus:
+        class: B
+        type: string
+        method: classify
+        enum:
+          [
+            Paid,
+            Denied,
+            Partially paid,
+            Pending,
+            Reversed,
+            Adjusted,
+            Applied to deductible,
+            Not documented
+          ]
+        description: >-
+          How the claim was adjudicated, from the status column or the summary
+          line. Read the status the statement prints rather than inferring it
+          from the amounts.
+      PharmacyName:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Dispensing pharmacy or servicing provider named on the claim line.
+          Distinct from the prescriber.
+      PharmacyNPI:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          NPI of the dispensing pharmacy, ten digits. Distinct from ProviderNPI,
+          which is the prescriber's.
+      QuantityDispensed:
+        class: A
+        type: string
+        method: extract
+        description: Quantity dispensed on this claim line, as printed.
+      DaysSupply:
+        class: A
+        type: string
+        method: extract
+        description: Days supply billed on this claim line, as printed.
+      BilledAmount:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Amount billed or submitted, copied exactly as printed including the
+          currency symbol and any thousands separator — for example $12,480.00.
+          Do not reformat it into a bare number.
+      AllowedAmount:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Plan-allowed or contracted amount, as printed. Labeled Allowed,
+          Eligible, or Plan Allowance.
+      PlanPaidAmount:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Amount the plan paid, as printed. Labeled Plan Paid, Payment, or
+          Amount Paid.
+      PatientResponsibility:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Total the patient owes for this claim, as printed. Labeled Patient
+          Responsibility, You May Owe, or Member Liability. Read the printed
+          total — never add the copay, coinsurance and deductible figures
+          together yourself.
+      CopayAmount:
+        class: A
+        type: string
+        method: extract
+        description: Copay applied, as printed. Null when no copay line appears.
+      CoinsuranceAmount:
+        class: A
+        type: string
+        method: extract
+        description: Coinsurance applied, as printed.
+      DeductibleApplied:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Amount applied to the deductible on this claim, as printed. Not the
+          year-to-date deductible accumulator.
+      AdjustmentReasonCodes:
+        class: A
+        type: array
+        method: extract
+        description: >-
+          Claim adjustment reason codes explaining any difference between billed
+          and paid — CARC codes such as CO-50, CO-197, PR-1 or PR-3, usually
+          printed in a code column or a legend at the foot of the page. Copy
+          each code exactly, with its group prefix if one is printed. Empty
+          array when the statement shows none.
+        items:
+          type: object
+          description: One adjustment reason code and its printed meaning.
+          properties:
+            Code:
+              type: string
+              description: The code exactly as printed, for example CO-197.
+            Description:
+              type: string
+              description: >-
+                The explanation printed beside the code or in the legend. Null
+                when the statement prints the code alone — do not supply the
+                standard wording from knowledge.
+      RemarkCodes:
+        class: A
+        type: array
+        method: extract
+        description: >-
+          Remittance advice remark codes, typically N-prefixed such as N130 or
+          N362, giving supplementary explanation. Empty array when none appear.
+        items:
+          type: object
+          description: One remark code and its printed meaning.
+          properties:
+            Code:
+              type: string
+              description: The remark code exactly as printed.
+            Description:
+              type: string
+              description: >-
+                The explanation printed beside it or in the legend. Null when
+                the code appears alone.
+      ClaimDenialReason:
+        class: C
+        type: string
+        method: generate
+        description: >-
+          Why this claim was refused or reduced, summarised in one or two
+          sentences from the codes, the legend and any narrative on the
+          statement. Null when the claim was paid in full. Say what the
+          statement says — do not diagnose the cause yourself.
+      PriorAuthorizationOnFile:
+        class: D
+        type: string
+        method: classify
+        enum: [ "Yes", "No", "Not documented" ]
+        description: >-
+          Whether the statement indicates an authorization was on file for this
+          claim — an authorization number printed on the line, or a code stating
+          precertification was absent, which is No. Not documented when the
+          statement is silent on authorization.
+      YearToDateDeductible:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Year-to-date deductible accumulator, as printed in the summary or
+          accumulator block. Null when the statement shows no accumulator.
+      YearToDateOutOfPocket:
+        class: A
+        type: string
+        method: extract
+        description: >-
+          Year-to-date out-of-pocket accumulator, as printed. Null when absent.
