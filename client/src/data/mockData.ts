@@ -59,8 +59,6 @@ export const navSections: NavSection[] = [
   {
     label: "Operate",
     items: [
-      { label: "Control Tower", path: "/ops/tower", icon: Radio },
-      { label: "Transactions", path: "/ops/transactions", icon: FileStack },
       { label: "Dashboard", path: "/", icon: Activity },
       { label: "Documents", path: "/documents", icon: FileText },
       {
@@ -72,38 +70,17 @@ export const navSections: NavSection[] = [
       { label: "Pipeline Monitor", path: "/monitor", icon: GitBranch },
       { label: "Observability", path: "/observability", icon: Eye },
       { label: "Analytics & Cost", path: "/analytics", icon: BarChart3 },
-      { label: "Audit Trail", path: "/audit", icon: FileSearch },
     ],
   },
   {
     label: "Configure",
     items: [
       { label: "Solutions", path: "/solutions-v2", icon: FileCog },
-      {
-        label: "Pipeline Studio",
-        path: "/pipeline-studio",
-        icon: WandSparkles,
-      },
-      { label: "Metadata Studio", path: "/metadata-studio", icon: Columns3 },
-      { label: "Rules & Validations", path: "/rules", icon: ShieldCheck },
-      { label: "Integrations", path: "/integrations", icon: Network },
-    ],
-  },
-  {
-    label: "Deploy",
-    items: [
-      { label: "Environment", path: "/environment", icon: Cloud },
-      { label: "Deployment Wizard", path: "/deployment", icon: Send },
-      { label: "Infrastructure", path: "/infrastructure", icon: HardDrive },
     ],
   },
   {
     label: "Administration",
     items: [
-      { label: "Cloud Pod Setup", path: "/setup", icon: Cloud },
-      { label: "Tenants", path: "/admin/tenants", icon: Building2 },
-      { label: "Admin Portal", path: "/central-admin", icon: Globe2 },
-      { label: "Users & Roles", path: "/users", icon: UsersRound },
       { label: "Settings", path: "/settings", icon: Settings2 },
     ],
   },

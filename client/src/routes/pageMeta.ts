@@ -15,5 +15,6 @@ export const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/deployment": { title: "Deployment Wizard", subtitle: "Promote validated pipeline configurations through environments" },
   "/infrastructure": { title: "Infrastructure", subtitle: "Technical runtime health for the document platform" },
   "/users": { title: "Users & Roles", subtitle: "Control access without mixing administrative concerns into operations" },
+  "/setup": { title: "Cloud Setup", subtitle: "Customer-hosted AWS or Azure pipeline and environment configuration" },
   "/settings": { title: "Settings", subtitle: "Workspace preferences and policy controls for PACCA IDP" },
 };

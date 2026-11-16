@@ -18,22 +18,19 @@ export const DEMO_HIDDEN_PATHS = new Set([
   "/environment",
   "/users",
   "/integrations",
+  "/pipeline-studio",
   "/metadata-studio",
   "/rules",
   "/deployment",
   "/infrastructure",
   "/central-admin",
-]);
-
-const STAFF_PATHS = [
-  "/",
-  "/documents",
-  "/hil-review",
-  "/monitor",
+  "/admin/tenants",
   "/ops/tower",
   "/ops/transactions",
   "/audit",
-];
+]);
+
+const STAFF_PATHS = ["/", "/documents", "/hil-review", "/monitor"];
 const DEVELOPER_PATHS = [
   ...STAFF_PATHS,
   "/observability",
@@ -48,12 +45,12 @@ const DEVELOPER_PATHS = [
 ];
 
 export const rolePermissions: Record<Role, string[]> = {
-  // Operates documents: upload (with a per-upload model), review, monitor, control tower & transactions.
+  // Operates documents: upload (with a per-upload model), review, monitor.
   "Client Staff": STAFF_PATHS,
-  // + doc types (Solutions), pipeline studio and pipeline diagnostics (Observability).
+  // + doc types (Solutions) and pipeline diagnostics (Observability).
   "PACCA Solution Developer": DEVELOPER_PATHS,
-  // + cost / ROI (Analytics), the global model switch (Settings), tenants and users.
-  "PACCA Platform Admin": [...DEVELOPER_PATHS, "/analytics", "/settings", "/users", "/central-admin", "/admin/tenants", "/setup"],
+  // + cost / ROI (Analytics), the global model switch (Settings) and cloud setup.
+  "PACCA Platform Admin": [...DEVELOPER_PATHS, "/analytics", "/settings", "/users", "/central-admin", "/setup"],
 };
 
 export const visiblePaths = (role: Role): string[] =>
@@ -67,10 +64,6 @@ export const PAGE_API_ROUTES: Record<string, string[]> = {
   "/documents": ["GET /documents", "POST /upload-sas", "GET /models", "GET /document", "POST /ivr-trigger"],
   "/hil-review": ["GET /documents", "GET /document", "POST /review", "POST /ivr-trigger"],
   "/monitor": ["GET /documents", "GET /stats"],
-  "/ops/tower": ["GET /stats/tower"],
-  "/ops/transactions": ["GET /transactions"],
-  "/audit": ["GET /documents"],
-  "/pipeline-studio": [],
   "/setup": ["GET /setup", "POST /setup", "POST /setup/ping"],
   "/observability": [
     "GET /analytics",
@@ -84,6 +77,12 @@ export const PAGE_API_ROUTES: Record<string, string[]> = {
   "/solutions": [],
   "/solutions-v2": [],
   "/analytics": ["GET /analytics", "GET /documents", "GET /stats"],
-  "/settings": ["GET /models", "GET /llm-settings", "POST /llm-settings"],
-  "/admin/tenants": ["GET /tenants"],
+  "/settings": [
+    "GET /models",
+    "GET /llm-settings",
+    "POST /llm-settings",
+    "GET /setup",
+    "POST /setup",
+    "POST /setup/ping",
+  ],
 };

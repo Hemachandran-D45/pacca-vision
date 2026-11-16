@@ -1,14 +1,16 @@
-import { ChevronRight, Filter, MoreHorizontal, Plus, Search } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, Cloud, Cpu, Filter, MoreHorizontal, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/common/SectionHeading";
 import { StatusPill } from "@/components/common/StatusPill";
 import { ModelSettings } from "@/senderra/ModelSettings";
+import { CloudPodSettings } from "@/pages/admin/CloudSetupPage";
 
 export default function AdminPage({ kind }: { kind: "users" | "settings" }) {
+  const [activeTab, setActiveTab] = useState<"model" | "cloud">("model");
+
   if (kind === "settings") {
-    // The previous Workspace / Notifications / Security panels were toast-only
-    // mock-ups that saved nothing; the AI model is the first real setting.
     return (
       <div className="space-y-5 p-4 sm:p-7 lg:p-9">
         <div>
@@ -19,12 +21,39 @@ export default function AdminPage({ kind }: { kind: "users" | "settings" }) {
 
         <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
           <aside className="h-fit space-y-1 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
-            <div className="flex w-full items-center justify-between rounded-xl bg-[#ebf5f7] px-3 py-2.5 text-left text-[11px] font-semibold text-[#2d6b75]">
-              AI model
+            <button
+              type="button"
+              onClick={() => setActiveTab("model")}
+              className={cn(
+                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-semibold transition",
+                activeTab === "model" ? "bg-[#ebf5f7] text-[#2d6b75]" : "text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <Cpu size={14} /> AI model
+              </span>
               <ChevronRight size={14} />
-            </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("cloud")}
+              className={cn(
+                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-semibold transition",
+                activeTab === "cloud" ? "bg-[#ebf5f7] text-[#2d6b75]" : "text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <Cloud size={14} /> Cloud Pod (AWS / Azure)
+              </span>
+              <ChevronRight size={14} />
+            </button>
           </aside>
-          <ModelSettings />
+
+          <div>
+            {activeTab === "model" && <ModelSettings />}
+            {activeTab === "cloud" && <CloudPodSettings />}
+          </div>
         </div>
       </div>
     );
