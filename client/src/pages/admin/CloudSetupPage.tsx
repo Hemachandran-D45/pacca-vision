@@ -3,20 +3,15 @@ import {
   Cloud,
   CheckCircle2,
   AlertCircle,
-  ArrowRight,
   Database,
   Cpu,
-  Layers,
   Sparkles,
   RefreshCw,
-  Sliders,
   Check,
-  Server,
-  FileCode2,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { SectionHeading } from "@/components/common/SectionHeading";
 
 type CloudProvider = "aws" | "azure";
 
@@ -142,334 +137,363 @@ export default function CloudSetupPage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-300">
-      <div className="space-y-2">
-        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-          Enterprise BYOC Accelerator
-        </span>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Customer-Hosted Cloud Setup & Architecture</h1>
-        <p className="text-sm text-slate-400 max-w-3xl">
-          Configure PACCA Vision to run directly inside the customer&apos;s cloud boundary. Select your target cloud, review the visual processing pipeline, and connect your resources.
-        </p>
+    <div className="space-y-6 p-4 sm:p-7 lg:p-9 max-w-[1400px] mx-auto animate-in fade-in duration-200">
+      {/* Top Banner Header matching PACCA Light Design System */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.15em] text-[#47a2b0]">
+            <Cloud size={14} className="text-[#47a2b0]" />
+            Enterprise BYOC Accelerator · Cloud Architecture
+          </div>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Customer-Hosted Cloud Pod Setup
+          </h1>
+          <p className="mt-1 text-xs text-slate-500 max-w-2xl">
+            Configure PACCA Vision to execute inside the client&apos;s cloud boundary. Select your target cloud provider, inspect the data processing topology, and connect client resources.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleTestPing}
+            disabled={pinging}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={cn(pinging && "animate-spin text-[#47a2b0]")} />
+            Test Live Connection
+          </button>
+        </div>
       </div>
 
-      {/* Step 1: Provider Switcher Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <button
-          type="button"
+      {/* Cloud Selection Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div
           onClick={() => setSelectedProvider("aws")}
           className={cn(
-            "p-6 rounded-2xl border-2 text-left transition-all duration-200 relative overflow-hidden flex flex-col justify-between",
+            "p-6 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between shadow-sm",
             selectedProvider === "aws"
-              ? "border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/20"
-              : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+              ? "border-[#e07a2c] bg-white ring-2 ring-[#e07a2c]/20"
+              : "border-slate-200 bg-white hover:border-slate-300 hover:shadow"
           )}
         >
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                Recommended for AWS Native
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-[#b45309] border border-amber-200/60">
+                AWS Native Cloud Pod
               </span>
-              {selectedProvider === "aws" && (
-                <CheckCircle2 className="w-5 h-5 text-amber-400" />
-              )}
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center transition-colors",
+                  selectedProvider === "aws" ? "bg-[#e07a2c] text-white" : "border border-slate-300"
+                )}
+              >
+                {selectedProvider === "aws" && <Check size={12} strokeWidth={3} />}
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-white mb-1">Amazon Web Services (AWS)</h3>
-            <p className="text-sm text-slate-400 mb-4">
-              Amazon S3 Intake &rarr; <strong>Bedrock Data Automation (BDA Markdown)</strong> &rarr; Amazon Bedrock (Claude 3.5 Sonnet) &rarr; DynamoDB.
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Amazon Web Services (AWS)</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              Amazon S3 Intake &rarr; <strong>Bedrock Data Automation (BDA Markdown)</strong> &rarr; Amazon Bedrock (Claude 3.5 Sonnet) &rarr; Amazon DynamoDB.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono text-amber-300/80 mt-2">
-            <span>S3</span> &bull; <span>BDA Markdown</span> &bull; <span>Claude 3.5</span> &bull; <span>DynamoDB</span>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <span className="font-semibold text-[#b45309]">S3</span> &bull; <span>BDA Markdown</span> &bull; <span>Claude 3.5</span> &bull; <span>DynamoDB</span>
           </div>
-        </button>
+        </div>
 
-        <button
-          type="button"
+        <div
           onClick={() => setSelectedProvider("azure")}
           className={cn(
-            "p-6 rounded-2xl border-2 text-left transition-all duration-200 relative overflow-hidden flex flex-col justify-between",
+            "p-6 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between shadow-sm",
             selectedProvider === "azure"
-              ? "border-blue-500 bg-blue-500/5 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/20"
-              : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+              ? "border-[#47a2b0] bg-white ring-2 ring-[#47a2b0]/20"
+              : "border-slate-200 bg-white hover:border-slate-300 hover:shadow"
           )}
         >
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                Enterprise Healthcare
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-teal-50 text-[#0f766e] border border-teal-200/60">
+                Azure Native Cloud Pod
               </span>
-              {selectedProvider === "azure" && (
-                <CheckCircle2 className="w-5 h-5 text-blue-400" />
-              )}
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center transition-colors",
+                  selectedProvider === "azure" ? "bg-[#47a2b0] text-white" : "border border-slate-300"
+                )}
+              >
+                {selectedProvider === "azure" && <Check size={12} strokeWidth={3} />}
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-white mb-1">Microsoft Azure</h3>
-            <p className="text-sm text-slate-400 mb-4">
-              Azure Blob Storage &rarr; Azure Content Understanding OCR &rarr; Azure OpenAI (GPT-4o) &rarr; Cosmos DB.
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Microsoft Azure</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              Azure Blob Storage &rarr; Azure Content Understanding OCR &rarr; Azure OpenAI (GPT-4o) &rarr; Azure Cosmos DB.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono text-blue-300/80 mt-2">
-            <span>Blob SAS</span> &bull; <span>Content Understanding</span> &bull; <span>Azure OpenAI</span> &bull; <span>Cosmos DB</span>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <span className="font-semibold text-[#0f766e]">Blob SAS</span> &bull; <span>Content Understanding</span> &bull; <span>Azure OpenAI</span> &bull; <span>Cosmos DB</span>
           </div>
-        </button>
+        </div>
       </div>
 
-      {/* Step 2: Visual Pipeline Flowchart */}
-      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-primary" /> Active Cloud Pipeline Topology (Customer-Hosted Pod)
-          </h4>
-          <span className="text-xs text-slate-500 font-mono">100% In-VPC / Data Stays in Customer Cloud</span>
+      {/* Visual Pipeline Flowchart in Crisp Enterprise Style */}
+      <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#45bd8d]" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Active Pipeline Topology ({selectedProvider.toUpperCase()} In-VPC Pod)
+            </h4>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+            Zero External Data Transfer &bull; Client Tenant Boundary
+          </span>
         </div>
 
         {selectedProvider === "aws" ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-2">
-              <div className="flex items-center justify-between text-amber-400">
-                <span className="text-xs font-bold uppercase">1. Inbound Storage</span>
-                <Cloud className="w-4 h-4" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-1">
+            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#b45309]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">1. Inbound Storage</span>
+                <Cloud size={14} />
               </div>
-              <p className="font-semibold text-white">Amazon S3</p>
-              <p className="text-xs text-slate-400">Direct pre-signed upload URLs. Zero server upload bottlenecks.</p>
+              <p className="font-bold text-slate-900 text-sm">Amazon S3</p>
+              <p className="text-xs text-slate-600">Pre-signed direct upload URLs. Zero large-binary proxy.</p>
             </div>
 
-            <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-2">
-              <div className="flex items-center justify-between text-amber-400">
-                <span className="text-xs font-bold uppercase">2. Document Parser</span>
-                <Sparkles className="w-4 h-4" />
+            <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-100/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#b45309]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">2. Document Parser</span>
+                <Sparkles size={14} />
               </div>
-              <p className="font-semibold text-white">Bedrock Data Automation (BDA)</p>
-              <p className="text-xs text-slate-400">Converts PDFs/scans to structured Markdown tables & headers.</p>
+              <p className="font-bold text-slate-900 text-sm">Bedrock Data Automation (BDA)</p>
+              <p className="text-xs text-slate-600">Transforms PDFs/scans to structured Markdown tables & reading flow.</p>
             </div>
 
-            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-2">
-              <div className="flex items-center justify-between text-amber-400">
-                <span className="text-xs font-bold uppercase">3. Extraction AI</span>
-                <Cpu className="w-4 h-4" />
+            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#b45309]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">3. Extraction AI</span>
+                <Cpu size={14} />
               </div>
-              <p className="font-semibold text-white">Claude 3.5 Sonnet on Bedrock</p>
-              <p className="text-xs text-slate-400">Extracts typed fields from Markdown with strict JSON schema.</p>
+              <p className="font-bold text-slate-900 text-sm">Claude 3.5 Sonnet on Bedrock</p>
+              <p className="text-xs text-slate-600">Extracts typed fields from Markdown with strict schema conformance.</p>
             </div>
 
-            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-2">
-              <div className="flex items-center justify-between text-amber-400">
-                <span className="text-xs font-bold uppercase">4. Ledger & Review</span>
-                <Database className="w-4 h-4" />
+            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#b45309]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">4. Ledger & Review</span>
+                <Database size={14} />
               </div>
-              <p className="font-semibold text-white">Amazon DynamoDB</p>
-              <p className="text-xs text-slate-400">Persists cases, audit trails, and HIL review provenance.</p>
+              <p className="font-bold text-slate-900 text-sm">Amazon DynamoDB</p>
+              <p className="text-xs text-slate-600">Stores document projections, audit trails, and review outcomes.</p>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-            <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
-              <div className="flex items-center justify-between text-blue-400">
-                <span className="text-xs font-bold uppercase">1. Inbound Storage</span>
-                <Cloud className="w-4 h-4" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-1">
+            <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#0f766e]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">1. Inbound Storage</span>
+                <Cloud size={14} />
               </div>
-              <p className="font-semibold text-white">Azure Blob Storage</p>
-              <p className="text-xs text-slate-400">15-minute SAS uploads directly from browser to container.</p>
+              <p className="font-bold text-slate-900 text-sm">Azure Blob Storage</p>
+              <p className="text-xs text-slate-600">15-minute SAS uploads directly to client storage container.</p>
             </div>
 
-            <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
-              <div className="flex items-center justify-between text-blue-400">
-                <span className="text-xs font-bold uppercase">2. Document OCR</span>
-                <Sparkles className="w-4 h-4" />
+            <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#0f766e]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">2. Document OCR</span>
+                <Sparkles size={14} />
               </div>
-              <p className="font-semibold text-white">Azure Content Understanding</p>
-              <p className="text-xs text-slate-400">High-resolution OCR tokens, text lines, and polygon bounding boxes.</p>
+              <p className="font-bold text-slate-900 text-sm">Content Understanding OCR</p>
+              <p className="text-xs text-slate-600">High-resolution token extraction and polygon coordinate maps.</p>
             </div>
 
-            <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
-              <div className="flex items-center justify-between text-blue-400">
-                <span className="text-xs font-bold uppercase">3. Extraction AI</span>
-                <Cpu className="w-4 h-4" />
+            <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#0f766e]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">3. Extraction AI</span>
+                <Cpu size={14} />
               </div>
-              <p className="font-semibold text-white">Azure OpenAI (GPT-4o)</p>
-              <p className="text-xs text-slate-400">Schema extraction with Zero Data Retention (ZDR) compliance.</p>
+              <p className="font-bold text-slate-900 text-sm">Azure OpenAI (GPT-4o)</p>
+              <p className="text-xs text-slate-600">Extracts fields with Zero Data Retention (ZDR) verification.</p>
             </div>
 
-            <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
-              <div className="flex items-center justify-between text-blue-400">
-                <span className="text-xs font-bold uppercase">4. Ledger & Review</span>
-                <Database className="w-4 h-4" />
+            <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 space-y-1.5">
+              <div className="flex items-center justify-between text-[#0f766e]">
+                <span className="text-[10px] font-bold uppercase tracking-wider">4. Ledger & Review</span>
+                <Database size={14} />
               </div>
-              <p className="font-semibold text-white">Azure Cosmos DB</p>
-              <p className="text-xs text-slate-400">5-item document projection with ETag optimistic concurrency.</p>
+              <p className="font-bold text-slate-900 text-sm">Azure Cosmos DB</p>
+              <p className="text-xs text-slate-600">5-item document projection with ETag concurrency locks.</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Step 3: Setup Configuration Form */}
-      <form onSubmit={handleSaveConfig} className="p-8 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      {/* Configuration Form in High-Contrast Clean Slate */}
+      <form onSubmit={handleSaveConfig} className="p-7 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <h3 className="text-lg font-bold text-white">
-              {selectedProvider === "aws" ? "AWS Environment Variables" : "Azure Environment Variables"}
+            <h3 className="text-base font-bold text-slate-900">
+              {selectedProvider === "aws" ? "AWS Cloud Pod Resource Parameters" : "Azure Cloud Pod Resource Parameters"}
             </h3>
-            <p className="text-xs text-slate-400">
-              Enter the cloud resource names. These will be persisted to your customer environment (.env.local / App Config).
+            <p className="text-xs text-slate-500 mt-0.5">
+              Configure the resource names inside the client account. Updates active adapter registry and local environment.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleTestPing}
-            disabled={pinging}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition"
-          >
-            {pinging ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Server className="w-3.5 h-3.5" />}
-            Test Live Connection
-          </button>
         </div>
 
         {pingStatus && (
           <div
             className={cn(
-              "p-4 rounded-xl border text-xs space-y-1 font-mono",
+              "p-3.5 rounded-xl border text-xs font-mono flex items-start gap-2.5",
               pingStatus.ok
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                : "bg-red-500/10 border-red-500/30 text-red-300"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-red-50 border-red-200 text-red-800"
             )}
           >
-            <div className="font-bold flex items-center gap-1.5">
-              {pingStatus.ok ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-              {pingStatus.ok ? "Connected & Healthy" : "Connection Alert"}
-            </div>
-            {pingStatus.details && (
-              <div>
-                Storage: {pingStatus.details.storage} | Parser: {pingStatus.details.parser}
-              </div>
+            {pingStatus.ok ? (
+              <CheckCircle2 size={16} className="text-emerald-600 mt-0.5 shrink-0" />
+            ) : (
+              <AlertCircle size={16} className="text-red-600 mt-0.5 shrink-0" />
             )}
-            {pingStatus.error && <div>{pingStatus.error}</div>}
+            <div className="space-y-0.5">
+              <div className="font-bold">
+                {pingStatus.ok ? "Connection Status: Verified" : "Connection Notice"}
+              </div>
+              {pingStatus.details && (
+                <div className="text-[11px] opacity-90">
+                  Storage: {pingStatus.details.storage} &bull; Parser: {pingStatus.details.parser}
+                </div>
+              )}
+              {pingStatus.error && <div>{pingStatus.error}</div>}
+            </div>
           </div>
         )}
 
         {selectedProvider === "aws" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">AWS Region</label>
+              <label className="text-xs font-semibold text-slate-700">AWS Region</label>
               <input
                 type="text"
                 value={awsRegion}
                 onChange={(e) => setAwsRegion(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="us-east-1"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">S3 Inbound Bucket Name</label>
+              <label className="text-xs font-semibold text-slate-700">S3 Inbound Bucket Name</label>
               <input
                 type="text"
                 value={s3Bucket}
                 onChange={(e) => setS3Bucket(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="client-claims-docs-in"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">
+              <label className="text-xs font-semibold text-slate-700">
                 Bedrock Data Automation (BDA) Blueprint ARN
               </label>
               <input
                 type="text"
                 value={bdaBlueprintArn}
                 onChange={(e) => setBdaBlueprintArn(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="arn:aws:bedrock:us-east-1:123456789012:blueprint/healthcare-doc-v1"
               />
-              <span className="text-[11px] text-slate-500">Generates clean Markdown tables from clinical files</span>
+              <span className="text-[11px] text-slate-400">Generates clean Markdown tables directly from clinical documents</span>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Amazon Bedrock Model ID</label>
+              <label className="text-xs font-semibold text-slate-700">Amazon Bedrock Model ID</label>
               <input
                 type="text"
                 value={bedrockModelId}
                 onChange={(e) => setBedrockModelId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="anthropic.claude-3-5-sonnet-20241022-v2:0"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Amazon DynamoDB Table Name</label>
+              <label className="text-xs font-semibold text-slate-700">Amazon DynamoDB Table Name</label>
               <input
                 type="text"
                 value={dynamoTable}
                 onChange={(e) => setDynamoTable(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="pacca_documents"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">AWS IAM Role / Access Key ID (Optional)</label>
+              <label className="text-xs font-semibold text-slate-700">AWS IAM Role / Access Key (Optional)</label>
               <input
                 type="password"
                 value={accessKeyId}
                 onChange={(e) => setAccessKeyId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 outline-none"
-                placeholder="Leave blank if using IAM Instance Role / IRSA"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
+                placeholder="Leave blank if using IAM Instance Profile / IRSA"
               />
+              <span className="text-[11px] text-slate-400">Recommended: Use IAM role in customer VPC</span>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Azure Cosmos DB Endpoint</label>
+              <label className="text-xs font-semibold text-slate-700">Azure Cosmos DB Endpoint</label>
               <input
                 type="text"
                 value={cosmosEndpoint}
                 onChange={(e) => setCosmosEndpoint(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-blue-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="https://customer-cosmos.documents.azure.com:443/"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Storage Account Name</label>
+              <label className="text-xs font-semibold text-slate-700">Storage Account Name</label>
               <input
                 type="text"
                 value={azureStorageAccount}
                 onChange={(e) => setAzureStorageAccount(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-blue-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="customerstorageaccount"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Inbound Blob Container</label>
+              <label className="text-xs font-semibold text-slate-700">Inbound Blob Container</label>
               <input
                 type="text"
                 value={docsContainer}
                 onChange={(e) => setDocsContainer(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-blue-500 outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:border-[#47a2b0] focus:ring-1 focus:ring-[#47a2b0] outline-none transition"
                 placeholder="docs-in"
               />
             </div>
           </div>
         )}
 
-        <div className="pt-4 flex items-center justify-between border-t border-slate-800">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <FileCode2 className="w-4 h-4 text-slate-500" />
-            <span>Updates local .env.local and cloud provider adapter registry</span>
+        <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Lock size={14} className="text-slate-400" />
+            <span>Credentials saved directly to customer environment (.env.local)</span>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#47a2b0] px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#37828e] transition active:scale-95 disabled:opacity-50"
           >
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            {loading ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             Save & Activate Cloud Pod
           </button>
         </div>
