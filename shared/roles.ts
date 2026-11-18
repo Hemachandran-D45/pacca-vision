@@ -59,9 +59,9 @@ export const visiblePaths = (role: Role): string[] =>
 /** `/api/senderra` routes each visible page calls, as "METHOD /route". */
 export const PAGE_API_ROUTES: Record<string, string[]> = {
   // DashboardPage + UploadDocumentModal
-  "/": ["GET /documents", "GET /stats", "POST /upload-sas", "GET /models"],
+  "/": ["GET /documents", "GET /stats", "POST /upload-sas", "POST /process-document", "GET /models"],
   // DocumentsPage + UploadDocumentModal + DocumentDetailLive + IvrOutreachButton
-  "/documents": ["GET /documents", "POST /upload-sas", "GET /models", "GET /document", "POST /ivr-trigger"],
+  "/documents": ["GET /documents", "POST /upload-sas", "POST /process-document", "GET /models", "GET /document", "POST /ivr-trigger"],
   "/hil-review": ["GET /documents", "GET /document", "POST /review", "POST /ivr-trigger"],
   "/monitor": ["GET /documents", "GET /stats"],
   "/setup": ["GET /setup", "POST /setup", "POST /setup/ping"],

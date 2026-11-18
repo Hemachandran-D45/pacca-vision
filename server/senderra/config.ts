@@ -23,6 +23,22 @@ export type ConfigError = { ok: false; error: string; missing: string[] };
 export function readConfig(): SenderraConfig | ConfigError {
   const get = (name: string) => process.env[name]?.trim() || "";
 
+  if (process.env.CLOUD_PROVIDER === "aws") {
+    const s3Bucket = get("AWS_S3_BUCKET") || "pacca-claims-docs-in";
+    return {
+      cosmosEndpoint: "https://aws-mode.internal",
+      cosmosKey: "aws-mode",
+      cosmosDatabase: "aws-mode",
+      cosmosContainer: "aws-mode",
+      storageAccount: s3Bucket,
+      storageKey: "aws-mode",
+      docsContainer: s3Bucket,
+      uploadRunId: get("SENDERRA_UPLOAD_RUN_ID") || "ui",
+      functionUrl: "",
+      functionKey: "",
+    };
+  }
+
   const cosmosEndpoint = get("COSMOS_ENDPOINT");
   const cosmosKey = get("COSMOS_KEY");
   const storageAccount = get("AZURE_STORAGE_ACCOUNT");

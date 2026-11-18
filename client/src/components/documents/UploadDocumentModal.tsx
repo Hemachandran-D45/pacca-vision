@@ -20,7 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { mintUploadGrants, uploadToBlob, bytes, type UploadGrant } from "@/senderra/api";
+import {
+  mintUploadGrants,
+  uploadToBlob,
+  processAwsDocument,
+  bytes,
+  type UploadGrant,
+} from "@/senderra/api";
 import { UploadModelSelect, useUploadModels } from "@/senderra/UploadModelPicker";
 
 export const UPLOAD_DEPARTMENTS = [
@@ -178,6 +184,15 @@ export function UploadDocumentModal({
           throw new Error(`No upload grant for ${file.name}.`);
         }
         await uploadToBlob(grant, file);
+
+        if ((grant as any).provider === "aws" || grant.uploadUrl.includes("amazonaws.com")) {
+          // Trigger AWS Bedrock Data Automation + Claude Haiku extraction in background
+          void processAwsDocument({
+            documentId: grant.documentId,
+            fileKey: grant.blobName,
+            model: model || undefined,
+          });
+        }
 
         const resolvedType = resolveUploadDocType("Auto-detect", "Operations", file.name);
         uploadedList.push({

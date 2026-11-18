@@ -581,20 +581,44 @@ export function mintUploadGrants(files: { name: string }[], runId?: string, mode
  * way to know whether this is a block, page or append blob.
  */
 export async function uploadToBlob(grant: UploadGrant, file: File): Promise<void> {
+  const isAws =
+    (grant as any).provider === "aws" ||
+    grant.uploadUrl.includes("amazonaws.com") ||
+    grant.uploadUrl.includes("s3.");
+
+  const headers: Record<string, string> = {
+    "Content-Type": file.type || "application/pdf",
+  };
+
+  if (!isAws) {
+    headers["x-ms-blob-type"] = "BlockBlob";
+    Object.assign(
+      headers,
+      Object.fromEntries(
+        Object.entries(grant.metadata ?? {}).map(([k, v]) => [`x-ms-meta-${k}`, v])
+      )
+    );
+  }
+
   const response = await fetch(grant.uploadUrl, {
     method: "PUT",
-    headers: {
-      "x-ms-blob-type": "BlockBlob",
-      "Content-Type": file.type || "application/pdf",
-      // Blob metadata travels as x-ms-meta-* on the same PUT. fn_ocr reads
-      // llm_model from it and the Function App validates it again.
-      ...Object.fromEntries(Object.entries(grant.metadata ?? {}).map(([k, v]) => [`x-ms-meta-${k}`, v])),
-    },
+    headers,
     body: file,
   });
   if (!response.ok) {
     throw new Error(`Upload failed (${response.status} ${response.statusText}).`);
   }
+}
+
+export async function processAwsDocument(payload: {
+  documentId: string;
+  fileKey: string;
+  model?: string;
+}): Promise<any> {
+  return request("/process-document", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function postReview(payload: {

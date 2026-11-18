@@ -77,6 +77,18 @@ export class CloudAdapterRegistry {
     throw new Error("Azure Storage Adapter configured through legacy senderra/blob.ts. Switch CLOUD_PROVIDER='aws' for AWS S3.");
   }
 
+  static getParser(): IDocumentParserAdapter {
+    return this.getDocumentParser();
+  }
+
+  static getExtractor(): IModelExtractorAdapter {
+    return this.getModelExtractor();
+  }
+
+  static getLedger(): IStateLedgerAdapter {
+    return this.getStateLedger();
+  }
+
   static getDocumentParser(): IDocumentParserAdapter {
     if (this.parserInstance) return this.parserInstance;
 
