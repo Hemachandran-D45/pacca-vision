@@ -25,11 +25,9 @@ export function CloudPodSettings({ standalone = false }: { standalone?: boolean 
   // AWS Configuration Form
   const [awsRegion, setAwsRegion] = useState("us-east-1");
   const [s3Bucket, setS3Bucket] = useState("pacca-claims-docs-in");
-  const [bdaBlueprintArn, setBdaBlueprintArn] = useState(
-    "arn:aws:bedrock:us-east-1:123456789012:blueprint/healthcare-doc-v1"
-  );
+  const [bdaBlueprintArn, setBdaBlueprintArn] = useState("");
   const [bedrockModelId, setBedrockModelId] = useState(
-    "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    "anthropic.claude-3-5-haiku-20241022-v1:0"
   );
   const [dynamoTable, setDynamoTable] = useState("pacca_documents");
   const [accessKeyId, setAccessKeyId] = useState("");
@@ -203,7 +201,7 @@ export function CloudPodSettings({ standalone = false }: { standalone?: boolean 
               </div>
               <h3 className="text-sm font-bold text-slate-900">Amazon Web Services (AWS)</h3>
               <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
-                S3 Intake &bull; <strong>Bedrock Data Automation (BDA Markdown)</strong> &bull; Claude 3.5 Sonnet &bull; DynamoDB
+                S3 Intake &bull; <strong>Standard Bedrock Data Automation (Markdown)</strong> &bull; Claude 3.5 Haiku &bull; DynamoDB
               </p>
             </div>
           </div>
@@ -279,8 +277,8 @@ export function CloudPodSettings({ standalone = false }: { standalone?: boolean 
                 <span className="text-[9px] font-bold uppercase tracking-wider">3. AI Extractor</span>
                 <Cpu size={14} />
               </div>
-              <div className="font-bold text-slate-900 text-xs">Claude 3.5 Sonnet</div>
-              <p className="text-[10px] text-slate-500">Bedrock schema extraction</p>
+              <div className="font-bold text-slate-900 text-xs">Claude 3.5 Haiku</div>
+              <p className="text-[10px] text-slate-500">Fast & cost-effective extraction</p>
             </div>
 
             <div className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/30 space-y-1">
@@ -368,16 +366,16 @@ export function CloudPodSettings({ standalone = false }: { standalone?: boolean 
 
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-600">
-                Bedrock Data Automation (BDA) Blueprint ARN
+                Bedrock Data Automation (BDA) Blueprint ARN (Optional)
               </label>
               <input
                 type="text"
                 value={bdaBlueprintArn}
                 onChange={(e) => setBdaBlueprintArn(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs focus:bg-white focus:border-[#47a2b0] outline-none"
-                placeholder="arn:aws:bedrock:us-east-1:123456789012:blueprint/healthcare-doc-v1"
+                placeholder="Leave blank for standard document layout & table extraction"
               />
-              <span className="text-[10px] text-slate-400">Extracts Markdown tables & flow directly from documents</span>
+              <span className="text-[10px] text-slate-400">Uses standard BDA document automation without custom blueprint</span>
             </div>
 
             <div className="space-y-1">
@@ -387,9 +385,10 @@ export function CloudPodSettings({ standalone = false }: { standalone?: boolean 
                 value={bedrockModelId}
                 onChange={(e) => setBedrockModelId(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs focus:bg-white focus:border-[#47a2b0] outline-none"
-                placeholder="anthropic.claude-3-5-sonnet-20241022-v2:0"
+                placeholder="anthropic.claude-3-5-haiku-20241022-v1:0"
                 required
               />
+              <span className="text-[10px] text-slate-400">Recommended: Claude 3.5 Haiku (~1/5th cost of Sonnet, high speed)</span>
             </div>
 
             <div className="space-y-1">

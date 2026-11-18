@@ -36,7 +36,7 @@ let currentConfig: CloudPlatformConfig = {
     region: process.env.AWS_REGION || "us-east-1",
     s3Bucket: process.env.AWS_S3_BUCKET || "pacca-docs-in",
     bdaBlueprintArn: process.env.AWS_BDA_BLUEPRINT_ARN || "",
-    bedrockModelId: process.env.AWS_BEDROCK_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    bedrockModelId: process.env.AWS_BEDROCK_MODEL_ID || "anthropic.claude-3-5-haiku-20241022-v1:0",
     dynamoTable: process.env.AWS_DYNAMODB_TABLE || "pacca_documents",
   },
 };
